@@ -43,41 +43,42 @@ export function EnvioFacturasTable({
           onChange={(e) => handleSelectAll(e.target.checked)}
         />
       ),
-      render: (row) => {
-        const canSelect = row.cliente_email && row.estado_envio !== 'enviado'
+      render: (_, row) => {
+        const canSelect = row?.cliente_email && row?.estado_envio !== 'enviado'
         return (
           <Checkbox
-            checked={selectedIds.includes(row.id)}
-            onChange={(e) => handleSelectOne(row.id, e.target.checked)}
+            checked={selectedIds.includes(row?.id)}
+            onChange={(e) => handleSelectOne(row?.id, e.target.checked)}
             disabled={!canSelect}
           />
         )
       },
-      width: '40px'
+      width: '40px',
+      sortable: false
     },
     {
       key: 'numero_completo',
       header: 'Nº Factura',
-      render: (row) => (
+      render: (value) => (
         <span className="font-medium text-gray-900">
-          {row.numero_completo}
+          {value || '-'}
         </span>
       )
     },
     {
-      key: 'cliente',
+      key: 'cliente_nombre',
       header: 'Cliente',
-      render: (row) => (
+      render: (value) => (
         <div>
-          <p className="font-medium text-gray-900">{row.cliente_nombre}</p>
+          <p className="font-medium text-gray-900">{value || '-'}</p>
         </div>
       )
     },
     {
-      key: 'email',
+      key: 'cliente_email',
       header: 'Email',
-      render: (row) => {
-        if (!row.cliente_email) {
+      render: (value) => {
+        if (!value) {
           return (
             <span className="inline-flex items-center gap-1 text-amber-600">
               <AlertTriangle size={14} />
@@ -87,7 +88,7 @@ export function EnvioFacturasTable({
         }
         return (
           <span className="text-gray-600 text-sm">
-            {row.cliente_email}
+            {value}
           </span>
         )
       }
@@ -95,12 +96,12 @@ export function EnvioFacturasTable({
     {
       key: 'total',
       header: 'Total',
-      render: (row) => (
+      render: (value) => (
         <span className="font-medium">
           {new Intl.NumberFormat('es-ES', { 
             style: 'currency', 
             currency: 'EUR' 
-          }).format(row.total)}
+          }).format(value || 0)}
         </span>
       ),
       align: 'right'
@@ -108,8 +109,8 @@ export function EnvioFacturasTable({
     {
       key: 'estado_envio',
       header: 'Estado',
-      render: (row) => {
-        if (row.estado_envio === 'sin_email') {
+      render: (value) => {
+        if (value === 'sin_email') {
           return (
             <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-700">
               <AlertTriangle size={12} />
@@ -117,7 +118,7 @@ export function EnvioFacturasTable({
             </span>
           )
         }
-        if (row.estado_envio === 'enviado') {
+        if (value === 'enviado') {
           return <EstadoEnvioBadge estado="enviado" />
         }
         return (
@@ -131,16 +132,17 @@ export function EnvioFacturasTable({
     {
       key: 'actions',
       header: '',
-      render: (row) => (
+      render: (_, row) => (
         <button
-          onClick={() => onViewFactura?.(row.id)}
+          onClick={() => onViewFactura?.(row?.id)}
           className="p-1 text-gray-400 hover:text-gray-600"
           title="Ver factura"
         >
           <Eye size={16} />
         </button>
       ),
-      width: '40px'
+      width: '40px',
+      sortable: false
     }
   ]
 
