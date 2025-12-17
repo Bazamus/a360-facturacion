@@ -188,17 +188,16 @@ export default function ImportarLecturas() {
 
         // Obtener última lectura
         if (contador && concepto) {
-          const { data: ultimaLectura } = await supabase
+          const { data: lecturas } = await supabase
             .from('lecturas')
             .select('lectura_valor, fecha_lectura')
             .eq('contador_id', contador.id)
             .eq('concepto_id', concepto.id)
             .order('fecha_lectura', { ascending: false })
             .limit(1)
-            .single()
           
-          if (ultimaLectura) {
-            lecturaAnterior = ultimaLectura
+          if (lecturas && lecturas.length > 0) {
+            lecturaAnterior = lecturas[0]
           } else if (contadorConcepto) {
             // Usar lectura inicial si no hay histórico
             lecturaAnterior = {
