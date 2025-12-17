@@ -282,7 +282,8 @@ JOIN contadores cont ON l.contador_id = cont.id
 JOIN ubicaciones u ON cont.ubicacion_id = u.id
 JOIN agrupaciones a ON u.agrupacion_id = a.id
 JOIN comunidades com ON a.comunidad_id = com.id
-LEFT JOIN clientes cli ON cont.cliente_actual_id = cli.id
+LEFT JOIN ubicaciones_clientes uc ON u.id = uc.ubicacion_id AND uc.es_actual = true
+LEFT JOIN clientes cli ON uc.cliente_id = cli.id
 LEFT JOIN facturas f ON l.factura_id = f.id;
 
 -- Vista para reporte de facturación por comunidad
