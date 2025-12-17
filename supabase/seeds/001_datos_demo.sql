@@ -1,17 +1,17 @@
 -- =====================================================
 -- Datos de Demostración para A360 Facturación
--- Ejecutar después de las migraciones
+-- Ejecutar después de las migraciones 001, 002 y 003
 -- =====================================================
 
 -- =====================================================
 -- 1. CONCEPTOS (Tipos de consumo/servicio)
 -- =====================================================
 
-INSERT INTO conceptos (id, codigo, nombre, descripcion, unidad_medida, tipo, activo) VALUES
-  ('c0000001-0000-0000-0000-000000000001', 'ACS', 'Agua Caliente Sanitaria', 'Consumo de agua caliente para uso doméstico', 'm³', 'variable', true),
-  ('c0000001-0000-0000-0000-000000000002', 'CAL', 'Calefacción', 'Consumo de calefacción central', 'kWh', 'variable', true),
-  ('c0000001-0000-0000-0000-000000000003', 'CLI', 'Climatización', 'Consumo de aire acondicionado/climatización', 'kWh', 'variable', true),
-  ('c0000001-0000-0000-0000-000000000004', 'TF', 'Término Fijo', 'Cuota fija mensual por servicios', '€/mes', 'fijo', true)
+INSERT INTO conceptos (id, codigo, nombre, descripcion, unidad_medida, es_termino_fijo, activo, orden) VALUES
+  ('c0000001-0000-0000-0000-000000000001', 'ACS', 'Agua Caliente Sanitaria', 'Consumo de agua caliente para uso doméstico', 'm³', false, true, 1),
+  ('c0000001-0000-0000-0000-000000000002', 'CAL', 'Calefacción', 'Consumo de calefacción central', 'kWh', false, true, 2),
+  ('c0000001-0000-0000-0000-000000000003', 'CLI', 'Climatización', 'Consumo de aire acondicionado/climatización', 'kWh', false, true, 3),
+  ('c0000001-0000-0000-0000-000000000004', 'TF', 'Término Fijo', 'Cuota fija mensual por servicios', '€/mes', true, true, 4)
 ON CONFLICT (codigo) DO NOTHING;
 
 -- =====================================================
@@ -209,14 +209,6 @@ ON CONFLICT DO NOTHING;
 -- 8. VERIFICACIÓN
 -- =====================================================
 
--- Puedes ejecutar estas consultas para verificar los datos:
--- SELECT * FROM comunidades;
--- SELECT * FROM agrupaciones;
--- SELECT * FROM ubicaciones;
--- SELECT * FROM clientes;
--- SELECT * FROM contadores;
--- SELECT * FROM v_contadores_completos;
-
 SELECT 
   'Datos de demostración insertados correctamente' AS mensaje,
   (SELECT COUNT(*) FROM comunidades) AS comunidades,
@@ -226,4 +218,3 @@ SELECT
   (SELECT COUNT(*) FROM contadores) AS contadores,
   (SELECT COUNT(*) FROM contadores_conceptos) AS contadores_conceptos,
   (SELECT COUNT(*) FROM precios) AS precios;
-
