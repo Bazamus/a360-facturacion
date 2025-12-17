@@ -406,8 +406,8 @@ SELECT
   l.fecha_lectura,
   l.fecha_lectura_anterior,
   l.consumo,
-  l.precio_unitario,
-  l.importe_estimado,
+  p.precio_unitario,
+  COALESCE(l.consumo * p.precio_unitario, 0) as importe_estimado,
   cont.numero_serie as contador_numero_serie,
   conc.codigo as concepto_codigo,
   conc.nombre as concepto_nombre,
@@ -430,6 +430,10 @@ LEFT JOIN clientes c ON c.id = l.cliente_id
 JOIN ubicaciones u ON u.id = cont.ubicacion_id
 JOIN agrupaciones a ON a.id = u.agrupacion_id
 JOIN comunidades com ON com.id = a.comunidad_id
+LEFT JOIN precios p ON p.comunidad_id = com.id 
+  AND p.concepto_id = l.concepto_id 
+  AND p.activo = true 
+  AND p.fecha_fin IS NULL
 WHERE l.facturada = false;
 
 -- =====================================================
