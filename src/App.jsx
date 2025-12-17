@@ -11,6 +11,7 @@ import { ContadoresPage } from '@/pages/Contadores'
 import { LecturasPage } from '@/pages/Lecturas'
 import { FacturacionPage } from '@/pages/Facturacion'
 import { ReportesPage } from '@/pages/Reportes'
+import { RemesasPage } from '@/pages/RemesasRouter'
 import { ConfiguracionPage } from '@/pages/Configuracion'
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
           <Route path="contadores/*" element={<ContadoresPage />} />
           <Route path="lecturas/*" element={<LecturasPage />} />
           <Route path="facturacion/*" element={<FacturacionPage />} />
+          <Route path="remesas/*" element={<RemesasPage />} />
           <Route path="reportes/*" element={<ReportesPage />} />
           <Route path="configuracion/*" element={<ConfiguracionPage />} />
         </Route>

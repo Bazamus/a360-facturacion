@@ -18,7 +18,10 @@ import {
   FilePlus,
   FileText,
   Mail,
-  Send
+  Send,
+  Landmark,
+  Plus,
+  PieChart
 } from 'lucide-react'
 
 const navigation = [
@@ -46,13 +49,30 @@ const navigation = [
       { name: 'Dashboard Envíos', href: '/facturacion/envios', icon: Mail },
     ]
   },
-  { name: 'Reportes', href: '/reportes', icon: BarChart3 },
+  { 
+    name: 'Remesas', 
+    href: '/remesas', 
+    icon: Landmark,
+    children: [
+      { name: 'Lista', href: '/remesas', icon: FileText },
+      { name: 'Crear', href: '/remesas/crear', icon: Plus },
+    ]
+  },
+  { 
+    name: 'Reportes', 
+    href: '/reportes', 
+    icon: BarChart3,
+    children: [
+      { name: 'Dashboard', href: '/reportes', icon: PieChart },
+      { name: 'Generar', href: '/reportes/generar', icon: FileText },
+    ]
+  },
   { name: 'Configuración', href: '/configuracion', icon: Settings },
 ]
 
 export function Sidebar({ open, onClose, mobile }) {
   const location = useLocation()
-  const [expandedItems, setExpandedItems] = useState(['Lecturas', 'Facturación'])
+  const [expandedItems, setExpandedItems] = useState(['Lecturas', 'Facturación', 'Remesas', 'Reportes'])
 
   const toggleExpanded = (name) => {
     setExpandedItems(prev => 

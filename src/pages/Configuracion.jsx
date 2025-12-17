@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, NavLink } from 'react-router-dom'
-import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2 } from 'lucide-react'
+import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2 } from 'lucide-react'
 import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
+import ConfiguracionSEPA from './ConfiguracionSEPA'
 
 const configSections = [
   { name: 'General', href: '/configuracion', icon: Settings },
@@ -556,22 +557,7 @@ function ConfigEmailForm() {
 }
 
 function ConfigSEPA() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Configuración SEPA</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            <strong>Pendiente de implementación - Fase 5</strong><br />
-            La configuración del acreedor SEPA y generación de remesas 
-            se implementará en la Fase 5 del proyecto.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  return <ConfiguracionSEPA />
 }
 
 function ConfigUsuarios() {
