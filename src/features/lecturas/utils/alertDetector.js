@@ -162,3 +162,5 @@ export function formatAlertasForDisplay(alertas) {
   }))
 }
 
+
+

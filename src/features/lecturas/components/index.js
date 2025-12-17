@@ -6,3 +6,5 @@ export { AlertaBadge, AlertasList } from './AlertaBadge'
 export { ValidacionTable } from './ValidacionTable'
 export { DetallePanel } from './DetallePanel'
 
+
+

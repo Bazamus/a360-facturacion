@@ -70,3 +70,5 @@ export function AlertasList({ alertas = [], compact = false }) {
   )
 }
 
+
+

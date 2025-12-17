@@ -206,7 +206,7 @@ export default function ImportarLecturas() {
             .select('*')
             .eq('comunidad_id', comunidadId)
             .eq('concepto_id', concepto.id)
-            .eq('vigente', true)
+            .eq('activo', true)
             .limit(1)
           
           if (precios && precios.length > 0) {
