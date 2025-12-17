@@ -16,7 +16,9 @@ import {
   Upload,
   History,
   FilePlus,
-  FileText
+  FileText,
+  Mail,
+  Send
 } from 'lucide-react'
 
 const navigation = [
@@ -40,6 +42,8 @@ const navigation = [
     children: [
       { name: 'Generar', href: '/facturacion/generar', icon: FilePlus },
       { name: 'Facturas', href: '/facturacion/facturas', icon: FileText },
+      { name: 'Enviar', href: '/facturacion/enviar', icon: Send },
+      { name: 'Dashboard Envíos', href: '/facturacion/envios', icon: Mail },
     ]
   },
   { name: 'Reportes', href: '/reportes', icon: BarChart3 },

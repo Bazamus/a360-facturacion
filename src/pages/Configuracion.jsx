@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2 } from 'lucide-react'
-import { useConceptos, useCreateConcepto, useUpdateConcepto } from '@/hooks'
+import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
@@ -330,20 +330,228 @@ function ConfigConceptos() {
 
 function ConfigEmail() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Configuración de Email</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            <strong>Pendiente de implementación - Fase 4</strong><br />
-            La integración con Resend para el envío de facturas por email 
-            se implementará en la Fase 4 del proyecto.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuración de Email</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Aviso sobre Resend */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 className="font-medium text-blue-800 mb-2">
+              ℹ️ Integración con Resend
+            </h3>
+            <p className="text-sm text-blue-700">
+              El sistema de envío utiliza <strong>Resend</strong> como proveedor de email transaccional. 
+              Para activar el envío real de emails, asegúrate de:
+            </p>
+            <ul className="text-sm text-blue-700 mt-2 list-disc list-inside">
+              <li>Crear una cuenta en <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="underline">resend.com</a></li>
+              <li>Verificar tu dominio de envío</li>
+              <li>Configurar la API Key en las variables de entorno (RESEND_API_KEY)</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <ConfigEmailForm />
+    </div>
+  )
+}
+
+function ConfigEmailForm() {
+  const { data: config, isLoading } = useEmailConfig()
+  const updateConfig = useUpdateEmailConfig()
+  const toast = useToast()
+  
+  const [formData, setFormData] = useState({
+    from_email: 'facturas@a360se.com',
+    from_name: 'A360 Servicios Energéticos',
+    reply_to: 'clientes@a360se.com',
+    asunto_template: 'Factura {numero_factura} - {periodo}',
+    envio_automatico: false,
+    hora_envio_preferida: '09:00',
+    max_envios_por_hora: 100,
+    reintentos_activos: true,
+    intervalo_reintento_minutos: 60,
+    max_reintentos: 3,
+    enviar_copia_admin: false,
+    email_copia_admin: ''
+  })
+
+  useEffect(() => {
+    if (config) {
+      setFormData(prev => ({
+        ...prev,
+        ...config
+      }))
+    }
+  }, [config])
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    try {
+      await updateConfig.mutateAsync(formData)
+      toast.success('Configuración guardada correctamente')
+    } catch (error) {
+      toast.error('Error al guardar la configuración')
+    }
+  }
+
+  if (isLoading) {
+    return <LoadingSpinner />
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Remitente */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Mail className="h-4 w-4 text-primary-500" />
+            Remitente
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Email remitente">
+              <Input
+                type="email"
+                value={formData.from_email}
+                onChange={(e) => handleChange('from_email', e.target.value)}
+                placeholder="facturas@empresa.com"
+              />
+            </FormField>
+            <FormField label="Nombre remitente">
+              <Input
+                value={formData.from_name}
+                onChange={(e) => handleChange('from_name', e.target.value)}
+                placeholder="A360 Servicios Energéticos"
+              />
+            </FormField>
+            <FormField label="Responder a" className="md:col-span-2">
+              <Input
+                type="email"
+                value={formData.reply_to}
+                onChange={(e) => handleChange('reply_to', e.target.value)}
+                placeholder="clientes@empresa.com"
+              />
+            </FormField>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Plantilla */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Plantilla</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FormField label="Asunto del email">
+            <Input
+              value={formData.asunto_template}
+              onChange={(e) => handleChange('asunto_template', e.target.value)}
+              placeholder="Factura {numero_factura} - {periodo}"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Variables: {'{numero_factura}'}, {'{periodo}'}, {'{cliente}'}
+            </p>
+          </FormField>
+        </CardContent>
+      </Card>
+
+      {/* Configuración de Envío */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Configuración de Envío</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={formData.envio_automatico}
+                onChange={(e) => handleChange('envio_automatico', e.target.checked)}
+                label="Envío automático al emitir factura"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField label="Hora preferida de envío">
+                <Input
+                  type="time"
+                  value={formData.hora_envio_preferida}
+                  onChange={(e) => handleChange('hora_envio_preferida', e.target.value)}
+                />
+              </FormField>
+              <FormField label="Máximo envíos por hora">
+                <Input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={formData.max_envios_por_hora}
+                  onChange={(e) => handleChange('max_envios_por_hora', parseInt(e.target.value))}
+                />
+              </FormField>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reintentos */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Reintentos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={formData.reintentos_activos}
+                onChange={(e) => handleChange('reintentos_activos', e.target.checked)}
+                label="Reintentar envíos fallidos automáticamente"
+              />
+            </div>
+
+            {formData.reintentos_activos && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                <FormField label="Intervalo entre reintentos (minutos)">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.intervalo_reintento_minutos}
+                    onChange={(e) => handleChange('intervalo_reintento_minutos', parseInt(e.target.value))}
+                  />
+                </FormField>
+                <FormField label="Máximo reintentos">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={formData.max_reintentos}
+                    onChange={(e) => handleChange('max_reintentos', parseInt(e.target.value))}
+                  />
+                </FormField>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Botón Guardar */}
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          loading={updateConfig.isPending}
+        >
+          Guardar configuración
+        </Button>
+      </div>
+    </form>
   )
 }
 

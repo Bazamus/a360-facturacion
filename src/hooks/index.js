@@ -90,3 +90,19 @@ export {
   useHistoricoConsumo,
   useEstadisticasFacturacion
 } from './useFacturas'
+
+// Envíos de Email
+export {
+  useFacturasPendientesEnvio,
+  useHistorialEnvios,
+  useEnvio,
+  useEnviosStats,
+  useEnviosRecientes,
+  useRebotesPendientes,
+  useEmailConfig,
+  useEnviarFactura,
+  useEnviarFacturasMasivo,
+  useReintentarEnvio,
+  useUpdateEmailConfig,
+  useCancelarEnvio
+} from './useEnvios'
