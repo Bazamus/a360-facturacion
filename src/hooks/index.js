@@ -51,4 +51,22 @@ export {
   useUpdateConcepto
 } from './useConceptos'
 
-
+// Lecturas e Importaciones
+export {
+  useImportaciones,
+  useImportacion,
+  useCreateImportacion,
+  useUpdateImportacion,
+  useImportacionDetalle,
+  useCreateImportacionDetalle,
+  useUpdateImportacionDetalle,
+  useDescartarFilas,
+  useConfirmarImportacion,
+  useLecturas,
+  useLecturasPendientes,
+  useAlertasConfiguracion,
+  useUpdateAlertaConfig,
+  useContadorByNumeroSerie,
+  useUltimaLectura,
+  useMediaConsumo
+} from './useLecturas'
