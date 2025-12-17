@@ -14,7 +14,9 @@ import {
   Zap,
   ChevronDown,
   Upload,
-  History
+  History,
+  FilePlus,
+  FileText
 } from 'lucide-react'
 
 const navigation = [
@@ -31,14 +33,22 @@ const navigation = [
       { name: 'Historial', href: '/lecturas/historial', icon: History },
     ]
   },
-  { name: 'Facturación', href: '/facturacion', icon: Receipt },
+  { 
+    name: 'Facturación', 
+    href: '/facturacion', 
+    icon: Receipt,
+    children: [
+      { name: 'Generar', href: '/facturacion/generar', icon: FilePlus },
+      { name: 'Facturas', href: '/facturacion/facturas', icon: FileText },
+    ]
+  },
   { name: 'Reportes', href: '/reportes', icon: BarChart3 },
   { name: 'Configuración', href: '/configuracion', icon: Settings },
 ]
 
 export function Sidebar({ open, onClose, mobile }) {
   const location = useLocation()
-  const [expandedItems, setExpandedItems] = useState(['Lecturas'])
+  const [expandedItems, setExpandedItems] = useState(['Lecturas', 'Facturación'])
 
   const toggleExpanded = (name) => {
     setExpandedItems(prev => 

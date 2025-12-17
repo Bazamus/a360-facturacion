@@ -70,3 +70,23 @@ export {
   useUltimaLectura,
   useMediaConsumo
 } from './useLecturas'
+
+// Facturas y Facturación
+export {
+  useFacturas,
+  useFactura,
+  useFacturaLineas,
+  useFacturaHistoricoConsumo,
+  useCreateFactura,
+  useUpdateFactura,
+  useDeleteFactura,
+  useCreateFacturaLineas,
+  useCreateFacturaHistorico,
+  useEmitirFactura,
+  useEmitirFacturasMasivo,
+  useAnularFactura,
+  useMarcarPagada,
+  useLecturasPendientesFacturar,
+  useHistoricoConsumo,
+  useEstadisticasFacturacion
+} from './useFacturas'
