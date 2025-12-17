@@ -1,0 +1,53 @@
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from '@/features/auth/AuthContext'
+import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
+import { ToastProvider } from '@/components/ui/Toast'
+import { MainLayout } from '@/components/layout/MainLayout'
+import { LoginPage } from '@/pages/Login'
+import { DashboardPage } from '@/pages/Dashboard'
+import { ComunidadesPage } from '@/pages/Comunidades'
+import { ClientesPage } from '@/pages/Clientes'
+import { ContadoresPage } from '@/pages/Contadores'
+import { LecturasPage } from '@/pages/Lecturas'
+import { FacturacionPage } from '@/pages/Facturacion'
+import { ReportesPage } from '@/pages/Reportes'
+import { ConfiguracionPage } from '@/pages/Configuracion'
+
+function App() {
+  return (
+    <AuthProvider>
+    <ToastProvider>
+      <Routes>
+        {/* Rutas públicas */}
+        <Route path="/login" element={<LoginPage />} />
+        
+        {/* Rutas protegidas */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="comunidades/*" element={<ComunidadesPage />} />
+          <Route path="clientes/*" element={<ClientesPage />} />
+          <Route path="contadores/*" element={<ContadoresPage />} />
+          <Route path="lecturas/*" element={<LecturasPage />} />
+          <Route path="facturacion/*" element={<FacturacionPage />} />
+          <Route path="reportes/*" element={<ReportesPage />} />
+          <Route path="configuracion/*" element={<ConfiguracionPage />} />
+        </Route>
+        
+        {/* Ruta por defecto */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </ToastProvider>
+    </AuthProvider>
+  )
+}
+
+export default App
+

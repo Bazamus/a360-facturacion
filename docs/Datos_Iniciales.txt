@@ -1,0 +1,93 @@
+Vamos a crear un nuevo proyecto, crearemos un sistema de generación y envió masivo de facturas de gestion energética.
+Se ha creado una serie de documentos PRDs que deben servir como guía para desarrollar de manera completa y efectiva todas las fases del proyecto.
+Analiza con detenimiento todos los documentos creados en carpeta @docs/PRD
+Asegurate de entender en profundidad toda la información contenida en estos documentos y esta información de contexto:
+Somos una empresa de gestion energética que nos dedicamos a mantener y medir la energía consumida por un contador y facturar este valor mensualmente emitiendo una factura al cliente.
+Los conceptos a facturar son:
+ACS (Agua Caliente Sanitaria) se mide en m3
+Calefacción se mide en Kilocalorías (Kcal)
+Climatización se mide en Frigorías (Frig)
+Término Fijo
+Los tres primeros conceptos son variables el importe a facturar puede variar mensualmente en función del precio de la energía publicado en ese momento.
+El concepto "Término Fijo" corresponde a una cantidad mensual fija que se acuerda en la firma del contrato y solo varia en función del IPC anual publicado por la administracion española.
+Los precios iniciales de todos los conceptos se pactan en la firma del contrato y pueden ser diferentes en cada comunidad contratada.
+Todos los contadores tienen un ID Alfanumérico Unico que asocia el contador a la vivienda que tiene asignada.
+Esta Vivienda puede pertenecer a un único propietario en regimen de compra o puede esta destinada al regimen de alquiler por lo que puede tener diversos inquilinos a lo largo del año.
+El periodo de generación y envió de facturas suele ser mensual, pero este periodo se puede acortar en caso de que la vivienda sea de alquiler y el inquilino abandone la vivienda antes de cumplir un mes natural, por lo que se le deberá facturar por los dias que ha utilizado los servicios objeto del contrato.
+Los Clientes se agrupan en Comunidades independientes estructuradas por portales y viviendas con importes grabados a esta comunidad que luego se usaran como objeto de calculo a la hora de crear las facturas de gestion energética.
+Funcionalidades principales del sistema:
+Creación de Clientes
+Creación de Comunidades
+Creación y Gestion de conceptos de facturación y asociación de estos importes a cada comunidad
+Sistema de Generación y envió de facturas por correo electrónico de forma masiva (api con plataforma externos tipo MailChimp o similar)
+Sistemas de importación y exportación de datos
+Sistema de importación de datos de facturación en formato bancario para su incorporación a plataforma ERP de Gestion (Microsoft Dynamic 365 o similar)
+Sistema de Reportes (Consumos por vivienda, comunidad, anual, facturas enviadas, etc.
+Sistema de Alertas (Consumo por encima de la media, error de medición, cliente bloqueado, etc)
+
+Caso típico de funcionamiento de la plataforma:
+Comunidad de Vecinos Troya 40, se toman lecturas por parte del tecnico suministrando estas lecturas en un excel con la siguientes columnas:
+Portal, Vivienda, Nº de Contador, Concepto, Lectura Actual, Fecha de Lectura.
+Este Excel se sube a la plataforma mediante sistema de importación habilitado que nos lleva a una ventana de validación
+El sistema detecta que el numero de contador grabado en base de datos corresponde a la vivienda 1ºC del Portal 5 asociada al cliente Juan Gomez con un consumo total anterior del concepto ACS de 80 m3
+En la lectura subida que corresponde a este Nº de Contador se ha subido un consumo de 85 m3 por lo que el consumo a facturar es de 5 m3 (85 - 80)
+Este proceso se sigue con el resto de valores importados y diferentes conceptos
+En esta pantalla de validación se muestran todos los valores subidos su asociación en base la numero de contador con la comunidad, vivienda, cliente o inquilino y se muestra unos banner de alertas en función de lo que se haya definido en pagina alertas tales como alto consumo, error de lectura, lectura en negativo, etc.
+Una vez validado o modificadas las lecturas subidas, se procede a su confirmación de forma masiva o parcial y la preparación para la generación y envió de la factura al correo electrónico indicado en la ficha del cliente.
+Esta factura se guardara en un repositorio documental individual para cada cliente en OneDrive o similar.
+Respuesta a posibles preguntas Aclaratorias:
+Sobre el volumen y usuarios:
+
+¿Cuántas comunidades gestionáis aproximadamente? ¿Y cuántas viviendas/contadores en total? Esto afecta a decisiones de arquitectura y costes de infraestructura.
+**Respuesta: Actualmente Gestionamos unas 35 comunidades de gestion energética y unos 4.000 clientes pero la prevision es de crecer en numero de comunidades y clientes en los próximos años, por lo que debemos diseñar una aplicación que sea robusta y escalable.
+¿Cuántos usuarios internos van a usar la plataforma simultáneamente? ¿Solo administración o también los técnicos de campo?
+**Repuesta: En esta fase inicial en la que nos vamos a centrar en desarrollar la parte de facturación, solo se va a usar por parte del personal de administracion compuesto por cinco personas, mas adelante en futuras versiones valoraremos evolucionar hacia un CRM completo incluyendo operaciones y gestion de mantenimientos.
+
+Sobre la facturación:
+3. La numeración de factura "2/230370041" ¿sigue alguna lógica específica que deba mantener el sistema o podemos definir una nueva serie?
+**Respuesta: El numero 2 Corresponde a la serie asignada a las facturas de Gestion Energética, el resto de números son la serie que se definió en su momento empezando por 230000000, siendo la ultima factura generada por el sistema actual la 230371944
+4. ¿El tipo de IVA siempre es 21% o hay casos con IVA reducido o exento?
+**Respuesta: El tipo de IVA en estas facturas será siempre del 21%
+5. Veo "RECIBO SEPA" como condición de pago. ¿Generáis también ficheros de remesas bancarias (formato SEPA XML/Norma 19) para domiciliar los cobros?
+**Respuesta: Si, el sistema debe ser capaz de generar ficheros de remesas bancarias para domiciliar cobros.
+Sobre integraciones:
+6. Cuando mencionas Microsoft Dynamics 365, ¿ya lo tenéis implantado y queréis exportar las facturas hacia allí, o es algo futuro?
+**Respuesta: No está implementando, es algo que nos planteamos a corto/medio plazo para exportar todas las facturas e información de clientes y gestionar todo bajo el entorno de Microsoft, podemos valorar crear algún tipo de Api que permita comunicar datos entre nuestra plataforma de facturación y el ERP elegido (Valoro tus propuestas)
+7. El almacenamiento en OneDrive, ¿usáis ya Microsoft 365 empresarial? Porque esto condiciona si usamos la API de OneDrive o si optamos por otra solución como Supabase Storage.
+**Respuesta: Tenemos cuentas de Microsoft 365 Empresarial por eso hemos valorado como repositorio documental OneDrive.
+8. Para el envío de emails, ¿tenéis preferencia por alguna plataforma? MailChimp es más para marketing; para emails transaccionales tipo facturas suelen funcionar mejor servicios como Resend, SendGrid o Amazon SES.
+**Respuesta: No tenemos ninguna preferencia de plataforma, optaremos por la que ofrezca mejor integración y nos asegure una buena entregabilidad, reportes y bajos indices de posibles bloqueos por Spam.
+Sobre el flujo de trabajo:
+9. Cuando un inquilino se va a mitad de mes, ¿quién introduce esa lectura intermedia? ¿El técnico va expresamente o se hace una estimación?
+**Respuesta: El tecnico va expresamente a grabar esa lectura y se debe proceder a realizar una factura por el periodo consumido por el inquilino si está fuera del ciclo mensual de facturación.
+10. Las alertas (alto consumo, lectura negativa...) ¿deben notificarse por email internamente o solo mostrarse en pantalla?
+**Respuesta: En esta primera fase de desarrollo y hasta que incorporemos sistemas de automatización con que se muestren solo en pantalla una vez introducidos los datos de validación es suficiente.
+11. ¿Los clientes finales (vecinos) tendrán acceso a un portal para ver sus facturas, o todo es interno para vuestra gestión?
+**Respuesta: En esta primera fase de desarrollo, será una aplicación interna, en futuras versiones desarrollaremos un portal de acceso para clientes, donde puedan visualizar y descargar sus facturas, ver datos de consumo, etc, Esto le dará un valor añadido a la empresa y nos hará destacar de nuestros competidores.
+Gestión de inquilinos: Cuando un inquilino se va y entra otro, ¿el nuevo inquilino "hereda" el contador con su lectura actual, o se reinicia algo? Entiendo que el contador mantiene su lectura acumulada y simplemente cambia la persona asociada, ¿correcto?
+**Respuesta: Correcto, cuando el inquilino se va, se toma la lectura y esta es la lectura inicial de la que va a partir el nuevo inquilino, lo que no varia es el Nº de contador ya que este va asociado siempre a la vivienda no al propietario/inquilino.
+Ejemplo para entender mejor:
+Vivienda 1ªC
+Inquilino 1 deja la vivienda el 15/12/2025, tecnico toma la lectura de contador de 6 m3 se coteja con la lectura anterior de es contador tomada en fecha 01/12/2025 de 4 m3 y se genera una factura a Inquilino 1 en periodo 01/12/2025 a 15/12/2025 de 2 m3.
+Inquilino 2 entra en la vivienda 17/12/2025 se toma como lectura inicial 6 m3 y se facturará a Inquilino 2 el diferencial de la lectura que se tome cuando se realize el ciclo de facturacion en 31/12/2025.
+
+Actualización del IPC: ¿Queréis que el sistema aplique automáticamente el IPC anual al término fijo (introduciendo el porcentaje manualmente cada año), o preferís actualizar los precios manualmente cuando toque?
+**Respuesta: Sé actualizará el precio del termino fijo de forma manual cuando toque.
+
+Múltiples conceptos por contador: ¿Un mismo contador puede tener varios conceptos (por ejemplo ACS + Calefacción), o cada contador mide un único concepto?
+**Respuesta: Un contador mismo contador puede tener varios conceptos pero solo una números de serie único independientemente de los conceptos que mida.
+
+Histórico del sistema actual: ¿Necesitáis migrar datos históricos (lecturas anteriores, facturas emitidas) desde vuestro sistema actual, o arrancamos "en limpio" con las lecturas actuales como punto de partida?
+**Respuesta: Arrancaremos en limpio tomando como referencia las lecturas actuales de los diferentes conceptos de los contadores que migraremos del sistema actual a nuestro nuevo sistema una vez esté en producción.
+Factura de ejemplo: El diseño que me has pasado, ¿es exactamente el que queréis mantener o hay margen para mejorarlo visualmente manteniendo la misma información?
+**Respuesta: El diseño se puede mejorar para hacerlo mas atractivo visualmente por ejemplo incorporando gráficos de consumo.
+
+Dominio y branding: ¿La aplicación irá bajo un subdominio vuestro tipo facturacion.a360se.com o usamos un dominio de Vercel mientras está en desarrollo?
+**Respuesta: Durante el desarrollo del proyecto usaremos el dominio provisional que nos asigne Vercel cuando ejecutemos el primer deploy, cuando subamos la aplicación a producción crearemos un subdominio para la aplicación "factu.a360se.com" o similar.
+
+**Dato extra:
+Ten en cuenta que la distribución de las comunidades de gestion energética no siempre va a seguir el formato (Portal, Vivienda) a veces esto se podrá cambiar a (Bloque, Piso) o similar.
+
+**Una vez analizada y entendida toda esta documentación, elabora un plan de Acción de desarrollo completo y bien estructurado.
+No inicies nada hasta que este plan sea aprobado.
+
