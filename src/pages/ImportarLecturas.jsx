@@ -89,13 +89,22 @@ export default function ImportarLecturas() {
     setProgress({ current: 0, total: excelData.rows.length })
 
     try {
+      console.log('Iniciando proceso de importación...')
+      
       // 1. Crear registro de importación
-      const importacion = await createImportacion.mutateAsync({
-        comunidad_id: comunidadId,
-        nombre_archivo: file.name,
-        total_filas: excelData.rows.length,
-        estado: 'procesando'
-      })
+      let importacion
+      try {
+        importacion = await createImportacion.mutateAsync({
+          comunidad_id: comunidadId,
+          nombre_archivo: file.name,
+          total_filas: excelData.rows.length,
+          estado: 'procesando'
+        })
+        console.log('Importación creada:', importacion)
+      } catch (err) {
+        console.error('Error al crear importación:', err)
+        throw new Error(`No se pudo crear la importación: ${err.message}. Verifica que la migración 003_lecturas_schema.sql se haya ejecutado.`)
+      }
 
       // 2. Procesar cada fila
       const detalles = []
