@@ -7,7 +7,7 @@ const COLORS = {
   secondary: [46, 134, 171],   // #2E86AB
   text: [51, 51, 51],          // #333333
   lightGray: [245, 245, 245],  // #F5F5F5
-  gray: [150, 150, 150],
+  gray: [120, 120, 120],
   success: [40, 167, 69],      // #28A745
   danger: [220, 53, 69],       // #DC3545
   white: [255, 255, 255]
@@ -22,11 +22,10 @@ const EMPRESA = {
   provincia: 'Madrid',
   telefono: '91 159 11 70',
   email: 'clientes@a360se.com',
-  web: 'www.a360se.com',
   cif: 'B88313473'
 }
 
-// Formatear fecha
+// Formatear fecha compacta
 function formatDate(dateStr) {
   if (!dateStr) return '—'
   const date = new Date(dateStr)
@@ -48,15 +47,15 @@ function formatCurrency(value) {
 
 // Formatear IBAN
 function formatIBAN(iban) {
-  if (!iban) return '—'
+  if (!iban) return ''
   return iban.replace(/(.{4})/g, '$1 ').trim()
 }
 
 // Obtener etiqueta método de pago
 function getMetodoPagoLabel(metodo) {
   const metodos = {
-    'domiciliacion': 'Domiciliación bancaria (SEPA)',
-    'transferencia': 'Transferencia bancaria',
+    'domiciliacion': 'Domiciliación SEPA',
+    'transferencia': 'Transferencia',
     'efectivo': 'Efectivo',
     'otro': 'Otro'
   }
@@ -64,167 +63,133 @@ function getMetodoPagoLabel(metodo) {
 }
 
 /**
- * Genera el PDF de una factura según el diseño del PRD
- * Versión 2 - Con gráfico de evolución
+ * Genera el PDF de una factura - Diseño compacto en una sola página
  */
 export function generarFacturaPDF(factura, lineas = [], historico = []) {
-  console.log('=== generarFacturaPDF v2 - INICIO ===')
-  console.log('Lineas recibidas:', lineas.length)
-  console.log('Histórico recibido:', historico?.length || 0)
-  
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4'
   })
 
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 15
-  let currentY = margin
+  const pageWidth = doc.internal.pageSize.getWidth()  // 210mm
+  const margin = 12
+  const contentWidth = pageWidth - 2 * margin
+  let y = margin
 
   // =========================================
-  // HEADER - Logo y datos empresa
+  // HEADER - Compacto
   // =========================================
   
-  // Recuadro del logo
+  // Logo
   doc.setFillColor(...COLORS.primary)
-  doc.roundedRect(margin, currentY, 28, 28, 3, 3, 'F')
+  doc.roundedRect(margin, y, 22, 22, 2, 2, 'F')
   doc.setTextColor(...COLORS.white)
-  doc.setFontSize(18)
+  doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
-  doc.text('A360', margin + 14, currentY + 14, { align: 'center' })
-  doc.setFontSize(7)
-  doc.text('ENERGÍA', margin + 14, currentY + 20, { align: 'center' })
+  doc.text('A360', margin + 11, y + 10, { align: 'center' })
+  doc.setFontSize(5)
+  doc.text('ENERGÍA', margin + 11, y + 15, { align: 'center' })
 
-  // Datos de la empresa
+  // Datos empresa
   doc.setTextColor(...COLORS.text)
-  doc.setFontSize(11)
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
-  doc.text(EMPRESA.nombre, margin + 33, currentY + 7)
-  
-  doc.setFontSize(8)
+  doc.text(EMPRESA.nombre, margin + 26, y + 5)
+  doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
-  doc.text(EMPRESA.direccion, margin + 33, currentY + 12)
-  doc.text(`${EMPRESA.cp} ${EMPRESA.ciudad}, ${EMPRESA.provincia}`, margin + 33, currentY + 16)
-  doc.text(`Tel: ${EMPRESA.telefono}`, margin + 33, currentY + 20)
-  doc.text(EMPRESA.email, margin + 33, currentY + 24)
-  doc.text(`CIF: ${EMPRESA.cif}`, margin + 33, currentY + 28)
+  doc.text(`${EMPRESA.direccion} · ${EMPRESA.cp} ${EMPRESA.ciudad}`, margin + 26, y + 10)
+  doc.text(`Tel: ${EMPRESA.telefono} · ${EMPRESA.email} · CIF: ${EMPRESA.cif}`, margin + 26, y + 14)
 
-  // Título FACTURA
-  doc.setFontSize(28)
+  // Título FACTURA y número
+  doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('FACTURA', pageWidth - margin, currentY + 10, { align: 'right' })
-  
-  // Número y fecha
-  doc.setFontSize(10)
+  doc.text('FACTURA', pageWidth - margin, y + 6, { align: 'right' })
+  doc.setFontSize(9)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Nº ${factura.numero_completo || 'BORRADOR'}`, pageWidth - margin, currentY + 17, { align: 'right' })
-  doc.text(`Fecha: ${formatDate(factura.fecha_factura)}`, pageWidth - margin, currentY + 22, { align: 'right' })
-  
-  if (factura.cliente_id) {
-    doc.setFontSize(8)
-    doc.setTextColor(...COLORS.gray)
-    doc.text(`Ref: ${factura.cliente_id.substring(0, 8).toUpperCase()}`, pageWidth - margin, currentY + 27, { align: 'right' })
-  }
+  doc.text(`Nº ${factura.numero_completo || 'BORRADOR'}`, pageWidth - margin, y + 12, { align: 'right' })
+  doc.text(`Fecha: ${formatDate(factura.fecha_factura)}`, pageWidth - margin, y + 17, { align: 'right' })
 
-  currentY += 35
+  y += 26
 
   // Línea separadora
   doc.setDrawColor(...COLORS.secondary)
-  doc.setLineWidth(0.8)
-  doc.line(margin, currentY, pageWidth - margin, currentY)
-  currentY += 8
+  doc.setLineWidth(0.5)
+  doc.line(margin, y, pageWidth - margin, y)
+  y += 4
 
   // =========================================
-  // DATOS DEL CLIENTE
+  // DATOS CLIENTE + PERIODO (en línea)
   // =========================================
   
+  // Fondo datos cliente
   doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(margin, currentY, pageWidth - 2 * margin, 28, 3, 3, 'F')
-
-  doc.setFontSize(10)
+  doc.roundedRect(margin, y, contentWidth * 0.6, 20, 2, 2, 'F')
+  
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('DATOS DEL CLIENTE', margin + 5, currentY + 7)
-
-  doc.setFontSize(10)
+  doc.text('DATOS DEL CLIENTE', margin + 3, y + 5)
+  
+  doc.setFontSize(8)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'bold')
-  doc.text(factura.cliente_nombre || '—', margin + 5, currentY + 14)
-  
+  doc.text(factura.cliente_nombre || '—', margin + 3, y + 10)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(`NIF: ${factura.cliente_nif || '—'}`, margin + 5, currentY + 20)
-  doc.text(factura.cliente_direccion || '—', margin + 5, currentY + 25)
-  
-  // Segunda columna
-  const col2X = pageWidth / 2 + 10
-  doc.text(`${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`, col2X, currentY + 14)
-  if (factura.cliente_provincia) {
-    doc.text(factura.cliente_provincia, col2X, currentY + 20)
-  }
-  if (factura.cliente_email) {
-    doc.setTextColor(...COLORS.secondary)
-    doc.text(factura.cliente_email, col2X, currentY + 25)
-  }
+  doc.setFontSize(7)
+  doc.text(`NIF: ${factura.cliente_nif || '—'} · ${factura.cliente_direccion || ''}`, margin + 3, y + 14)
+  doc.text(`${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''} ${factura.cliente_email ? '· ' + factura.cliente_email : ''}`, margin + 3, y + 18)
 
-  currentY += 35
-
-  // =========================================
-  // PERIODO DE FACTURACIÓN
-  // =========================================
+  // Periodo de facturación (derecha)
+  const periodoX = margin + contentWidth * 0.62
+  doc.setFillColor(...COLORS.lightGray)
+  doc.roundedRect(periodoX, y, contentWidth * 0.38, 20, 2, 2, 'F')
   
-  doc.setFontSize(9)
-  doc.setTextColor(...COLORS.text)
-  doc.setFont('helvetica', 'bold')
-  doc.text('PERIODO DE FACTURACIÓN:', margin, currentY)
-  
-  doc.setFont('helvetica', 'normal')
-  const periodoText = `${formatDate(factura.periodo_inicio)} - ${formatDate(factura.periodo_fin)}`
-  doc.text(periodoText, margin + 50, currentY)
-  
-  if (factura.es_periodo_parcial) {
-    doc.setTextColor(...COLORS.danger)
-    doc.setFontSize(8)
-    doc.text('(Periodo parcial)', margin + 50 + doc.getTextWidth(periodoText) + 3, currentY)
-  }
-
-  currentY += 10
-
-  // =========================================
-  // DETALLE DE CONSUMOS - Tabla con formato PRD
-  // =========================================
-  
-  doc.setFontSize(11)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('DETALLE DE CONSUMOS', margin, currentY)
-  currentY += 5
+  doc.text('PERIODO', periodoX + 3, y + 5)
+  
+  doc.setFontSize(8)
+  doc.setTextColor(...COLORS.text)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`${formatDate(factura.periodo_inicio)}`, periodoX + 3, y + 11)
+  doc.text(`${formatDate(factura.periodo_fin)}`, periodoX + 3, y + 16)
 
-  // Preparar datos de la tabla - formato compacto según PRD
+  y += 24
+
+  // =========================================
+  // DETALLE DE CONSUMOS - Tabla compacta
+  // =========================================
+  
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.primary)
+  doc.text('DETALLE DE CONSUMOS', margin, y)
+  y += 3
+
+  // Preparar datos tabla
   const tableBody = lineas.map(linea => {
-    let descripcion = linea.concepto_nombre || '—'
-    
-    // Si es concepto variable, añadir info de lecturas
+    let concepto = linea.concepto_nombre || '—'
     if (!linea.es_termino_fijo && linea.contador_numero_serie) {
-      descripcion = `${linea.concepto_nombre}\n`
-      descripcion += `${linea.contador_numero_serie}`
-      
-      if (linea.lectura_anterior != null && linea.lectura_actual != null) {
-        descripcion += ` · Lect. ant: ${Number(linea.lectura_anterior).toFixed(2)} (${formatDate(linea.fecha_lectura_anterior)})`
-        descripcion += `\n→ Actual: ${Number(linea.lectura_actual).toFixed(2)} (${formatDate(linea.fecha_lectura_actual)})`
-      }
+      concepto += ` (${linea.contador_numero_serie})`
+    }
+    
+    const cantidad = linea.es_termino_fijo 
+      ? `${Number(linea.cantidad).toFixed(2)} ud`
+      : `${Number(linea.consumo || linea.cantidad).toFixed(2)} ${linea.unidad_medida || 'm³'}`
+
+    // Añadir info de lecturas si existe
+    let lecturasInfo = ''
+    if (!linea.es_termino_fijo && linea.lectura_anterior != null) {
+      lecturasInfo = `Lect: ${Number(linea.lectura_anterior).toFixed(2)} → ${Number(linea.lectura_actual).toFixed(2)}`
     }
 
-    const cantidad = linea.es_termino_fijo 
-      ? `${Number(linea.cantidad).toFixed(2)} ${linea.unidad_medida || 'unidad'}`
-      : `${Number(linea.consumo || linea.cantidad).toFixed(4)} ${linea.unidad_medida || 'm³'}`
-
     return [
-      descripcion,
+      concepto,
+      lecturasInfo,
       cantidad,
       formatCurrency(linea.precio_unitario),
       formatCurrency(linea.subtotal)
@@ -232,284 +197,202 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   })
 
   autoTable(doc, {
-    startY: currentY,
-    head: [['Concepto', 'Cantidad', 'Precio U.', 'Total']],
+    startY: y,
+    head: [['Concepto', 'Lecturas', 'Consumo', 'Precio', 'Importe']],
     body: tableBody,
     theme: 'striped',
     headStyles: {
       fillColor: COLORS.primary,
       textColor: COLORS.white,
-      fontSize: 8,
+      fontSize: 7,
       fontStyle: 'bold',
-      halign: 'left',
-      cellPadding: 3
+      cellPadding: 2
     },
     bodyStyles: {
-      fontSize: 8,
+      fontSize: 7,
       textColor: COLORS.text,
-      cellPadding: 3,
-      valign: 'top'
+      cellPadding: 2
     },
     columnStyles: {
-      0: { cellWidth: 90 },
-      1: { cellWidth: 30, halign: 'right' },
-      2: { cellWidth: 25, halign: 'right' },
-      3: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 50 },
+      1: { cellWidth: 45, fontSize: 6, textColor: COLORS.gray },
+      2: { cellWidth: 28, halign: 'right' },
+      3: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
     },
     margin: { left: margin, right: margin },
-    styles: {
-      lineColor: [220, 220, 220],
-      lineWidth: 0.2,
-      overflow: 'linebreak'
-    },
-    alternateRowStyles: {
-      fillColor: [250, 250, 250]
-    }
+    tableWidth: contentWidth
   })
 
-  currentY = doc.lastAutoTable.finalY + 10
+  y = doc.lastAutoTable.finalY + 6
 
   // =========================================
-  // GRÁFICO DE EVOLUCIÓN DE CONSUMO
+  // GRÁFICO DE EVOLUCIÓN - Compacto
   // =========================================
-  console.log('=== DIBUJANDO GRÁFICO ===')
-  console.log('currentY después de tabla:', currentY)
-  console.log('pageHeight:', pageHeight)
   
   // Generar datos para el gráfico
-  let chartData = historico && historico.length > 0 ? historico : []
+  let chartData = historico && historico.length > 0 ? [...historico] : []
   
-  // Si no hay histórico, crear datos de demostración
   if (chartData.length === 0) {
-    console.log('Generando datos de demostración para gráfico')
     const now = new Date()
     const consumoActual = lineas.find(l => !l.es_termino_fijo)?.consumo || 
-                          lineas.find(l => !l.es_termino_fijo)?.cantidad || 1
+                          lineas.find(l => !l.es_termino_fijo)?.cantidad || 10
     
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const periodo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      // Variar el consumo de manera realista
-      const variacion = 0.7 + Math.random() * 0.6 // entre 70% y 130%
+      const variacion = 0.7 + Math.random() * 0.6
       const consumo = i === 0 ? Number(consumoActual) : Number(consumoActual) * variacion
       chartData.push({ periodo, consumo })
     }
   }
-  
-  console.log('chartData:', chartData)
 
-  const chartHeight = 55
-  const chartWidth = pageWidth - 2 * margin
+  // Limitar a 6 meses
+  chartData = chartData.slice(-6)
 
-  // Título del gráfico
-  doc.setFontSize(10)
+  const chartHeight = 40
+  const chartWidth = contentWidth
+
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('EVOLUCIÓN DE CONSUMO (últimos 6 meses)', margin, currentY)
-  currentY += 5
+  doc.text('HISTÓRICO DE CONSUMO', margin, y)
+  y += 3
 
   // Fondo del gráfico
-  doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(margin, currentY, chartWidth, chartHeight, 3, 3, 'F')
-  doc.setDrawColor(...COLORS.secondary)
-  doc.setLineWidth(0.3)
-  doc.roundedRect(margin, currentY, chartWidth, chartHeight, 3, 3, 'S')
+  doc.setFillColor(250, 250, 250)
+  doc.roundedRect(margin, y, chartWidth, chartHeight, 2, 2, 'F')
+  doc.setDrawColor(220, 220, 220)
+  doc.setLineWidth(0.2)
+  doc.roundedRect(margin, y, chartWidth, chartHeight, 2, 2, 'S')
 
   // Dibujar barras
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-  const maxConsumo = Math.max(...chartData.map(d => Number(d.consumo) || 0), 0.1)
+  const maxConsumo = Math.max(...chartData.map(d => Number(d.consumo) || 0), 1)
   const barCount = chartData.length
-  const barWidth = (chartWidth - 50) / barCount
-  const barSpacing = 8
-  const chartAreaHeight = chartHeight - 25
+  const barAreaWidth = chartWidth - 20
+  const barWidth = Math.min(barAreaWidth / barCount - 6, 20)
+  const startX = margin + 10 + (barAreaWidth - (barWidth + 6) * barCount) / 2
 
   chartData.forEach((item, index) => {
     const consumo = Number(item.consumo) || 0
-    const barHeight = Math.max((consumo / maxConsumo) * chartAreaHeight, 3)
-    const barX = margin + 25 + index * (barWidth + barSpacing)
-    const barY = currentY + chartHeight - 15 - barHeight
+    const maxBarHeight = chartHeight - 18
+    const barHeight = Math.max((consumo / maxConsumo) * maxBarHeight, 2)
+    const barX = startX + index * (barWidth + 6)
+    const barY = y + chartHeight - 10 - barHeight
 
     // Barra
     doc.setFillColor(...COLORS.secondary)
-    doc.roundedRect(barX, barY, barWidth - barSpacing, barHeight, 2, 2, 'F')
+    doc.roundedRect(barX, barY, barWidth, barHeight, 1, 1, 'F')
 
-    // Valor encima de la barra
-    doc.setFontSize(7)
+    // Valor encima
+    doc.setFontSize(5)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.text)
-    doc.text(consumo.toFixed(2), barX + (barWidth - barSpacing) / 2, barY - 2, { align: 'center' })
+    doc.text(consumo.toFixed(1), barX + barWidth / 2, barY - 1, { align: 'center' })
 
     // Mes debajo
-    doc.setFontSize(7)
+    doc.setFontSize(5)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...COLORS.gray)
     const mes = item.periodo?.substring(5, 7) || ''
     const mesLabel = meses[parseInt(mes) - 1] || `M${index + 1}`
-    doc.text(mesLabel, barX + (barWidth - barSpacing) / 2, currentY + chartHeight - 5, { align: 'center' })
+    doc.text(mesLabel, barX + barWidth / 2, y + chartHeight - 3, { align: 'center' })
   })
 
   // Unidad
-  const unidadConsumo = lineas.find(l => !l.es_termino_fijo)?.unidad_medida || 'm³'
-  doc.setFontSize(7)
+  const unidad = lineas.find(l => !l.es_termino_fijo)?.unidad_medida || 'm³'
+  doc.setFontSize(5)
   doc.setTextColor(...COLORS.gray)
-  doc.text(unidadConsumo, margin + chartWidth - 5, currentY + chartHeight - 5, { align: 'right' })
+  doc.text(unidad, margin + chartWidth - 3, y + 6, { align: 'right' })
 
-  currentY += chartHeight + 10
+  y += chartHeight + 6
 
   // =========================================
-  // RESUMEN Y TOTALES
+  // RESUMEN: TOTALES + CONDICIONES DE PAGO
   // =========================================
   
-  // Verificar si necesitamos nueva página
-  if (currentY + 100 > pageHeight) {
-    doc.addPage()
-    currentY = margin
-  }
-
-  // Caja de totales (derecha)
-  const resumenWidth = 85
-  const resumenX = pageWidth - margin - resumenWidth
-  
+  // Caja izquierda - Condiciones de pago
+  const boxHeight = 28
   doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(resumenX, currentY, resumenWidth, 42, 3, 3, 'F')
-  doc.setDrawColor(...COLORS.secondary)
-  doc.setLineWidth(0.3)
-  doc.roundedRect(resumenX, currentY, resumenWidth, 42, 3, 3, 'S')
+  doc.roundedRect(margin, y, contentWidth * 0.5 - 3, boxHeight, 2, 2, 'F')
 
-  // Condición de pago (izquierda)
-  doc.setFontSize(9)
-  doc.setTextColor(...COLORS.text)
-  doc.setFont('helvetica', 'bold')
-  doc.text('CONDICIONES DE PAGO', margin, currentY + 6)
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text(getMetodoPagoLabel(factura.metodo_pago), margin, currentY + 13)
-  
-  if (factura.cliente_iban) {
-    doc.text('IBAN:', margin, currentY + 22)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.text(formatIBAN(factura.cliente_iban), margin, currentY + 29)
-  }
-
-  // Vencimiento
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text(`Vencimiento: ${formatDate(factura.fecha_vencimiento)}`, margin, currentY + 38)
-
-  // Totales (derecha)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...COLORS.text)
-  
-  let totalY = currentY + 8
-  
-  doc.text('Base imponible:', resumenX + 5, totalY)
-  doc.text(formatCurrency(factura.base_imponible), resumenX + resumenWidth - 5, totalY, { align: 'right' })
-  
-  totalY += 8
-  doc.text(`IVA (${factura.porcentaje_iva || 21}%):`, resumenX + 5, totalY)
-  doc.text(formatCurrency(factura.importe_iva), resumenX + resumenWidth - 5, totalY, { align: 'right' })
-  
-  // Línea separadora
-  totalY += 5
-  doc.setDrawColor(...COLORS.secondary)
-  doc.setLineWidth(0.5)
-  doc.line(resumenX + 5, totalY, resumenX + resumenWidth - 5, totalY)
-  
-  // Total
-  totalY += 10
-  doc.setFontSize(12)
+  doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('TOTAL:', resumenX + 5, totalY)
-  doc.text(formatCurrency(factura.total), resumenX + resumenWidth - 5, totalY, { align: 'right' })
-
-  currentY += 50
-
-  // =========================================
-  // TABLA DE VENCIMIENTOS
-  // =========================================
+  doc.text('CONDICIONES DE PAGO', margin + 3, y + 5)
   
+  doc.setFontSize(7)
+  doc.setTextColor(...COLORS.text)
+  doc.setFont('helvetica', 'normal')
+  doc.text(getMetodoPagoLabel(factura.metodo_pago), margin + 3, y + 10)
+  
+  if (factura.cliente_iban) {
+    doc.text(`IBAN: ${formatIBAN(factura.cliente_iban)}`, margin + 3, y + 15)
+  }
+  doc.text(`Vencimiento: ${formatDate(factura.fecha_vencimiento)}`, margin + 3, y + 20)
+
+  // Estado
+  const estadoTexto = factura.estado === 'pagada' ? 'PAGADA' : 'PENDIENTE'
+  const estadoColor = factura.estado === 'pagada' ? COLORS.success : COLORS.danger
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...estadoColor)
+  doc.text(estadoTexto, margin + 3, y + 26)
+
+  // Caja derecha - Totales
+  const totalesX = margin + contentWidth * 0.5 + 3
+  const totalesWidth = contentWidth * 0.5 - 3
+  doc.setFillColor(...COLORS.lightGray)
+  doc.roundedRect(totalesX, y, totalesWidth, boxHeight, 2, 2, 'F')
+  doc.setDrawColor(...COLORS.secondary)
+  doc.setLineWidth(0.5)
+  doc.roundedRect(totalesX, y, totalesWidth, boxHeight, 2, 2, 'S')
+
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLORS.text)
+  
+  const col1 = totalesX + 5
+  const col2 = totalesX + totalesWidth - 5
+
+  doc.text('Base imponible:', col1, y + 7)
+  doc.text(formatCurrency(factura.base_imponible), col2, y + 7, { align: 'right' })
+  
+  doc.text(`IVA (${factura.porcentaje_iva || 21}%):`, col1, y + 13)
+  doc.text(formatCurrency(factura.importe_iva), col2, y + 13, { align: 'right' })
+  
+  // Línea
+  doc.setDrawColor(...COLORS.secondary)
+  doc.setLineWidth(0.3)
+  doc.line(col1, y + 16, col2, y + 16)
+  
+  // Total
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('VENCIMIENTOS', margin, currentY)
-  currentY += 3
+  doc.text('TOTAL:', col1, y + 24)
+  doc.text(formatCurrency(factura.total), col2, y + 24, { align: 'right' })
 
-  const estadoColor = factura.estado === 'pagada' ? COLORS.success : COLORS.danger
-  const estadoTexto = factura.estado === 'pagada' ? 'Pagado' : 'Pendiente'
-
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Fecha', 'Importe', 'Estado']],
-    body: [[
-      formatDate(factura.fecha_vencimiento),
-      formatCurrency(factura.total),
-      estadoTexto
-    ]],
-    theme: 'grid',
-    headStyles: {
-      fillColor: COLORS.primary,
-      textColor: COLORS.white,
-      fontSize: 8,
-      fontStyle: 'bold',
-      halign: 'center'
-    },
-    bodyStyles: {
-      fontSize: 9,
-      textColor: COLORS.text,
-      halign: 'center'
-    },
-    columnStyles: {
-      0: { cellWidth: 35 },
-      1: { cellWidth: 35 },
-      2: { cellWidth: 30, textColor: estadoColor, fontStyle: 'bold' }
-    },
-    margin: { left: margin },
-    tableWidth: 100
-  })
+  y += boxHeight + 8
 
   // =========================================
   // FOOTER
   // =========================================
   
-  const footerY = pageHeight - 18
-  
   doc.setDrawColor(...COLORS.secondary)
   doc.setLineWidth(0.3)
-  doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5)
-
-  doc.setFontSize(7)
+  doc.line(margin, y, pageWidth - margin, y)
+  
+  doc.setFontSize(6)
   doc.setTextColor(...COLORS.gray)
   doc.setFont('helvetica', 'normal')
   doc.text(
-    `${EMPRESA.nombre} - CIF: ${EMPRESA.cif}`,
+    `${EMPRESA.nombre} - CIF: ${EMPRESA.cif} - Empresa certificada ISO 50001 | ISO 14001 | ISO 9001`,
     pageWidth / 2,
-    footerY,
+    y + 4,
     { align: 'center' }
   )
-  
-  doc.setFontSize(6)
-  doc.text(
-    'Empresa certificada ISO 50001 | ISO 14001 | ISO 9001',
-    pageWidth / 2,
-    footerY + 4,
-    { align: 'center' }
-  )
-
-  // Número de página
-  const pageCount = doc.internal.getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i)
-    doc.text(
-      `Página ${i} de ${pageCount}`,
-      pageWidth - margin,
-      footerY + 4,
-      { align: 'right' }
-    )
-  }
 
   return doc
 }
