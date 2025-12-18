@@ -59,8 +59,14 @@ export default function FacturaDetalle({ showPdf = false }) {
       // Pequeño delay para mostrar el spinner
       await new Promise(resolve => setTimeout(resolve, 100))
       
+      // Debug: mostrar datos que se pasan al PDF
+      console.log('=== GENERANDO PDF v2 ===')
+      console.log('Factura:', factura)
+      console.log('Líneas:', lineas)
+      console.log('Histórico:', historico)
+      
       descargarFacturaPDF(factura, lineas || [], historico || [])
-      toast.success('PDF descargado correctamente')
+      toast.success('PDF descargado correctamente (v2)')
     } catch (error) {
       console.error('Error generando PDF:', error)
       toast.error('Error al generar el PDF')

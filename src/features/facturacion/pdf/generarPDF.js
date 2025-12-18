@@ -65,8 +65,13 @@ function getMetodoPagoLabel(metodo) {
 
 /**
  * Genera el PDF de una factura según el diseño del PRD
+ * Versión 2 - Con gráfico de evolución
  */
 export function generarFacturaPDF(factura, lineas = [], historico = []) {
+  console.log('=== generarFacturaPDF v2 - INICIO ===')
+  console.log('Lineas recibidas:', lineas.length)
+  console.log('Histórico recibido:', historico?.length || 0)
+  
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -267,12 +272,16 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // =========================================
   // GRÁFICO DE EVOLUCIÓN DE CONSUMO
   // =========================================
+  console.log('=== DIBUJANDO GRÁFICO ===')
+  console.log('currentY después de tabla:', currentY)
+  console.log('pageHeight:', pageHeight)
   
   // Generar datos para el gráfico
   let chartData = historico && historico.length > 0 ? historico : []
   
   // Si no hay histórico, crear datos de demostración
   if (chartData.length === 0) {
+    console.log('Generando datos de demostración para gráfico')
     const now = new Date()
     const consumoActual = lineas.find(l => !l.es_termino_fijo)?.consumo || 
                           lineas.find(l => !l.es_termino_fijo)?.cantidad || 1
@@ -286,6 +295,8 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
       chartData.push({ periodo, consumo })
     }
   }
+  
+  console.log('chartData:', chartData)
 
   const chartHeight = 55
   const chartWidth = pageWidth - 2 * margin
