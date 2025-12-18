@@ -54,3 +54,5 @@ export function EstadoBadge({ estado, size = 'md' }) {
   )
 }
 
+
+

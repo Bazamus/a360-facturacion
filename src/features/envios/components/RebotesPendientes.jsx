@@ -93,3 +93,5 @@ export function RebotesPendientes({ rebotes = [], isLoading, onReintentar }) {
   )
 }
 
+
+

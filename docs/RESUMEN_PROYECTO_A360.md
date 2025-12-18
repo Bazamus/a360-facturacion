@@ -545,3 +545,4 @@ Se han creado datos de demo ejecutando `supabase/seeds/001_datos_demo.sql`:
 *Documento generado: Diciembre 2025*
 *Versión del sistema: 1.0.0*
 
+

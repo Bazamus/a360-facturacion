@@ -159,3 +159,5 @@ export function formatearFechaSEPA(date) {
   return d.toISOString().split('T')[0]
 }
 
+
+

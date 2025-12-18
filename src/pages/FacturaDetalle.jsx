@@ -11,11 +11,13 @@ import {
   Building2,
   User,
   Gauge,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { EstadoBadge } from '@/features/facturacion/components'
+import { descargarFacturaPDF } from '@/features/facturacion/pdf'
 import { 
   formatCurrency, 
   formatDate, 
@@ -39,6 +41,7 @@ export default function FacturaDetalle({ showPdf = false }) {
 
   const [anularModal, setAnularModal] = useState(false)
   const [motivoAnulacion, setMotivoAnulacion] = useState('')
+  const [generandoPDF, setGenerandoPDF] = useState(false)
 
   const { data: factura, isLoading } = useFactura(id)
   const { data: lineas } = useFacturaLineas(id)
@@ -47,6 +50,24 @@ export default function FacturaDetalle({ showPdf = false }) {
   const emitirFactura = useEmitirFactura()
   const anularFactura = useAnularFactura()
   const marcarPagada = useMarcarPagada()
+
+  const handleDescargarPDF = async () => {
+    if (!factura) return
+    
+    try {
+      setGenerandoPDF(true)
+      // Pequeño delay para mostrar el spinner
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      descargarFacturaPDF(factura, lineas || [], historico || [])
+      toast.success('PDF descargado correctamente')
+    } catch (error) {
+      console.error('Error generando PDF:', error)
+      toast.error('Error al generar el PDF')
+    } finally {
+      setGenerandoPDF(false)
+    }
+  }
 
   const handleEmitir = async () => {
     try {
@@ -159,9 +180,17 @@ export default function FacturaDetalle({ showPdf = false }) {
           )}
 
           {['emitida', 'pagada'].includes(factura.estado) && (
-            <Button variant="outline" onClick={() => toast.info('PDF disponible próximamente')}>
-              <Download className="w-4 h-4 mr-2" />
-              Descargar PDF
+            <Button 
+              variant="outline" 
+              onClick={handleDescargarPDF}
+              disabled={generandoPDF}
+            >
+              {generandoPDF ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {generandoPDF ? 'Generando...' : 'Descargar PDF'}
             </Button>
           )}
         </div>
@@ -387,4 +416,6 @@ export default function FacturaDetalle({ showPdf = false }) {
     </div>
   )
 }
+
+
 
