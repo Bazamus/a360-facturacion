@@ -1,5 +1,5 @@
-import { jsPDF } from 'jspdf'
-import 'jspdf-autotable'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // Colores corporativos
 const COLORS = {
@@ -272,7 +272,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
     ]
   })
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: currentY,
     head: [['Concepto', 'Cantidad', 'Precio Unit.', 'Subtotal']],
     body: tableData,
@@ -405,7 +405,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   const estadoColor = factura.estado === 'pagada' ? COLORS.success : COLORS.danger
   const estadoTexto = factura.estado === 'pagada' ? 'Pagado' : 'Pendiente'
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: currentY,
     head: [['Fecha', 'Importe', 'Estado']],
     body: [[
