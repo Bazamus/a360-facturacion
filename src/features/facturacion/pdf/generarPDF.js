@@ -27,7 +27,7 @@ const EMPRESA = {
 
 // Formatear fecha
 function formatDate(dateStr) {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   const date = new Date(dateStr)
   return date.toLocaleDateString('es-ES', {
     day: '2-digit',
@@ -59,7 +59,7 @@ function getMetodoPagoLabel(metodo) {
     'efectivo': 'Efectivo',
     'otro': 'Otro'
   }
-  return metodos[metodo] || metodo || '—'
+  return metodos[metodo] || metodo || '-'
 }
 
 /**
@@ -143,11 +143,11 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFontSize(11)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'bold')
-  doc.text(factura.cliente_nombre || '—', margin + 5, y + 16)
+  doc.text(factura.cliente_nombre || '-', margin + 5, y + 16)
   
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text(`NIF: ${factura.cliente_nif || '—'}`, margin + 5, y + 22)
+  doc.text(`NIF: ${factura.cliente_nif || '-'}`, margin + 5, y + 22)
   doc.text(`${factura.cliente_direccion || ''} · ${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`, margin + 5, y + 28)
 
   // Caja periodo
@@ -186,15 +186,15 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
 
   // Preparar datos tabla
   const tableBody = lineas.map(linea => {
-    let concepto = linea.concepto_nombre || '—'
+    let concepto = linea.concepto_nombre || '-'
     if (!linea.es_termino_fijo && linea.contador_numero_serie) {
       concepto += `\nContador: ${linea.contador_numero_serie}`
     }
     
-    // Lecturas
-    let lecturas = '—'
+    // Lecturas (usar caracteres ASCII compatibles)
+    let lecturas = '-'
     if (!linea.es_termino_fijo && linea.lectura_anterior != null) {
-      lecturas = `${Number(linea.lectura_anterior).toFixed(2)} → ${Number(linea.lectura_actual).toFixed(2)}`
+      lecturas = `${Number(linea.lectura_anterior).toFixed(2)} / ${Number(linea.lectura_actual).toFixed(2)}`
     }
 
     // Consumo
@@ -213,7 +213,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
 
   autoTable(doc, {
     startY: y,
-    head: [['Concepto', 'Lecturas (ant → act)', 'Consumo', 'Precio', 'Importe']],
+    head: [['Concepto', 'Lecturas (ant/act)', 'Consumo', 'Precio', 'Importe']],
     body: tableBody,
     theme: 'striped',
     headStyles: {
@@ -358,13 +358,23 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFontSize(9)
   doc.text(`Vencimiento: ${formatDate(factura.fecha_vencimiento)}`, margin + 5, y + 38)
 
-  // Estado de pago
-  const estadoTexto = factura.estado === 'pagada' ? '✓ PAGADA' : '○ PENDIENTE'
+  // Estado de pago (badge pequeño)
+  const estadoTexto = factura.estado === 'pagada' ? 'PAGADA' : 'PENDIENTE'
   const estadoColor = factura.estado === 'pagada' ? COLORS.success : COLORS.danger
-  doc.setFontSize(10)
+  const badgeWidth = 28
+  const badgeHeight = 7
+  const badgeX = margin + condicionesWidth - badgeWidth - 5
+  const badgeY = y + 32
+  
+  // Fondo del badge
+  doc.setFillColor(...estadoColor)
+  doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 2, 2, 'F')
+  
+  // Texto del badge
+  doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...estadoColor)
-  doc.text(estadoTexto, margin + condicionesWidth - 10, y + 38, { align: 'right' })
+  doc.setTextColor(255, 255, 255)
+  doc.text(estadoTexto, badgeX + badgeWidth / 2, badgeY + 5, { align: 'center' })
 
   // Caja Totales
   const totalesX = pageWidth - margin - totalesWidth
