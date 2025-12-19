@@ -1,15 +1,15 @@
 import React, { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, ArrowRight, ArrowLeft, Check, Download } from 'lucide-react'
-import { Button, Card, Select } from '@/components/ui'
+import { ArrowRight, ArrowLeft, Check, Download } from 'lucide-react'
+import { Button, Card } from '@/components/ui'
 import { FileDropzone, ColumnMapper, ExcelPreview } from '@/features/lecturas/components'
 import { 
   readExcel, 
-  detectColumnMapping, 
-  validateMapping, 
-  extractRowData,
+  analyzeExcelStructure,
   formatDateForDB 
 } from '@/features/lecturas/utils/excelParser'
+import { parseDate } from '@/features/lecturas/utils/dateParsers'
+import { parseNumber } from '@/features/lecturas/utils/numberParsers'
 import { detectarAlertas, determinarEstadoFila, contarPorEstado } from '@/features/lecturas/utils/alertDetector'
 import { generarPlantillaMaestra } from '@/features/lecturas/utils/templateGenerator'
 import { useComunidades } from '@/hooks/useComunidades'
@@ -37,7 +37,7 @@ export default function ImportarLecturas() {
   const [comunidadId, setComunidadId] = useState('')
   const [file, setFile] = useState(null)
   const [excelData, setExcelData] = useState(null)
-  const [mapping, setMapping] = useState({})
+  const [analisis, setAnalisis] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0 })
 
@@ -68,40 +68,46 @@ export default function ImportarLecturas() {
 
   // Paso 1: Manejar selección de archivo
   const handleFileSelect = useCallback(async (selectedFile) => {
+    if (!conceptos || conceptos.length === 0) {
+      toast.error('Esperando carga de conceptos...')
+      return
+    }
+    
     try {
       const data = await readExcel(selectedFile)
-      const detectedMapping = detectColumnMapping(data.headers)
+      const estructuraAnalizada = analyzeExcelStructure(data.headers, conceptos)
       
       setFile(selectedFile)
       setExcelData(data)
-      setMapping(detectedMapping)
+      setAnalisis(estructuraAnalizada)
       setStep(1)
       
-      toast.success(`Archivo cargado: ${data.totalRows} filas detectadas`)
+      if (estructuraAnalizada.isValid) {
+        toast.success(`Archivo cargado: ${data.totalRows} filas, ${estructuraAnalizada.summary.conceptColumnsFound} conceptos detectados`)
+      } else {
+        toast.warning('Archivo cargado con errores de estructura')
+      }
     } catch (error) {
       toast.error(`Error al leer el archivo: ${error.message}`)
     }
-  }, [toast])
+  }, [toast, conceptos])
 
   const handleClearFile = () => {
     setFile(null)
     setExcelData(null)
-    setMapping({})
+    setAnalisis(null)
     setStep(0)
   }
 
-  // Validar mapeo
-  const mappingValidation = excelData ? validateMapping(mapping) : { isValid: false, missing: [] }
-
-  // Paso 2: Procesar archivo
+  // Paso 2: Procesar archivo (nuevo formato multiconcepto)
   const handleProcess = async () => {
     if (!comunidadId) {
       toast.error('Selecciona una comunidad')
       return
     }
 
-    if (!mappingValidation.isValid) {
-      toast.error('El mapeo de columnas no está completo')
+    if (!analisis?.isValid) {
+      toast.error('La estructura del archivo no es válida')
       return
     }
 
@@ -110,7 +116,7 @@ export default function ImportarLecturas() {
     setProgress({ current: 0, total: excelData.rows.length })
 
     try {
-      console.log('Iniciando proceso de importación...')
+      console.log('Iniciando proceso de importación (formato multiconcepto)...')
       
       // 1. Crear registro de importación
       let importacion
@@ -124,27 +130,31 @@ export default function ImportarLecturas() {
         console.log('Importación creada:', importacion)
       } catch (err) {
         console.error('Error al crear importación:', err)
-        throw new Error(`No se pudo crear la importación: ${err.message}. Verifica que la migración 003_lecturas_schema.sql se haya ejecutado.`)
+        throw new Error(`No se pudo crear la importación: ${err.message}`)
       }
 
-      // 2. Procesar cada fila
+      const { fixedColumns, conceptColumns } = analisis
       const detalles = []
       
+      // 2. Procesar cada fila del Excel
       for (let i = 0; i < excelData.rows.length; i++) {
         const row = excelData.rows[i]
-        const rowData = extractRowData(row, mapping)
         
-        // Buscar contador por número de serie
+        // Extraer datos fijos de la fila
+        const fechaRaw = fixedColumns.fecha_lectura >= 0 ? row[fixedColumns.fecha_lectura] : null
+        const numeroContador = fixedColumns.numero_contador >= 0 ? row[fixedColumns.numero_contador] : null
+        const portal = fixedColumns.portal >= 0 ? row[fixedColumns.portal] : null
+        const vivienda = fixedColumns.vivienda >= 0 ? row[fixedColumns.vivienda] : null
+        
+        const fechaParsed = parseDate(fechaRaw)
+        const numeroContadorStr = numeroContador ? String(numeroContador).trim() : null
+
+        // Buscar contador
         let contador = null
-        let concepto = null
-        let cliente = null
-        let contadorConcepto = null
         let ubicacionInfo = null
-        let lecturaAnterior = null
-        let precio = null
+        let cliente = null
         
-        if (rowData.numero_contador) {
-          // Buscar contador
+        if (numeroContadorStr) {
           const { data: contadores } = await supabase
             .from('contadores')
             .select(`
@@ -157,7 +167,7 @@ export default function ImportarLecturas() {
                 )
               )
             `)
-            .eq('numero_serie', rowData.numero_contador)
+            .eq('numero_serie', numeroContadorStr)
           
           if (contadores && contadores.length > 0) {
             contador = contadores[0]
@@ -165,39 +175,11 @@ export default function ImportarLecturas() {
           }
         }
 
-        if (rowData.concepto_codigo) {
-          // Buscar concepto
-          const { data: conceptos } = await supabase
-            .from('conceptos')
-            .select('*')
-            .or(`codigo.eq.${rowData.concepto_codigo},nombre.ilike.%${rowData.concepto_codigo}%`)
-          
-          if (conceptos && conceptos.length > 0) {
-            concepto = conceptos[0]
-          }
-        }
-
-        // Verificar que el contador tiene el concepto asignado
-        if (contador && concepto) {
-          const { data: cc } = await supabase
-            .from('contadores_conceptos')
-            .select('*')
-            .eq('contador_id', contador.id)
-            .eq('concepto_id', concepto.id)
-            .eq('activo', true)
-            .single()
-          
-          contadorConcepto = cc
-        }
-
         // Obtener cliente actual de la ubicación
         if (contador?.ubicacion_id) {
           const { data: ubicacionesClientes } = await supabase
             .from('ubicaciones_clientes')
-            .select(`
-              *,
-              cliente:clientes(*)
-            `)
+            .select(`*, cliente:clientes(*)`)
             .eq('ubicacion_id', contador.ubicacion_id)
             .eq('es_actual', true)
             .limit(1)
@@ -207,146 +189,180 @@ export default function ImportarLecturas() {
           }
         }
 
-        // Obtener última lectura
-        if (contador && concepto) {
-          const { data: lecturas } = await supabase
-            .from('lecturas')
-            .select('lectura_valor, fecha_lectura')
-            .eq('contador_id', contador.id)
-            .eq('concepto_id', concepto.id)
-            .order('fecha_lectura', { ascending: false })
-            .limit(1)
+        // 3. Procesar cada columna de concepto que tenga valor
+        for (const [colIndexStr, conceptoInfo] of Object.entries(conceptColumns)) {
+          const colIndex = parseInt(colIndexStr)
+          const valorRaw = row[colIndex]
           
-          if (lecturas && lecturas.length > 0) {
-            lecturaAnterior = lecturas[0]
-          } else if (contadorConcepto) {
-            // Usar lectura inicial si no hay histórico
-            lecturaAnterior = {
-              lectura_valor: contadorConcepto.lectura_inicial,
-              fecha_lectura: contadorConcepto.fecha_lectura_inicial
+          // Saltar si la celda está vacía o es un guion
+          if (valorRaw === null || valorRaw === undefined || valorRaw === '' || 
+              valorRaw === '—' || valorRaw === '-' || valorRaw === '–') {
+            continue
+          }
+          
+          const lecturaValor = parseNumber(valorRaw)
+          if (lecturaValor === null) continue
+          
+          // Verificar que el contador tiene el concepto asignado
+          let contadorConcepto = null
+          let lecturaAnterior = null
+          let precio = null
+          
+          if (contador) {
+            const { data: cc } = await supabase
+              .from('contadores_conceptos')
+              .select('*')
+              .eq('contador_id', contador.id)
+              .eq('concepto_id', conceptoInfo.concepto_id)
+              .eq('activo', true)
+              .maybeSingle()
+            
+            contadorConcepto = cc
+            
+            // Obtener última lectura
+            const { data: lecturas } = await supabase
+              .from('lecturas')
+              .select('lectura_valor, fecha_lectura')
+              .eq('contador_id', contador.id)
+              .eq('concepto_id', conceptoInfo.concepto_id)
+              .order('fecha_lectura', { ascending: false })
+              .limit(1)
+            
+            if (lecturas && lecturas.length > 0) {
+              lecturaAnterior = lecturas[0]
+            } else if (contadorConcepto) {
+              lecturaAnterior = {
+                lectura_valor: contadorConcepto.lectura_inicial,
+                fecha_lectura: contadorConcepto.fecha_lectura_inicial
+              }
             }
           }
-        }
 
-        // Obtener precio vigente
-        if (comunidadId && concepto) {
+          // Obtener precio vigente
           const { data: precios } = await supabase
             .from('precios')
             .select('*')
             .eq('comunidad_id', comunidadId)
-            .eq('concepto_id', concepto.id)
+            .eq('concepto_id', conceptoInfo.concepto_id)
             .eq('activo', true)
             .limit(1)
           
           if (precios && precios.length > 0) {
             precio = precios[0]
           }
+
+          // Calcular consumo
+          const consumoCalculado = lecturaValor != null && lecturaAnterior?.lectura_valor != null
+            ? lecturaValor - lecturaAnterior.lectura_valor
+            : null
+
+          // Preparar resultado para detección de alertas
+          const resultado = {
+            lectura_valor: lecturaValor,
+            lectura_anterior: lecturaAnterior?.lectura_valor,
+            fecha_lectura: fechaParsed,
+            fecha_lectura_anterior: lecturaAnterior?.fecha_lectura,
+            consumo_calculado: consumoCalculado,
+            cliente_bloqueado: cliente?.bloqueado,
+            motivo_bloqueo: cliente?.motivo_bloqueo
+          }
+
+          // Detectar alertas y determinar estado
+          let alertas = []
+          let estado = 'valido'
+
+          if (!numeroContadorStr || !fechaParsed) {
+            alertas.push({
+              tipo: 'formato_invalido',
+              severidad: 'error',
+              mensaje: 'Falta número de contador o fecha',
+              bloquea: true
+            })
+            estado = 'error'
+          } else if (!contador) {
+            alertas.push({
+              tipo: 'contador_no_encontrado',
+              severidad: 'error',
+              mensaje: `Contador ${numeroContadorStr} no encontrado`,
+              bloquea: true
+            })
+            estado = 'error'
+          } else if (!contadorConcepto) {
+            alertas.push({
+              tipo: 'concepto_no_asignado',
+              severidad: 'error',
+              mensaje: `El contador no tiene asignado el concepto ${conceptoInfo.concepto_codigo}`,
+              bloquea: true
+            })
+            estado = 'error'
+          } else if (!cliente) {
+            alertas.push({
+              tipo: 'sin_cliente',
+              severidad: 'warning',
+              mensaje: 'No hay cliente ocupante actual en la ubicación',
+              bloquea: false
+            })
+            estado = 'alerta'
+            
+            // Añadir alertas de consumo si aplica
+            if (alertasConfig) {
+              const alertasDetectadas = detectarAlertas(resultado, alertasConfig)
+              alertas = [...alertas, ...alertasDetectadas]
+              estado = determinarEstadoFila(alertas)
+            }
+          } else {
+            // Detectar alertas normales
+            if (alertasConfig) {
+              alertas = detectarAlertas(resultado, alertasConfig)
+              estado = determinarEstadoFila(alertas)
+            }
+          }
+
+          // Crear registro de detalle
+          detalles.push({
+            importacion_id: importacion.id,
+            fila_numero: i + 1,
+            datos_originales: {
+              fecha: fechaRaw,
+              numero_contador: numeroContador,
+              portal,
+              vivienda,
+              concepto: conceptoInfo.concepto_codigo,
+              lectura: valorRaw
+            },
+            numero_contador: numeroContadorStr,
+            concepto_codigo: conceptoInfo.concepto_codigo,
+            lectura_valor: lecturaValor,
+            fecha_lectura: formatDateForDB(fechaParsed),
+            contador_id: contador?.id || null,
+            concepto_id: conceptoInfo.concepto_id,
+            ubicacion_id: contador?.ubicacion_id || null,
+            cliente_id: cliente?.id || null,
+            comunidad_id: comunidadId,
+            lectura_anterior: lecturaAnterior?.lectura_valor || null,
+            fecha_lectura_anterior: lecturaAnterior?.fecha_lectura || null,
+            consumo_calculado: consumoCalculado,
+            precio_unitario: precio?.precio_unitario || null,
+            importe_estimado: consumoCalculado != null && precio?.precio_unitario
+              ? consumoCalculado * precio.precio_unitario
+              : null,
+            estado,
+            alertas: alertas.length > 0 ? alertas : null,
+            error_mensaje: null
+          })
         }
-
-        // Calcular consumo
-        const consumoCalculado = rowData.lectura_valor != null && lecturaAnterior?.lectura_valor != null
-          ? rowData.lectura_valor - lecturaAnterior.lectura_valor
-          : null
-
-        // Preparar resultado para detección de alertas
-        const resultado = {
-          lectura_valor: rowData.lectura_valor,
-          lectura_anterior: lecturaAnterior?.lectura_valor,
-          fecha_lectura: rowData.fecha_lectura,
-          fecha_lectura_anterior: lecturaAnterior?.fecha_lectura,
-          consumo_calculado: consumoCalculado,
-          cliente_bloqueado: cliente?.bloqueado,
-          motivo_bloqueo: cliente?.motivo_bloqueo
-        }
-
-        // Detectar alertas
-        let alertas = []
-        let estado = 'pendiente'
-        let errorMensaje = null
-
-        if (!rowData.numero_contador || !rowData.concepto_codigo || 
-            rowData.lectura_valor == null || !rowData.fecha_lectura) {
-          alertas.push({
-            tipo: 'formato_invalido',
-            severidad: 'error',
-            mensaje: 'Datos incompletos o con formato inválido',
-            bloquea: true
-          })
-          estado = 'error'
-        } else if (!contador) {
-          alertas.push({
-            tipo: 'contador_no_encontrado',
-            severidad: 'error',
-            mensaje: `Contador ${rowData.numero_contador} no encontrado`,
-            bloquea: true
-          })
-          estado = 'error'
-        } else if (!concepto) {
-          alertas.push({
-            tipo: 'concepto_no_asignado',
-            severidad: 'error',
-            mensaje: `Concepto ${rowData.concepto_codigo} no encontrado`,
-            bloquea: true
-          })
-          estado = 'error'
-        } else if (!contadorConcepto) {
-          alertas.push({
-            tipo: 'concepto_no_asignado',
-            severidad: 'error',
-            mensaje: `El contador no tiene asignado el concepto ${concepto.codigo}`,
-            bloquea: true
-          })
-          estado = 'error'
-        } else if (!cliente) {
-          // No hay cliente pero no es bloqueante
-          alertas.push({
-            tipo: 'cliente_bloqueado',
-            severidad: 'warning',
-            mensaje: 'No hay cliente ocupante actual en la ubicación',
-            bloquea: false
-          })
-          estado = 'alerta'
-        } else if (alertasConfig) {
-          // Detectar alertas normales
-          alertas = detectarAlertas(resultado, alertasConfig)
-          estado = determinarEstadoFila(alertas)
-        } else {
-          estado = 'valido'
-        }
-
-        // Crear detalle
-        detalles.push({
-          importacion_id: importacion.id,
-          fila_numero: i + 1,
-          datos_originales: rowData.datos_originales,
-          numero_contador: rowData.numero_contador,
-          concepto_codigo: rowData.concepto_codigo,
-          lectura_valor: rowData.lectura_valor,
-          fecha_lectura: formatDateForDB(rowData.fecha_lectura),
-          contador_id: contador?.id || null,
-          concepto_id: concepto?.id || null,
-          ubicacion_id: contador?.ubicacion_id || null,
-          cliente_id: cliente?.id || null,
-          comunidad_id: comunidadId,
-          lectura_anterior: lecturaAnterior?.lectura_valor || null,
-          fecha_lectura_anterior: lecturaAnterior?.fecha_lectura || null,
-          consumo_calculado: consumoCalculado,
-          precio_unitario: precio?.precio_unitario || null,
-          importe_estimado: consumoCalculado != null && precio?.precio_unitario
-            ? consumoCalculado * precio.precio_unitario
-            : null,
-          estado,
-          alertas,
-          error_mensaje: errorMensaje
-        })
 
         setProgress({ current: i + 1, total: excelData.rows.length })
       }
 
-      // 3. Insertar todos los detalles
-      await createDetalles.mutateAsync(detalles)
+      console.log(`Total de registros generados: ${detalles.length}`)
 
-      // 4. Actualizar estadísticas de la importación
+      // 4. Insertar todos los detalles
+      if (detalles.length > 0) {
+        await createDetalles.mutateAsync(detalles)
+      }
+
+      // 5. Actualizar estadísticas de la importación
       const stats = contarPorEstado(detalles)
       await updateImportacion.mutateAsync({
         id: importacion.id,
@@ -357,7 +373,7 @@ export default function ImportarLecturas() {
         fecha_procesado: new Date().toISOString()
       })
 
-      toast.success('Archivo procesado correctamente')
+      toast.success(`Archivo procesado: ${detalles.length} lecturas generadas`)
       
       // Navegar a la pantalla de validación
       navigate(`/lecturas/validar/${importacion.id}`)
@@ -430,16 +446,18 @@ export default function ImportarLecturas() {
           </select>
         </div>
 
-        {/* Paso 0 y 1: Subir y mapear */}
+        {/* Paso 0: Subir archivo */}
         {step === 0 && (
           <FileDropzone
             onFileSelect={handleFileSelect}
             file={file}
             onClear={handleClearFile}
+            disabled={loadingConceptos}
           />
         )}
 
-        {step === 1 && excelData && (
+        {/* Paso 1: Mapeo y preview */}
+        {step === 1 && excelData && analisis && (
           <div className="space-y-6">
             <FileDropzone
               onFileSelect={handleFileSelect}
@@ -448,16 +466,14 @@ export default function ImportarLecturas() {
             />
             
             <ColumnMapper
-              headers={excelData.headersOriginal}
-              mapping={mapping}
-              onMappingChange={setMapping}
-              validation={mappingValidation}
+              analisis={analisis}
+              headers={excelData.headers}
             />
 
             <ExcelPreview
-              headers={excelData.headersOriginal}
+              headers={excelData.headers}
               rows={excelData.rows}
-              mapping={mapping}
+              analisis={analisis}
               maxRows={5}
             />
 
@@ -471,7 +487,7 @@ export default function ImportarLecturas() {
               </Button>
               <Button
                 onClick={handleProcess}
-                disabled={!mappingValidation.isValid || !comunidadId}
+                disabled={!analisis.isValid || !comunidadId}
               >
                 Procesar archivo
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -493,7 +509,7 @@ export default function ImportarLecturas() {
             <div className="w-full max-w-md mx-auto mt-4 bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
               />
             </div>
           </div>
@@ -530,4 +546,3 @@ export default function ImportarLecturas() {
     </div>
   )
 }
-

@@ -7,11 +7,13 @@ import React from 'react'
 import { formatDate } from '../utils/dateParsers'
 import { formatNumber } from '../utils/numberParsers'
 
-export function ExcelPreview({ headers, rows, limit = 5, conceptColumns = {} }) {
+export function ExcelPreview({ headers, rows, limit = 5, conceptColumns = {}, analisis = null, maxRows }) {
   if (!headers || headers.length === 0) return null
 
-  const previewRows = rows.slice(0, limit)
-  const conceptIndices = new Set(Object.keys(conceptColumns).map(Number))
+  // Soportar ambos formatos: conceptColumns directo o dentro de analisis
+  const columnsToUse = analisis?.conceptColumns || conceptColumns
+  const previewRows = rows.slice(0, maxRows || limit)
+  const conceptIndices = new Set(Object.keys(columnsToUse).map(Number))
 
   const formatCell = (value, colIndex) => {
     if (value === null || value === undefined || value === '') {
