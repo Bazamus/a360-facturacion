@@ -3,26 +3,90 @@
  * Sistema de Facturación A360
  */
 
-import React, { useState } from 'react'
-import { ChevronDown, ChevronRight, CheckCircle, AlertTriangle, XCircle, User } from 'lucide-react'
-import { AlertaBadge, AlertasList } from './AlertaBadge'
+import React, { useState, useMemo } from 'react'
+import { ChevronDown, ChevronRight, CheckCircle, AlertTriangle, XCircle, User, Eye } from 'lucide-react'
+import { AlertasList } from './AlertaBadge'
 import { formatDate } from '../utils/dateParsers'
 import { formatNumber } from '../utils/numberParsers'
+import { getAlertaLabel } from '../utils/alertDetector'
+
+/**
+ * Agrupa los detalles por contador para la visualización
+ */
+function agruparPorContador(filas) {
+  if (!filas || filas.length === 0) return []
+  
+  const grupos = {}
+  
+  filas.forEach(fila => {
+    const key = fila.numero_contador || 'SIN_CONTADOR'
+    
+    if (!grupos[key]) {
+      grupos[key] = {
+        numero_contador: fila.numero_contador,
+        portal: fila.datos_originales?.portal,
+        vivienda: fila.datos_originales?.vivienda,
+        cliente_nombre: fila.cliente ? `${fila.cliente.nombre} ${fila.cliente.apellidos || ''}`.trim() : null,
+        cliente_id: fila.cliente_id,
+        fecha_lectura: fila.fecha_lectura,
+        estado: 'valido',
+        conceptos: []
+      }
+    }
+    
+    grupos[key].conceptos.push({
+      id: fila.id,
+      concepto_codigo: fila.concepto_codigo,
+      concepto_nombre: fila.concepto?.nombre || fila.concepto_codigo,
+      unidad_medida: fila.concepto?.unidad_medida || '',
+      lectura_valor: fila.lectura_valor,
+      lectura_anterior: fila.lectura_anterior,
+      consumo_calculado: fila.consumo_calculado,
+      estado: fila.estado,
+      alertas: fila.alertas || [],
+      fila_completa: fila
+    })
+    
+    // El estado del grupo es el más severo de sus conceptos
+    if (fila.estado === 'error') {
+      grupos[key].estado = 'error'
+    } else if (fila.estado === 'alerta' && grupos[key].estado !== 'error') {
+      grupos[key].estado = 'alerta'
+    }
+  })
+  
+  return Object.values(grupos)
+}
 
 export function ValidacionTable({ 
-  lecturasAgrupadas = [], 
-  seleccionados = [],
-  onSeleccionChange,
-  onDetalleClick,
-  filter = 'todos'
+  filas = [],
+  selectedIds = new Set(),
+  onSelectChange,
+  onSelectAll,
+  onViewDetail,
+  filter = 'todas'
 }) {
   const [expandidos, setExpandidos] = useState(new Set())
 
+  // Agrupar filas por contador
+  const lecturasAgrupadas = useMemo(() => agruparPorContador(filas), [filas])
+
+  // Convertir Set a Array para compatibilidad
+  const seleccionados = useMemo(() => 
+    selectedIds instanceof Set ? Array.from(selectedIds) : (selectedIds || []),
+    [selectedIds]
+  )
+
   // Filtrar según el estado
-  const lecturasFiltradas = lecturasAgrupadas.filter(grupo => {
-    if (filter === 'todos') return true
-    return grupo.estado === filter
-  })
+  const lecturasFiltradas = useMemo(() => {
+    return lecturasAgrupadas.filter(grupo => {
+      if (filter === 'todas' || filter === 'todos') return true
+      if (filter === 'valido') return grupo.estado === 'valido'
+      if (filter === 'alerta') return grupo.estado === 'alerta'
+      if (filter === 'error') return grupo.estado === 'error'
+      return true
+    })
+  }, [lecturasAgrupadas, filter])
 
   const toggleExpandir = (numeroContador) => {
     const newExpandidos = new Set(expandidos)
@@ -32,6 +96,11 @@ export function ValidacionTable({
       newExpandidos.add(numeroContador)
     }
     setExpandidos(newExpandidos)
+  }
+
+  const handleSelectionChange = (newSelection) => {
+    const newSet = new Set(newSelection)
+    onSelectChange?.(newSet)
   }
 
   const toggleSeleccion = (grupo) => {
@@ -45,9 +114,9 @@ export function ValidacionTable({
     const todosSeleccionados = ids.every(id => seleccionados.includes(id))
     
     if (todosSeleccionados) {
-      onSeleccionChange?.(seleccionados.filter(id => !ids.includes(id)))
+      handleSelectionChange(seleccionados.filter(id => !ids.includes(id)))
     } else {
-      onSeleccionChange?.([...new Set([...seleccionados, ...ids])])
+      handleSelectionChange([...new Set([...seleccionados, ...ids])])
     }
   }
 
@@ -96,9 +165,9 @@ export function ValidacionTable({
                     .map(c => c.id)
                   
                   if (e.target.checked) {
-                    onSeleccionChange?.([...new Set([...seleccionados, ...allIds])])
+                    handleSelectionChange([...new Set([...seleccionados, ...allIds])])
                   } else {
-                    onSeleccionChange?.(seleccionados.filter(id => !allIds.includes(id)))
+                    handleSelectionChange(seleccionados.filter(id => !allIds.includes(id)))
                   }
                 }}
               />
@@ -207,9 +276,9 @@ export function ValidacionTable({
                           checked={seleccionados.includes(concepto.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              onSeleccionChange?.([...seleccionados, concepto.id])
+                              handleSelectionChange([...seleccionados, concepto.id])
                             } else {
-                              onSeleccionChange?.(seleccionados.filter(id => id !== concepto.id))
+                              handleSelectionChange(seleccionados.filter(id => id !== concepto.id))
                             }
                           }}
                         />
