@@ -33,9 +33,25 @@ const UMBRALES_DEFAULT = {
 }
 
 /**
+ * Helper para obtener configuración de alerta
+ * Soporta tanto array como objeto indexado por tipo/codigo
+ */
+function getAlertConfig(alertasConfig, tipo) {
+  if (!alertasConfig) return null
+  
+  // Si es un array, buscar por codigo o tipo
+  if (Array.isArray(alertasConfig)) {
+    return alertasConfig.find(a => a.codigo === tipo || a.tipo === tipo)
+  }
+  
+  // Si es un objeto, buscar por key
+  return alertasConfig[tipo] || null
+}
+
+/**
  * Detecta alertas en un resultado de lectura
  * @param {Object} resultado - Datos de la lectura procesada
- * @param {Array} alertasConfig - Configuración de alertas activas
+ * @param {Array|Object} alertasConfig - Configuración de alertas (array o objeto indexado)
  * @param {Object} mediaHistorica - Media de consumo histórico (opcional)
  * @returns {Array} Lista de alertas detectadas
  */
@@ -60,7 +76,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
 
   // 1. Verificar consumo negativo
   if (consumo_calculado != null && consumo_calculado < 0) {
-    const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.CONSUMO_NEGATIVO)
+    const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.CONSUMO_NEGATIVO)
     alertas.push({
       tipo: TIPOS_ALERTA.CONSUMO_NEGATIVO,
       severidad: config?.severidad || 'warning',
@@ -72,7 +88,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
 
   // 2. Verificar consumo cero
   if (consumo_calculado === 0) {
-    const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.CONSUMO_CERO)
+    const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.CONSUMO_CERO)
     alertas.push({
       tipo: TIPOS_ALERTA.CONSUMO_CERO,
       severidad: config?.severidad || 'info',
@@ -89,7 +105,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
     const umbralMuyAlto = UMBRALES_DEFAULT.consumo_muy_alto_factor
     
     if (factor >= umbralMuyAlto) {
-      const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.CONSUMO_MUY_ALTO)
+      const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.CONSUMO_MUY_ALTO)
       alertas.push({
         tipo: TIPOS_ALERTA.CONSUMO_MUY_ALTO,
         severidad: config?.severidad || 'error',
@@ -100,7 +116,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
         factor: factor
       })
     } else if (factor >= umbralAlto) {
-      const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.CONSUMO_ALTO)
+      const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.CONSUMO_ALTO)
       alertas.push({
         tipo: TIPOS_ALERTA.CONSUMO_ALTO,
         severidad: config?.severidad || 'warning',
@@ -120,7 +136,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
     hoy.setHours(23, 59, 59, 999)
     
     if (fechaLectura > hoy) {
-      const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.FECHA_FUTURA)
+      const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.FECHA_FUTURA)
       alertas.push({
         tipo: TIPOS_ALERTA.FECHA_FUTURA,
         severidad: config?.severidad || 'error',
@@ -137,7 +153,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
     const fechaAnterior = new Date(fecha_lectura_anterior)
     
     if (fechaLectura <= fechaAnterior) {
-      const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.FECHA_ANTERIOR)
+      const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.FECHA_ANTERIOR)
       alertas.push({
         tipo: TIPOS_ALERTA.FECHA_ANTERIOR,
         severidad: config?.severidad || 'error',
@@ -150,7 +166,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
 
   // 6. Verificar cliente bloqueado
   if (cliente_bloqueado) {
-    const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.CLIENTE_BLOQUEADO)
+    const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.CLIENTE_BLOQUEADO)
     alertas.push({
       tipo: TIPOS_ALERTA.CLIENTE_BLOQUEADO,
       severidad: config?.severidad || 'warning',
@@ -161,7 +177,7 @@ export function detectarAlertas(resultado, alertasConfig = [], mediaHistorica = 
 
   // 7. Sin lectura anterior (primera lectura)
   if (lectura_anterior == null && lectura_valor != null) {
-    const config = alertasConfig.find(a => a.codigo === TIPOS_ALERTA.SIN_LECTURA_ANTERIOR)
+    const config = getAlertConfig(alertasConfig, TIPOS_ALERTA.SIN_LECTURA_ANTERIOR)
     alertas.push({
       tipo: TIPOS_ALERTA.SIN_LECTURA_ANTERIOR,
       severidad: config?.severidad || 'info',
