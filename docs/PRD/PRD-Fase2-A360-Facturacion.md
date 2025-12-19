@@ -6,7 +6,7 @@
 |-------|-------|
 | **Cliente** | A360 Servicios Energéticos S.L. |
 | **Proyecto** | Sistema de Facturación Energética |
-| **Versión** | 1.0 |
+| **Versión** | 1.1 |
 | **Fecha** | Diciembre 2025 |
 | **Fase** | 2 de 5 |
 | **Dependencia** | Requiere Fase 1 completada |
@@ -100,53 +100,76 @@ Esta fase implementa el sistema de importación de lecturas desde archivos Excel
 ### 2.2 Caso de Uso Principal
 
 1. El técnico visita la comunidad "Troya 40" y toma lecturas de todos los contadores
-2. Genera un Excel con las columnas: Portal, Vivienda, Nº Contador, Concepto, Lectura, Fecha
-3. El administrativo accede a la plataforma y sube el Excel
-4. El sistema detecta automáticamente las columnas y muestra una previsualización
-5. El usuario confirma el mapeo de columnas
-6. El sistema procesa cada fila:
+2. Genera un Excel usando la **Plantilla Maestra** con las columnas: Fecha, Nº Contador, Portal, Vivienda, y una columna por cada concepto (ACS, CAL, CLI, etc.)
+3. **Cada fila representa un contador único** con todas sus lecturas de conceptos en la misma fecha
+4. El administrativo accede a la plataforma y sube el Excel
+5. El sistema detecta automáticamente:
+   - Las columnas fijas (Fecha, Nº Contador, Portal, Vivienda)
+   - Las columnas de conceptos (comparando con los conceptos configurados en `/configuracion/conceptos`)
+6. El usuario confirma el mapeo de columnas
+7. El sistema procesa cada fila:
    - Busca el contador por número de serie
-   - Obtiene la lectura anterior de ese contador/concepto
-   - Calcula el consumo (lectura actual - lectura anterior)
-   - Detecta alertas si aplica
-7. Se muestra la pantalla de validación con todas las lecturas y alertas
-8. El usuario revisa, corrige si es necesario, y confirma
-9. Las lecturas confirmadas se guardan y quedan listas para facturar
+   - Para cada columna de concepto con valor:
+     - Obtiene la lectura anterior de ese contador/concepto
+     - Calcula el consumo (lectura actual - lectura anterior)
+     - Detecta alertas si aplica
+   - Genera múltiples registros de lectura (uno por concepto con valor)
+8. Se muestra la pantalla de validación con todas las lecturas agrupadas por contador
+9. El usuario revisa, corrige si es necesario, y confirma
+10. Las lecturas confirmadas se guardan y quedan listas para facturar
 
 ---
 
 ## 3. Formato del Excel de Entrada
 
-### 3.1 Columnas Esperadas
+### 3.1 Estructura de la Plantilla Maestra
 
-| Columna | Obligatoria | Descripción | Ejemplo |
-|---------|-------------|-------------|---------|
-| Nº Contador | ✅ Sí | Número de serie del contador | 22804168 |
-| Concepto | ✅ Sí | Código o nombre del concepto | ACS, CAL, Calefacción |
-| Lectura | ✅ Sí | Valor de la lectura actual | 21.2080 |
-| Fecha Lectura | ✅ Sí | Fecha de la lectura | 23/11/2025 |
-| Portal | ❌ No | Referencia visual (no se usa para matching) | 2 |
-| Vivienda | ❌ No | Referencia visual (no se usa para matching) | 5ºH |
+La plantilla de importación utiliza un formato **horizontal por contador**, donde cada fila representa un contador único y cada concepto tiene su propia columna. Esto refleja la realidad operativa: un contador se lee una vez y puede medir múltiples conceptos.
 
-### 3.2 Variantes de Nombres de Columna Aceptadas
+**Orden de columnas (fijo):**
 
-El sistema debe reconocer variantes comunes:
+| Posición | Columna | Obligatoria | Descripción | Ejemplo |
+|----------|---------|-------------|-------------|---------|
+| 1 | Fecha | ✅ Sí | Fecha de la lectura (siempre primera columna) | 17/12/2025 |
+| 2 | Nº Contador | ✅ Sí | Número de serie único del contador | 22804101 |
+| 3 | Portal | ❌ No | Referencia visual (no se usa para matching) | 1 |
+| 4 | Vivienda | ❌ No | Referencia visual (no se usa para matching) | 1ªA |
+| 5+ | [Conceptos] | ⚡ Dinámico | Una columna por cada concepto configurado | 150, 5600, etc. |
+
+**Columnas de conceptos:**
+- Los conceptos se detectan automáticamente comparando los nombres de columna con los códigos de conceptos configurados en `/configuracion/conceptos`
+- Los conceptos actuales son: **ACS**, **CAL**, **CLI**, **TF**
+- Si se añade un nuevo concepto en configuración, automáticamente se reconocerá como columna válida
+- Las celdas vacías en columnas de conceptos se ignoran (el contador no mide ese concepto o no hay lectura)
+- Los nuevos conceptos siempre se añaden como columnas al final de la plantilla
+
+### 3.2 Ejemplo de Plantilla Maestra
+
+| Fecha | Nº Contador | Portal | Vivienda | ACS | CAL | CLI |
+|-------|-------------|--------|----------|-----|-----|-----|
+| 17/12/2025 | 22804101 | 1 | 1ªA | 150 | 5600 | |
+| 17/12/2025 | 22804102 | 1 | 1ªB | 89.5 | 3200 | |
+| 17/12/2025 | 22804103 | 1 | 2ªA | 210 | | 450 |
+| 17/12/2025 | 22804104 | 2 | 1ªA | 175.3 | 4100 | 320 |
+
+**Interpretación del ejemplo:**
+- Contador 22804101: Mide ACS (150) y CAL (5600), no tiene CLI
+- Contador 22804102: Mide ACS (89.5) y CAL (3200), no tiene CLI
+- Contador 22804103: Mide ACS (210) y CLI (450), no tiene CAL
+- Contador 22804104: Mide los 3 conceptos
+
+### 3.3 Variantes de Nombres de Columna Aceptadas
+
+El sistema reconoce variantes comunes para las columnas fijas:
 
 ```javascript
 const COLUMN_MAPPINGS = {
+  fecha_lectura: [
+    'fecha', 'fecha lectura', 'fecha de lectura', 'f. lectura', 'dia', 'date'
+  ],
   numero_contador: [
     'nº contador', 'n contador', 'numero contador', 'num contador',
     'contador', 'serie', 'nº serie', 'numero serie', 'id contador'
-  ],
-  concepto: [
-    'concepto', 'tipo', 'servicio', 'tipo consumo', 'tipo lectura'
-  ],
-  lectura: [
-    'lectura', 'lectura actual', 'valor', 'medicion', 'lectura m3',
-    'lectura kcal', 'lectura frig'
-  ],
-  fecha_lectura: [
-    'fecha', 'fecha lectura', 'fecha de lectura', 'f. lectura', 'dia'
   ],
   portal: [
     'portal', 'bloque', 'escalera', 'edificio'
@@ -155,9 +178,46 @@ const COLUMN_MAPPINGS = {
     'vivienda', 'piso', 'puerta', 'local', 'unidad'
   ]
 };
+
+// Los conceptos se detectan dinámicamente desde la tabla `conceptos`
+// Comparando el nombre de columna con concepto.codigo (case-insensitive)
+// Ejemplos: "ACS" matchea con concepto.codigo = "ACS"
+//           "acs" matchea con concepto.codigo = "ACS"
+//           "Calefacción" NO matchea automáticamente (usar código "CAL")
 ```
 
-### 3.3 Formatos de Fecha Aceptados
+### 3.4 Detección Automática de Conceptos
+
+```javascript
+async function detectarColumnasConceptos(headers) {
+  // Obtener todos los conceptos activos de la base de datos
+  const conceptos = await getConceptosActivos();
+  
+  const columnasConceptos = {};
+  
+  headers.forEach((header, index) => {
+    const headerNormalizado = header.trim().toUpperCase();
+    
+    // Buscar si el header coincide con algún código de concepto
+    const concepto = conceptos.find(c => 
+      c.codigo.toUpperCase() === headerNormalizado
+    );
+    
+    if (concepto) {
+      columnasConceptos[index] = {
+        concepto_id: concepto.id,
+        concepto_codigo: concepto.codigo,
+        concepto_nombre: concepto.nombre,
+        unidad_medida: concepto.unidad_medida
+      };
+    }
+  });
+  
+  return columnasConceptos;
+}
+```
+
+### 3.5 Formatos de Fecha Aceptados
 
 ```javascript
 const DATE_FORMATS = [
@@ -170,14 +230,26 @@ const DATE_FORMATS = [
 ];
 ```
 
-### 3.4 Formatos Numéricos Aceptados
+### 3.6 Formatos Numéricos Aceptados
 
 ```javascript
-// El sistema debe manejar ambos formatos
+// El sistema debe manejar ambos formatos para lecturas
 '21.2080'   // Formato internacional (punto decimal)
 '21,2080'   // Formato español (coma decimal)
 '1.234,56'  // Formato español con miles
+''          // Celda vacía = concepto no aplica a este contador
 ```
+
+### 3.7 Reglas de Validación de Filas
+
+| Situación | Comportamiento |
+|-----------|----------------|
+| Fila con Nº Contador vacío | Se ignora la fila completa |
+| Fila con Fecha vacía | Error: fecha obligatoria |
+| Celda de concepto vacía | Se ignora ese concepto para ese contador |
+| Celda de concepto = 0 | Se procesa como lectura válida con valor 0 |
+| Concepto con valor pero no asignado al contador | Alerta de error para revisión manual |
+| Columna con nombre no reconocido | Se ignora (no es columna fija ni concepto válido) |
 
 ---
 
@@ -203,11 +275,12 @@ CREATE TABLE importaciones (
   comunidad_id UUID REFERENCES comunidades(id),
   nombre_archivo TEXT NOT NULL,
   
-  -- Estadísticas
-  total_filas INTEGER NOT NULL DEFAULT 0,
-  filas_validas INTEGER NOT NULL DEFAULT 0,
-  filas_con_alertas INTEGER NOT NULL DEFAULT 0,
-  filas_error INTEGER NOT NULL DEFAULT 0,
+  -- Estadísticas (contadores = filas del Excel, lecturas = registros generados)
+  total_contadores INTEGER NOT NULL DEFAULT 0,    -- Filas del Excel procesadas
+  total_lecturas INTEGER NOT NULL DEFAULT 0,      -- Lecturas generadas (múltiples por contador)
+  lecturas_validas INTEGER NOT NULL DEFAULT 0,
+  lecturas_con_alertas INTEGER NOT NULL DEFAULT 0,
+  lecturas_error INTEGER NOT NULL DEFAULT 0,
   
   -- Estado
   estado estado_importacion NOT NULL DEFAULT 'pendiente',
@@ -581,8 +654,10 @@ $$ LANGUAGE plpgsql;
 │  │                                                     │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  💡 El archivo debe contener las columnas:                  │
-│     Nº Contador, Concepto, Lectura, Fecha Lectura          │
+│  💡 Usa la Plantilla Maestra con el formato:                │
+│     Fecha | Nº Contador | Portal | Vivienda | ACS | CAL |..│
+│                                                             │
+│  📥 [Descargar Plantilla Maestra]                           │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -590,34 +665,44 @@ $$ LANGUAGE plpgsql;
 **Paso 2: Mapeo de Columnas**
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  📥 Importar Lecturas - Mapeo de Columnas                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Archivo: lecturas_noviembre_2025.xlsx (45 filas)          │
-│                                                             │
-│  Columnas detectadas:            Mapear a:                  │
-│  ┌────────────────────┐         ┌──────────────────────┐   │
-│  │ A: Portal          │    →    │ Portal (opcional)  ▼ │   │
-│  │ B: Vivienda        │    →    │ Vivienda (opcional)▼ │   │
-│  │ C: Num_Contador    │    →    │ Nº Contador ✓      ▼ │   │
-│  │ D: Tipo            │    →    │ Concepto ✓         ▼ │   │
-│  │ E: Lectura_Actual  │    →    │ Lectura ✓          ▼ │   │
-│  │ F: Fecha           │    →    │ Fecha Lectura ✓    ▼ │   │
-│  └────────────────────┘         └──────────────────────┘   │
-│                                                             │
-│  Vista previa (primeras 5 filas):                          │
-│  ┌──────┬─────────┬───────────┬──────┬─────────┬──────────┐│
-│  │Portal│Vivienda │Num_Contador│Tipo │Lect_Act │Fecha     ││
-│  ├──────┼─────────┼───────────┼──────┼─────────┼──────────┤│
-│  │2     │5ºH      │22804168   │ACS   │21.2080  │23/11/2025││
-│  │2     │5ºH      │22804168   │CAL   │1520.50  │23/11/2025││
-│  │...   │...      │...        │...   │...      │...       ││
-│  └──────┴─────────┴───────────┴──────┴─────────┴──────────┘│
-│                                                             │
-│              [Cancelar]              [Procesar Archivo →]   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  📥 Importar Lecturas - Mapeo de Columnas                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Archivo: lecturas_noviembre_2025.xlsx (45 contadores)                 │
+│                                                                         │
+│  COLUMNAS FIJAS DETECTADAS:                                            │
+│  ┌────────────────────┐         ┌──────────────────────┐               │
+│  │ A: Fecha           │    →    │ Fecha Lectura ✓    ▼ │               │
+│  │ B: Nº Contador     │    →    │ Nº Contador ✓      ▼ │               │
+│  │ C: Portal          │    →    │ Portal (opcional)  ▼ │               │
+│  │ D: Vivienda        │    →    │ Vivienda (opcional)▼ │               │
+│  └────────────────────┘         └──────────────────────┘               │
+│                                                                         │
+│  COLUMNAS DE CONCEPTOS DETECTADAS:                                     │
+│  ┌────────────────────────────────────────────────────────────────┐    │
+│  │ ✅ E: ACS  → Agua Caliente Sanitaria (m³)                      │    │
+│  │ ✅ F: CAL  → Calefacción (Kcal)                                 │    │
+│  │ ✅ G: CLI  → Climatización (Frig)                               │    │
+│  │ ⚠️ H: OTRO → Columna no reconocida (se ignorará)               │    │
+│  └────────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  Vista previa (primeras 5 filas):                                      │
+│  ┌──────────┬───────────┬──────┬─────────┬───────┬───────┬───────┐    │
+│  │ Fecha    │Nº Contador│Portal│Vivienda │ ACS   │ CAL   │ CLI   │    │
+│  ├──────────┼───────────┼──────┼─────────┼───────┼───────┼───────┤    │
+│  │17/12/2025│22804101   │1     │1ªA      │ 150   │ 5600  │       │    │
+│  │17/12/2025│22804102   │1     │1ªB      │ 89.5  │ 3200  │       │    │
+│  │17/12/2025│22804103   │1     │2ªA      │ 210   │       │ 450   │    │
+│  │17/12/2025│22804104   │2     │1ªA      │ 175.3 │ 4100  │ 320   │    │
+│  │...       │...        │...   │...      │ ...   │ ...   │ ...   │    │
+│  └──────────┴───────────┴──────┴─────────┴───────┴───────┴───────┘    │
+│                                                                         │
+│  Resumen: 45 contadores | Conceptos: ACS, CAL, CLI                     │
+│                                                                         │
+│              [Cancelar]              [Procesar Archivo →]               │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 5.2 Pantalla: Validación de Lecturas
@@ -625,37 +710,50 @@ $$ LANGUAGE plpgsql;
 **Ruta:** `/lecturas/validar/:importacionId`
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  ✓ Validación de Lecturas                                    [❌ Cancelar]  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Comunidad: Troya 40                    Archivo: lecturas_nov_2025.xlsx    │
-│  Fecha: 23/11/2025                      Total: 45 lecturas                 │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  ✅ 38 Válidas    ⚠️ 5 Con alertas    ❌ 2 Errores                  │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  Filtrar: [Todas ▼]  [Buscar por contador o cliente...]         [🔄]      │
-│                                                                             │
-│  ┌────┬─────────┬────────────┬────────┬─────────┬─────────┬───────┬──────┐ │
-│  │ ☑️ │ Portal  │ Vivienda   │Cliente │Contador │Concepto │Consumo│Estado│ │
-│  ├────┼─────────┼────────────┼────────┼─────────┼─────────┼───────┼──────┤ │
-│  │ ☑️ │ 2       │ 5ºH        │O.Zurro │22804168 │ACS      │ 1.073 │ ✅   │ │
-│  │ ☑️ │ 2       │ 5ºH        │O.Zurro │22804168 │CAL      │ 45.20 │ ✅   │ │
-│  │ ☑️ │ 2       │ 3ºA        │M.López │22804201 │ACS      │ 2.150 │ ⚠️   │ │
-│  │    │         │            │        │         │         │       │[!]   │ │
-│  │ ☐ │ 3       │ 1ºB        │—       │99999999 │ACS      │ —     │ ❌   │ │
-│  │    │         │            │        │         │         │       │[!]   │ │
-│  │ ...│ ...     │ ...        │...     │...      │...      │ ...   │ ...  │ │
-│  └────┴─────────┴────────────┴────────┴─────────┴─────────┴───────┴──────┘ │
-│                                                                             │
-│  ☑️ Seleccionar todas las válidas (38)                                     │
-│                                                                             │
-│  [Descartar selección]                    [Confirmar 38 lecturas →]        │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│  ✓ Validación de Lecturas                                        [❌ Cancelar]    │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                   │
+│  Comunidad: Troya 40                        Archivo: lecturas_nov_2025.xlsx      │
+│  Fecha: 17/12/2025                          Contadores: 45 | Lecturas: 112       │
+│                                                                                   │
+│  ┌───────────────────────────────────────────────────────────────────────────┐   │
+│  │  ✅ 40 Contadores OK    ⚠️ 3 Con alertas    ❌ 2 Con errores              │   │
+│  └───────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                   │
+│  Filtrar: [Todos ▼]  [Buscar por contador o cliente...]             [🔄]        │
+│  Vista:   ○ Por contador   ○ Por lectura                                         │
+│                                                                                   │
+│  ┌────┬──────┬────────┬────────┬───────────┬─────────────────────────────┬─────┐ │
+│  │ ☑️ │Portal│Vivienda│Cliente │ Contador  │         Conceptos           │Estado│ │
+│  ├────┼──────┼────────┼────────┼───────────┼─────────────────────────────┼─────┤ │
+│  │ ☑️ │ 1    │ 1ªA    │O.Zurro │ 22804101  │ ACS: 150 (+2.3)             │ ✅  │ │
+│  │    │      │        │        │           │ CAL: 5600 (+120)            │     │ │
+│  ├────┼──────┼────────┼────────┼───────────┼─────────────────────────────┼─────┤ │
+│  │ ☑️ │ 1    │ 1ªB    │M.López │ 22804102  │ ACS: 89.5 (+1.8)            │ ⚠️  │ │
+│  │    │      │        │        │           │ CAL: 3200 (+85) ⚠️ Alto     │ [!] │ │
+│  ├────┼──────┼────────┼────────┼───────────┼─────────────────────────────┼─────┤ │
+│  │ ☑️ │ 1    │ 2ªA    │J.García│ 22804103  │ ACS: 210 (+3.5)             │ ✅  │ │
+│  │    │      │        │        │           │ CLI: 450 (+15)              │     │ │
+│  ├────┼──────┼────────┼────────┼───────────┼─────────────────────────────┼─────┤ │
+│  │ ☐ │ 2    │ 1ªA    │ —      │ 99999999  │ ACS: 175.3 ❌ Contador      │ ❌  │ │
+│  │    │      │        │        │           │     no encontrado           │ [!] │ │
+│  ├────┼──────┼────────┼────────┼───────────┼─────────────────────────────┼─────┤ │
+│  │ ☑️ │ 2    │ 2ªB    │A.Ruiz  │ 22804105  │ ACS: 95 (+2.1)              │ ⚠️  │ │
+│  │    │      │        │        │           │ CAL: 2800 (+60)             │ [!] │ │
+│  │    │      │        │        │           │ CLI: 180 ❌ No asignado     │     │ │
+│  └────┴──────┴────────┴────────┴───────────┴─────────────────────────────┴─────┘ │
+│                                                                                   │
+│  Leyenda: (+X) = Consumo calculado | ⚠️ = Alerta no bloqueante | ❌ = Error      │
+│                                                                                   │
+│  ☑️ Seleccionar todos los contadores válidos (40)                                │
+│                                                                                   │
+│  [Descartar selección]                      [Confirmar 98 lecturas →]            │
+│                                                                                   │
+└───────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Nota sobre agrupación:** Las lecturas se agrupan visualmente por contador para facilitar la revisión. Un contador con múltiples conceptos muestra todos sus conceptos en la misma tarjeta/fila expandida.
 
 ### 5.3 Panel de Detalle de Fila
 
@@ -766,7 +864,7 @@ Al hacer clic en una fila o en el icono de alerta:
 
 ## 6. Lógica de Procesamiento
 
-### 6.1 Algoritmo de Procesamiento de Excel
+### 6.1 Algoritmo de Procesamiento de Excel (Nueva Estructura)
 
 ```javascript
 async function procesarExcel(file, comunidadId, columnMapping) {
@@ -775,7 +873,13 @@ async function procesarExcel(file, comunidadId, columnMapping) {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
   
-  // 2. Crear registro de importación
+  const headers = rows[0];
+  
+  // 2. Detectar columnas de conceptos dinámicamente
+  const conceptosActivos = await getConceptosActivos();
+  const columnasConceptos = detectarColumnasConceptos(headers, conceptosActivos);
+  
+  // 3. Crear registro de importación
   const importacion = await createImportacion({
     comunidad_id: comunidadId,
     nombre_archivo: file.name,
@@ -783,18 +887,35 @@ async function procesarExcel(file, comunidadId, columnMapping) {
     estado: 'procesando'
   });
   
-  // 3. Procesar cada fila
+  // 4. Procesar cada fila (cada fila = un contador con múltiples conceptos)
   const resultados = [];
+  let totalLecturas = 0;
+  
   for (let i = 1; i < rows.length; i++) {
     const fila = rows[i];
-    const resultado = await procesarFila(fila, i, columnMapping, comunidadId);
-    resultados.push(resultado);
     
-    // Guardar en importaciones_detalle
-    await saveImportacionDetalle(importacion.id, resultado);
+    // Saltar filas vacías o sin número de contador
+    const numeroContador = parseString(fila[columnMapping.numero_contador]);
+    if (!numeroContador) continue;
+    
+    // Procesar la fila y generar múltiples registros de lectura
+    const lecturasGeneradas = await procesarFilaMulticoncepto(
+      fila, 
+      i, 
+      columnMapping, 
+      columnasConceptos,
+      comunidadId
+    );
+    
+    // Guardar cada lectura en importaciones_detalle
+    for (const lectura of lecturasGeneradas) {
+      await saveImportacionDetalle(importacion.id, lectura);
+      resultados.push(lectura);
+      totalLecturas++;
+    }
   }
   
-  // 4. Actualizar estadísticas
+  // 5. Actualizar estadísticas
   const stats = calcularEstadisticas(resultados);
   await updateImportacion(importacion.id, {
     estado: 'validado',
@@ -804,82 +925,155 @@ async function procesarExcel(file, comunidadId, columnMapping) {
     fecha_procesado: new Date()
   });
   
-  return { importacion, resultados };
+  return { importacion, resultados, totalLecturas };
+}
+
+/**
+ * Detecta qué columnas del Excel corresponden a conceptos configurados
+ */
+function detectarColumnasConceptos(headers, conceptosActivos) {
+  const columnasConceptos = {};
+  
+  headers.forEach((header, index) => {
+    if (!header) return;
+    const headerNormalizado = header.toString().trim().toUpperCase();
+    
+    const concepto = conceptosActivos.find(c => 
+      c.codigo.toUpperCase() === headerNormalizado
+    );
+    
+    if (concepto) {
+      columnasConceptos[index] = {
+        concepto_id: concepto.id,
+        concepto_codigo: concepto.codigo,
+        concepto_nombre: concepto.nombre,
+        unidad_medida: concepto.unidad_medida,
+        es_termino_fijo: concepto.es_termino_fijo
+      };
+    }
+  });
+  
+  return columnasConceptos;
 }
 ```
 
-### 6.2 Algoritmo de Procesamiento de Fila
+### 6.2 Algoritmo de Procesamiento de Fila Multiconcepto
 
 ```javascript
-async function procesarFila(fila, numeroFila, mapping, comunidadId) {
-  const resultado = {
-    fila_numero: numeroFila,
-    datos_originales: fila,
-    alertas: [],
-    estado: 'pendiente'
-  };
+/**
+ * Procesa una fila del Excel y genera múltiples registros de lectura
+ * (uno por cada concepto que tenga valor en esa fila)
+ */
+async function procesarFilaMulticoncepto(fila, numeroFila, mapping, columnasConceptos, comunidadId) {
+  const lecturas = [];
   
-  try {
-    // 1. Extraer y parsear datos
-    const numeroContador = parseString(fila[mapping.numero_contador]);
-    const conceptoCodigo = parseConcepto(fila[mapping.concepto]);
-    const lecturaValor = parseNumber(fila[mapping.lectura]);
-    const fechaLectura = parseDate(fila[mapping.fecha_lectura]);
+  // 1. Extraer datos comunes de la fila
+  const numeroContador = parseString(fila[mapping.numero_contador]);
+  const fechaLectura = parseDate(fila[mapping.fecha_lectura]);
+  const portal = parseString(fila[mapping.portal]);
+  const vivienda = parseString(fila[mapping.vivienda]);
+  
+  // 2. Validar datos obligatorios
+  if (!numeroContador) {
+    return []; // Fila vacía, ignorar
+  }
+  
+  if (!fechaLectura) {
+    // Crear un registro de error para la fila completa
+    return [{
+      fila_numero: numeroFila,
+      datos_originales: fila,
+      numero_contador: numeroContador,
+      alertas: [{ tipo: 'formato_invalido', mensaje: 'Fecha de lectura obligatoria', severidad: 'error' }],
+      estado: 'error'
+    }];
+  }
+  
+  // 3. Buscar contador
+  const contador = await findContadorByNumeroSerie(numeroContador);
+  if (!contador) {
+    // Crear registros de error para cada concepto con valor
+    const conceptosConValor = Object.entries(columnasConceptos)
+      .filter(([idx, _]) => fila[parseInt(idx)] !== '' && fila[parseInt(idx)] != null);
     
-    resultado.numero_contador = numeroContador;
-    resultado.concepto_codigo = conceptoCodigo;
-    resultado.lectura_valor = lecturaValor;
-    resultado.fecha_lectura = fechaLectura;
-    
-    // 2. Validar formato
-    if (!numeroContador || !conceptoCodigo || lecturaValor === null || !fechaLectura) {
-      resultado.alertas.push({ tipo: 'formato_invalido', mensaje: 'Datos incompletos o inválidos' });
-      resultado.estado = 'error';
-      return resultado;
+    if (conceptosConValor.length === 0) {
+      return [{
+        fila_numero: numeroFila,
+        datos_originales: fila,
+        numero_contador: numeroContador,
+        fecha_lectura: fechaLectura,
+        alertas: [{ tipo: 'contador_no_encontrado', mensaje: `Contador ${numeroContador} no encontrado`, severidad: 'error' }],
+        estado: 'error'
+      }];
     }
     
-    // 3. Buscar contador
-    const contador = await findContadorByNumeroSerie(numeroContador);
-    if (!contador) {
-      resultado.alertas.push({ tipo: 'contador_no_encontrado', mensaje: `Contador ${numeroContador} no encontrado` });
-      resultado.estado = 'error';
-      return resultado;
-    }
-    resultado.contador_id = contador.id;
-    resultado.ubicacion_id = contador.ubicacion_id;
+    return conceptosConValor.map(([idx, concepto]) => ({
+      fila_numero: numeroFila,
+      datos_originales: fila,
+      numero_contador: numeroContador,
+      fecha_lectura: fechaLectura,
+      concepto_codigo: concepto.concepto_codigo,
+      concepto_id: concepto.concepto_id,
+      lectura_valor: parseNumber(fila[parseInt(idx)]),
+      alertas: [{ tipo: 'contador_no_encontrado', mensaje: `Contador ${numeroContador} no encontrado`, severidad: 'error' }],
+      estado: 'error'
+    }));
+  }
+  
+  // 4. Verificar que pertenece a la comunidad
+  const ubicacionInfo = await getUbicacionInfo(contador.ubicacion_id);
+  if (ubicacionInfo.comunidad_id !== comunidadId) {
+    return [{
+      fila_numero: numeroFila,
+      datos_originales: fila,
+      numero_contador: numeroContador,
+      contador_id: contador.id,
+      alertas: [{ tipo: 'contador_otra_comunidad', mensaje: 'El contador pertenece a otra comunidad', severidad: 'error' }],
+      estado: 'error'
+    }];
+  }
+  
+  // 5. Obtener cliente actual
+  const cliente = await getClienteActualUbicacion(contador.ubicacion_id);
+  
+  // 6. Procesar cada columna de concepto que tenga valor
+  for (const [colIndex, conceptoInfo] of Object.entries(columnasConceptos)) {
+    const lecturaValor = parseNumber(fila[parseInt(colIndex)]);
     
-    // 4. Verificar que pertenece a la comunidad
-    const ubicacionInfo = await getUbicacionInfo(contador.ubicacion_id);
-    if (ubicacionInfo.comunidad_id !== comunidadId) {
-      resultado.alertas.push({ tipo: 'contador_otra_comunidad', mensaje: 'El contador pertenece a otra comunidad' });
-      resultado.estado = 'error';
-      return resultado;
-    }
-    resultado.comunidad_id = comunidadId;
+    // Ignorar celdas vacías (el contador no mide este concepto)
+    if (lecturaValor === null || lecturaValor === '') continue;
     
-    // 5. Buscar concepto
-    const concepto = await findConceptoByCodigo(conceptoCodigo);
-    if (!concepto) {
-      resultado.alertas.push({ tipo: 'concepto_no_encontrado', mensaje: `Concepto ${conceptoCodigo} no encontrado` });
-      resultado.estado = 'error';
-      return resultado;
-    }
-    resultado.concepto_id = concepto.id;
+    const resultado = {
+      fila_numero: numeroFila,
+      datos_originales: fila,
+      numero_contador: numeroContador,
+      fecha_lectura: fechaLectura,
+      concepto_codigo: conceptoInfo.concepto_codigo,
+      concepto_id: conceptoInfo.concepto_id,
+      lectura_valor: lecturaValor,
+      contador_id: contador.id,
+      ubicacion_id: contador.ubicacion_id,
+      comunidad_id: comunidadId,
+      cliente_id: cliente?.id,
+      alertas: [],
+      estado: 'pendiente'
+    };
     
-    // 6. Verificar que el contador tiene asignado este concepto
-    const contadorConcepto = await findContadorConcepto(contador.id, concepto.id);
+    // 7. Verificar que el contador tiene asignado este concepto
+    const contadorConcepto = await findContadorConcepto(contador.id, conceptoInfo.concepto_id);
     if (!contadorConcepto) {
-      resultado.alertas.push({ tipo: 'concepto_no_asignado', mensaje: 'El contador no tiene asignado este concepto' });
+      resultado.alertas.push({ 
+        tipo: 'concepto_no_asignado', 
+        mensaje: `El contador no tiene asignado el concepto ${conceptoInfo.concepto_codigo}`,
+        severidad: 'error'
+      });
       resultado.estado = 'error';
-      return resultado;
+      lecturas.push(resultado);
+      continue;
     }
-    
-    // 7. Obtener cliente actual
-    const cliente = await getClienteActualUbicacion(contador.ubicacion_id);
-    resultado.cliente_id = cliente?.id;
     
     // 8. Obtener lectura anterior
-    const lecturaAnterior = await getUltimaLectura(contador.id, concepto.id);
+    const lecturaAnterior = await getUltimaLectura(contador.id, conceptoInfo.concepto_id);
     resultado.lectura_anterior = lecturaAnterior?.lectura_valor || contadorConcepto.lectura_inicial;
     resultado.fecha_lectura_anterior = lecturaAnterior?.fecha_lectura || contadorConcepto.fecha_lectura_inicial;
     
@@ -887,7 +1081,7 @@ async function procesarFila(fila, numeroFila, mapping, comunidadId) {
     resultado.consumo_calculado = lecturaValor - resultado.lectura_anterior;
     
     // 10. Obtener precio
-    const precio = await getPrecioVigente(comunidadId, concepto.id);
+    const precio = await getPrecioVigente(comunidadId, conceptoInfo.concepto_id);
     resultado.precio_unitario = precio?.precio_unitario;
     resultado.importe_estimado = resultado.consumo_calculado * (precio?.precio_unitario || 0);
     
@@ -903,12 +1097,10 @@ async function procesarFila(fila, numeroFila, mapping, comunidadId) {
       resultado.estado = 'valido';
     }
     
-  } catch (error) {
-    resultado.error_mensaje = error.message;
-    resultado.estado = 'error';
+    lecturas.push(resultado);
   }
   
-  return resultado;
+  return lecturas;
 }
 ```
 
@@ -1293,16 +1485,72 @@ async function readExcel(file) {
 
 ---
 
-## Anexo: Ejemplo de Excel de Entrada
+## Anexo A: Plantilla Maestra de Importación
 
-| Portal | Vivienda | Nº Contador | Concepto | Lectura Actual | Fecha Lectura |
-|--------|----------|-------------|----------|----------------|---------------|
-| 2 | 5ºH | 22804168 | ACS | 21,2080 | 23/11/2025 |
-| 2 | 5ºH | 22804168 | CAL | 1520,50 | 23/11/2025 |
-| 2 | 3ºA | 22804201 | ACS | 45,8900 | 23/11/2025 |
-| 2 | 3ºA | 22804201 | CAL | 890,25 | 23/11/2025 |
-| 3 | 1ºB | 22804215 | ACS | 12,3400 | 23/11/2025 |
-| ... | ... | ... | ... | ... | ... |
+### Estructura del Excel
+
+| Fecha | Nº Contador | Portal | Vivienda | ACS | CAL | CLI |
+|-------|-------------|--------|----------|-----|-----|-----|
+| 17/12/2025 | 22804101 | 1 | 1ªA | 150 | 5600 | |
+| 17/12/2025 | 22804102 | 1 | 1ªB | 89,5 | 3200 | |
+| 17/12/2025 | 22804103 | 1 | 2ªA | 210 | | 450 |
+| 17/12/2025 | 22804104 | 2 | 1ªA | 175,3 | 4100 | 320 |
+| 17/12/2025 | 22804105 | 2 | 1ªB | 95 | 2800 | |
+| 17/12/2025 | 22804106 | 2 | 2ªA | 122 | 3100 | 280 |
+
+### Notas importantes
+
+1. **Fecha siempre en primera columna**: Todas las lecturas de la fila corresponden a la misma fecha
+2. **Una fila por contador**: No duplicar filas para el mismo contador
+3. **Celdas vacías**: Dejar vacío si el contador no mide ese concepto
+4. **Nuevos conceptos**: Si se añade un nuevo concepto en `/configuracion/conceptos`, añadir una columna al final del Excel con el código del concepto como encabezado
+
+### Ejemplo con nuevo concepto (OTRO)
+
+Si se añade el concepto "OTRO" en configuración:
+
+| Fecha | Nº Contador | Portal | Vivienda | ACS | CAL | CLI | OTRO |
+|-------|-------------|--------|----------|-----|-----|-----|------|
+| 17/12/2025 | 22804101 | 1 | 1ªA | 150 | 5600 | | 25 |
+| 17/12/2025 | 22804102 | 1 | 1ªB | 89,5 | 3200 | | |
+
+---
+
+## Anexo B: Comparativa Formato Anterior vs Nuevo
+
+### ❌ Formato Anterior (Obsoleto)
+
+| Portal | Vivienda | Nº Contador | Concepto | Lectura | Fecha |
+|--------|----------|-------------|----------|---------|-------|
+| 1 | 1ªA | 22804101 | ACS | 150 | 17/12/2025 |
+| 1 | 1ªA | 22804101 | CAL | 5600 | 17/12/2025 |
+
+**Problemas:**
+- Requiere 2 filas para un mismo contador
+- Mayor probabilidad de errores (fechas inconsistentes, duplicados)
+- Más difícil de completar por el técnico
+
+### ✅ Formato Nuevo (Actual)
+
+| Fecha | Nº Contador | Portal | Vivienda | ACS | CAL | CLI |
+|-------|-------------|--------|----------|-----|-----|-----|
+| 17/12/2025 | 22804101 | 1 | 1ªA | 150 | 5600 | |
+
+**Ventajas:**
+- Una fila por contador = una lectura física
+- Fecha única garantizada para todos los conceptos
+- Más intuitivo para el técnico
+- Menos filas = menos errores
+- Fácil añadir nuevos conceptos (nueva columna)
+
+---
+
+## Anexo C: Historial de Cambios del PRD
+
+| Versión | Fecha | Cambios |
+|---------|-------|---------|
+| 1.0 | Diciembre 2025 | Versión inicial |
+| 1.1 | Diciembre 2025 | Nueva estructura de importación horizontal (una fila por contador con columnas por concepto). Eliminado formato vertical anterior. |
 
 ---
 

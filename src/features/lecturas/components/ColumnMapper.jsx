@@ -1,141 +1,159 @@
-import React from 'react'
-import { Check, X, AlertCircle } from 'lucide-react'
-import { Select } from '@/components/ui'
-import { cn } from '@/lib/utils'
-
-const COLUMN_TYPES = [
-  { value: 'numero_contador', label: 'Nº Contador', required: true },
-  { value: 'concepto', label: 'Concepto', required: true },
-  { value: 'lectura', label: 'Lectura', required: true },
-  { value: 'fecha_lectura', label: 'Fecha Lectura', required: true },
-  { value: 'portal', label: 'Portal (opcional)', required: false },
-  { value: 'vivienda', label: 'Vivienda (opcional)', required: false },
-  { value: 'ignorar', label: 'Ignorar columna', required: false },
-]
-
 /**
- * Componente para mapear columnas del Excel
+ * Componente ColumnMapper para mostrar el mapeo de columnas detectado
+ * Sistema de Facturación A360
  */
-export function ColumnMapper({ 
-  headers, 
-  mapping, 
-  onMappingChange,
-  validation 
-}) {
-  const handleChange = (columnIndex, type) => {
-    const newMapping = { ...mapping }
-    
-    // Quitar la columna del tipo anterior si existe
-    Object.keys(newMapping).forEach(key => {
-      if (newMapping[key] === columnIndex) {
-        delete newMapping[key]
-      }
-    })
-    
-    // Asignar nuevo tipo (excepto 'ignorar')
-    if (type !== 'ignorar') {
-      newMapping[type] = columnIndex
-    }
-    
-    onMappingChange(newMapping)
-  }
 
-  const getSelectedType = (columnIndex) => {
-    for (const [key, value] of Object.entries(mapping)) {
-      if (value === columnIndex) return key
-    }
-    return 'ignorar'
-  }
+import React from 'react'
+import { Check, X, AlertTriangle, HelpCircle } from 'lucide-react'
+
+export function ColumnMapper({ analisis, headers }) {
+  if (!analisis) return null
+
+  const { fixedColumns, conceptColumns, unknownColumns, errors, warnings, summary } = analisis
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800">Mapeo de Columnas</h3>
-        {validation.isValid ? (
-          <span className="flex items-center gap-1 text-green-600 text-sm">
-            <Check className="w-4 h-4" />
-            Mapeo completo
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-amber-600 text-sm">
-            <AlertCircle className="w-4 h-4" />
-            Faltan columnas: {validation.missing.join(', ')}
-          </span>
-        )}
-      </div>
-      
-      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-        {headers.map((header, index) => {
-          const selectedType = getSelectedType(index)
-          const columnType = COLUMN_TYPES.find(c => c.value === selectedType)
-          const isRequired = columnType?.required
-          const isMapped = selectedType !== 'ignorar'
-          
-          return (
-            <div 
-              key={index}
-              className={cn(
-                'flex items-center gap-4 p-3 bg-white rounded-lg border transition-colors',
-                isMapped ? 'border-green-200' : 'border-gray-200'
-              )}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                  <span className="font-medium text-gray-700 truncate">
-                    {header || `Columna ${index + 1}`}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400">→</span>
-                
-                <select
-                  value={selectedType}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  className={cn(
-                    'rounded-lg border px-3 py-2 text-sm min-w-[180px]',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500',
-                    isMapped ? 'border-green-300 bg-green-50' : 'border-gray-300'
-                  )}
-                >
-                  {COLUMN_TYPES.map(type => {
-                    // Deshabilitar si ya está mapeado a otra columna
-                    const isUsed = type.value !== 'ignorar' && 
-                      Object.values(mapping).includes(mapping[type.value]) && 
-                      mapping[type.value] !== index
-                    
-                    return (
-                      <option 
-                        key={type.value} 
-                        value={type.value}
-                        disabled={isUsed && type.value !== selectedType}
-                      >
-                        {type.label}
-                        {type.required ? ' *' : ''}
-                      </option>
-                    )
-                  })}
-                </select>
-                
-                {isMapped ? (
-                  <Check className="w-5 h-5 text-green-500" />
+    <div className="space-y-6">
+      {/* Errores */}
+      {errors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-700 font-medium mb-2">
+            <X className="w-5 h-5" />
+            <span>Errores de estructura</span>
+          </div>
+          <ul className="list-disc list-inside text-red-600 text-sm space-y-1">
+            {errors.map((error, i) => (
+              <li key={i}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Warnings */}
+      {warnings.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-amber-700 font-medium mb-2">
+            <AlertTriangle className="w-5 h-5" />
+            <span>Advertencias</span>
+          </div>
+          <ul className="list-disc list-inside text-amber-600 text-sm space-y-1">
+            {warnings.map((warning, i) => (
+              <li key={i}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Columnas Fijas Detectadas */}
+      <div>
+        <h4 className="font-medium text-gray-700 mb-3">Columnas Fijas Detectadas</h4>
+        <div className="bg-white border rounded-lg divide-y">
+          {Object.entries(fixedColumns).map(([field, index]) => (
+            <div key={field} className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                {index >= 0 ? (
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-600" />
+                  </div>
                 ) : (
-                  <X className="w-5 h-5 text-gray-300" />
+                  <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                    <HelpCircle className="w-4 h-4 text-gray-400" />
+                  </div>
+                )}
+                <span className="font-medium capitalize">
+                  {field.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="text-right">
+                {index >= 0 ? (
+                  <span className="text-sm text-gray-600">
+                    Columna {String.fromCharCode(65 + index)}: <strong>{headers[index]}</strong>
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-400">No detectada</span>
                 )}
               </div>
             </div>
-          )
-        })}
+          ))}
+        </div>
       </div>
-      
-      <p className="text-xs text-gray-500">
-        * Columnas obligatorias. Las columnas no mapeadas serán ignoradas.
-      </p>
+
+      {/* Columnas de Conceptos Detectadas */}
+      <div>
+        <h4 className="font-medium text-gray-700 mb-3">
+          Columnas de Conceptos ({Object.keys(conceptColumns).length})
+        </h4>
+        {Object.keys(conceptColumns).length > 0 ? (
+          <div className="bg-white border rounded-lg divide-y">
+            {Object.entries(conceptColumns).map(([colIndex, concepto]) => (
+              <div key={colIndex} className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Check className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <span className="font-medium">{concepto.concepto_codigo}</span>
+                    <span className="text-gray-500 text-sm ml-2">
+                      ({concepto.concepto_nombre})
+                    </span>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-500">
+                  Columna {String.fromCharCode(65 + parseInt(colIndex))} • {concepto.unidad_medida}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-dashed rounded-lg p-4 text-center text-gray-500">
+            No se detectaron columnas de conceptos
+          </div>
+        )}
+      </div>
+
+      {/* Columnas No Reconocidas */}
+      {unknownColumns.length > 0 && (
+        <div>
+          <h4 className="font-medium text-gray-500 mb-3">
+            Columnas no reconocidas (se ignorarán)
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {unknownColumns.map(({ header, index }) => (
+              <span
+                key={index}
+                className="px-3 py-1 bg-gray-100 text-gray-500 text-sm rounded-full"
+              >
+                {header}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Resumen */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium text-gray-700 mb-2">Resumen</h4>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p className="text-2xl font-bold text-gray-800">{summary.totalColumns}</p>
+            <p className="text-xs text-gray-500">Columnas totales</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-green-600">{summary.fixedColumnsFound}</p>
+            <p className="text-xs text-gray-500">Columnas fijas</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-blue-600">{summary.conceptColumnsFound}</p>
+            <p className="text-xs text-gray-500">Conceptos</p>
+          </div>
+        </div>
+        {summary.conceptCodes.length > 0 && (
+          <p className="text-sm text-gray-600 mt-3 text-center">
+            Conceptos detectados: <strong>{summary.conceptCodes.join(', ')}</strong>
+          </p>
+        )}
+      </div>
     </div>
   )
 }
 
+export default ColumnMapper

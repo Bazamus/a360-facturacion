@@ -1,66 +1,57 @@
-import * as XLSX from 'xlsx'
-
 /**
- * Mapeos de nombres de columnas aceptados
+ * Parser de archivos Excel para importación de lecturas
+ * Sistema de Facturación A360
+ * 
+ * Estructura esperada del Excel (Plantilla Maestra):
+ * | Fecha | Nº Contador | Portal | Vivienda | ACS | CAL | CLI | ... |
  */
-export const COLUMN_MAPPINGS = {
-  numero_contador: [
-    'nº contador', 'n contador', 'numero contador', 'num contador',
-    'contador', 'serie', 'nº serie', 'numero serie', 'id contador',
-    'num_contador', 'n_contador', 'ncontador', 'no contador'
-  ],
-  concepto: [
-    'concepto', 'tipo', 'servicio', 'tipo consumo', 'tipo lectura',
-    'tipo_consumo', 'tipo_lectura'
-  ],
-  lectura: [
-    'lectura', 'lectura actual', 'valor', 'medicion', 'lectura m3',
-    'lectura kcal', 'lectura frig', 'lectura_actual', 'lect_act',
-    'lectura actual m3', 'valor lectura'
-  ],
-  fecha_lectura: [
-    'fecha', 'fecha lectura', 'fecha de lectura', 'f. lectura', 'dia',
-    'fecha_lectura', 'f_lectura', 'date'
-  ],
-  portal: [
-    'portal', 'bloque', 'escalera', 'edificio', 'agrupacion'
-  ],
-  vivienda: [
-    'vivienda', 'piso', 'puerta', 'local', 'unidad', 'ubicacion'
-  ]
-}
+
+import * as XLSX from 'xlsx'
+import { parseDate } from './dateParsers'
+import { parseNumber } from './numberParsers'
 
 /**
  * Lee un archivo Excel y retorna los datos parseados
+ * @param {File} file - Archivo Excel a leer
+ * @returns {Promise<{ headers: string[], rows: any[][], totalRows: number, sheetName: string }>}
  */
-export async function readExcel(file) {
+export async function readExcelFile(file) {
   const buffer = await file.arrayBuffer()
+  
   const workbook = XLSX.read(buffer, { 
-    type: 'array', 
-    cellDates: true,
-    dateNF: 'dd/mm/yyyy'
+    type: 'array',
+    cellDates: false,  // Mantener fechas como números de serie para parseadarlas manualmente
+    cellNF: false,
+    cellText: false
   })
   
   const sheetName = workbook.SheetNames[0]
   const sheet = workbook.Sheets[sheetName]
   
-  // Leer como array de arrays
-  const data = XLSX.utils.sheet_to_json(sheet, { 
-    header: 1,
-    raw: false,
-    defval: ''
-  })
-  
-  if (data.length < 2) {
-    throw new Error('El archivo debe contener al menos una fila de datos además del encabezado')
+  if (!sheet) {
+    throw new Error('El archivo Excel está vacío o no tiene hojas de cálculo')
   }
   
-  const headers = data[0].map(h => String(h || '').trim().toLowerCase())
-  const rows = data.slice(1).filter(row => row.some(cell => cell !== ''))
+  // Leer como array 2D
+  const data = XLSX.utils.sheet_to_json(sheet, { 
+    header: 1,
+    raw: true,       // Mantener valores crudos
+    defval: ''       // Valor por defecto para celdas vacías
+  })
+  
+  if (data.length === 0) {
+    throw new Error('El archivo Excel no contiene datos')
+  }
+  
+  // Primera fila son los headers
+  const headers = data[0].map(h => h ? String(h).trim() : '')
+  const rows = data.slice(1).filter(row => {
+    // Filtrar filas completamente vacías
+    return row.some(cell => cell !== '' && cell !== null && cell !== undefined)
+  })
   
   return {
     headers,
-    headersOriginal: data[0],
     rows,
     totalRows: rows.length,
     sheetName
@@ -68,36 +59,48 @@ export async function readExcel(file) {
 }
 
 /**
- * Detecta automáticamente el mapeo de columnas
+ * Variantes aceptadas para cada columna fija
  */
-export function detectColumnMapping(headers) {
-  const mapping = {}
-  const usedIndices = new Set()
+export const COLUMN_MAPPINGS = {
+  fecha_lectura: [
+    'fecha', 'fecha lectura', 'fecha de lectura', 'f. lectura', 'dia', 'date',
+    'fecha_lectura', 'fechalectura'
+  ],
+  numero_contador: [
+    'nº contador', 'n contador', 'numero contador', 'num contador',
+    'contador', 'serie', 'nº serie', 'numero serie', 'id contador',
+    'numero_contador', 'numerocontador', 'n° contador', 'no contador'
+  ],
+  portal: [
+    'portal', 'bloque', 'escalera', 'edificio', 'port'
+  ],
+  vivienda: [
+    'vivienda', 'piso', 'puerta', 'local', 'unidad', 'viv', 'dpto',
+    'departamento', 'apartamento'
+  ]
+}
+
+/**
+ * Detecta el mapeo de columnas fijas a partir de los headers del Excel
+ * @param {string[]} headers - Headers del Excel
+ * @returns {Object} - Mapeo de columna a índice
+ */
+export function detectFixedColumns(headers) {
+  const mapping = {
+    fecha_lectura: -1,
+    numero_contador: -1,
+    portal: -1,
+    vivienda: -1
+  }
   
-  // Para cada tipo de columna requerida
-  for (const [key, variants] of Object.entries(COLUMN_MAPPINGS)) {
-    let foundIndex = -1
-    
-    // Buscar en los headers
-    for (let i = 0; i < headers.length; i++) {
-      if (usedIndices.has(i)) continue
-      
-      const header = String(headers[i] || '').toLowerCase().trim()
-      
-      // Buscar coincidencia exacta o parcial
-      for (const variant of variants) {
-        if (header === variant || header.includes(variant) || variant.includes(header)) {
-          foundIndex = i
-          break
-        }
+  const headersLower = headers.map(h => h.toLowerCase().trim())
+  
+  for (const [field, variants] of Object.entries(COLUMN_MAPPINGS)) {
+    for (let i = 0; i < headersLower.length; i++) {
+      if (variants.includes(headersLower[i])) {
+        mapping[field] = i
+        break
       }
-      
-      if (foundIndex !== -1) break
-    }
-    
-    if (foundIndex !== -1) {
-      mapping[key] = foundIndex
-      usedIndices.add(foundIndex)
     }
   }
   
@@ -105,173 +108,137 @@ export function detectColumnMapping(headers) {
 }
 
 /**
- * Valida que el mapeo tenga las columnas obligatorias
+ * Detecta las columnas que corresponden a conceptos configurados
+ * @param {string[]} headers - Headers del Excel
+ * @param {Array<{id: string, codigo: string, nombre: string, unidad_medida: string}>} conceptosActivos
+ * @returns {Object} - Mapeo de índice de columna a información del concepto
  */
-export function validateMapping(mapping) {
-  const required = ['numero_contador', 'concepto', 'lectura', 'fecha_lectura']
-  const missing = required.filter(key => mapping[key] === undefined)
+export function detectConceptColumns(headers, conceptosActivos) {
+  const columnasConceptos = {}
   
-  return {
-    isValid: missing.length === 0,
-    missing
+  if (!conceptosActivos || conceptosActivos.length === 0) {
+    return columnasConceptos
   }
-}
-
-/**
- * Parsea un valor numérico (soporta formato español e internacional)
- */
-export function parseNumber(value) {
-  if (value === null || value === undefined || value === '') return null
   
-  // Si ya es número
-  if (typeof value === 'number') return value
-  
-  // Convertir a string y limpiar
-  let str = String(value).trim()
-  
-  // Detectar formato español (1.234,56) vs internacional (1,234.56)
-  const hasCommaSeparator = str.includes(',')
-  const hasDotSeparator = str.includes('.')
-  
-  if (hasCommaSeparator && hasDotSeparator) {
-    // Tiene ambos - determinar cuál es decimal
-    const lastComma = str.lastIndexOf(',')
-    const lastDot = str.lastIndexOf('.')
+  headers.forEach((header, index) => {
+    if (!header) return
     
-    if (lastComma > lastDot) {
-      // Formato español: 1.234,56
-      str = str.replace(/\./g, '').replace(',', '.')
-    } else {
-      // Formato internacional: 1,234.56
-      str = str.replace(/,/g, '')
-    }
-  } else if (hasCommaSeparator) {
-    // Solo coma - asumimos que es decimal
-    str = str.replace(',', '.')
-  }
-  
-  const num = parseFloat(str)
-  return isNaN(num) ? null : num
-}
-
-/**
- * Parsea una fecha en múltiples formatos
- */
-export function parseDate(value) {
-  if (!value) return null
-  
-  // Si ya es Date
-  if (value instanceof Date) {
-    return isNaN(value.getTime()) ? null : value
-  }
-  
-  const str = String(value).trim()
-  
-  // Intentar diferentes formatos
-  const formats = [
-    // DD/MM/YYYY
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-    // DD-MM-YYYY
-    /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
-    // DD.MM.YYYY
-    /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/,
-    // YYYY-MM-DD (ISO)
-    /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-  ]
-  
-  for (const regex of formats) {
-    const match = str.match(regex)
-    if (match) {
-      let day, month, year
-      
-      if (regex === formats[3]) {
-        // Formato ISO
-        [, year, month, day] = match
-      } else {
-        [, day, month, year] = match
-      }
-      
-      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-      if (!isNaN(date.getTime())) {
-        return date
+    const headerNormalizado = String(header).trim().toUpperCase()
+    
+    // Buscar si el header coincide con algún código de concepto
+    const concepto = conceptosActivos.find(c => 
+      c.codigo.toUpperCase() === headerNormalizado
+    )
+    
+    if (concepto) {
+      columnasConceptos[index] = {
+        concepto_id: concepto.id,
+        concepto_codigo: concepto.codigo,
+        concepto_nombre: concepto.nombre,
+        unidad_medida: concepto.unidad_medida,
+        es_termino_fijo: concepto.es_termino_fijo || false
       }
     }
-  }
+  })
   
-  // Intentar parseo directo
-  const parsed = new Date(str)
-  return isNaN(parsed.getTime()) ? null : parsed
+  return columnasConceptos
 }
 
 /**
- * Normaliza un código de concepto
+ * Analiza la estructura del Excel y retorna información sobre el mapeo
+ * @param {string[]} headers - Headers del Excel
+ * @param {Array} conceptosActivos - Conceptos activos desde la BD
+ * @returns {Object} - Análisis completo de la estructura
  */
-export function parseConcepto(value) {
-  if (!value) return null
+export function analyzeExcelStructure(headers, conceptosActivos) {
+  const fixedColumns = detectFixedColumns(headers)
+  const conceptColumns = detectConceptColumns(headers, conceptosActivos)
   
-  const str = String(value).trim().toUpperCase()
+  // Detectar columnas no reconocidas
+  const usedIndices = new Set([
+    ...Object.values(fixedColumns).filter(i => i >= 0),
+    ...Object.keys(conceptColumns).map(Number)
+  ])
   
-  // Mapeo de variantes conocidas
-  const conceptoMap = {
-    'ACS': 'ACS',
-    'AGUA CALIENTE': 'ACS',
-    'AGUA CALIENTE SANITARIA': 'ACS',
-    'CAL': 'CAL',
-    'CALEFACCION': 'CAL',
-    'CALEFACCIÓN': 'CAL',
-    'CLI': 'CLI',
-    'CLIMATIZACION': 'CLI',
-    'CLIMATIZACIÓN': 'CLI',
-    'TF': 'TF',
-    'TERMINO FIJO': 'TF',
-    'TÉRMINO FIJO': 'TF',
+  const unknownColumns = headers
+    .map((header, index) => ({ header, index }))
+    .filter(({ header, index }) => 
+      header && header.trim() !== '' && !usedIndices.has(index)
+    )
+  
+  // Validaciones
+  const errors = []
+  const warnings = []
+  
+  if (fixedColumns.fecha_lectura === -1) {
+    errors.push('No se encontró la columna de Fecha (obligatoria)')
   }
   
-  return conceptoMap[str] || str
-}
-
-/**
- * Extrae los datos de una fila según el mapeo
- */
-export function extractRowData(row, mapping) {
+  if (fixedColumns.numero_contador === -1) {
+    errors.push('No se encontró la columna de Nº Contador (obligatoria)')
+  }
+  
+  if (Object.keys(conceptColumns).length === 0) {
+    errors.push('No se detectaron columnas de conceptos (ACS, CAL, CLI, etc.)')
+  }
+  
+  if (unknownColumns.length > 0) {
+    warnings.push(`Columnas no reconocidas (se ignorarán): ${unknownColumns.map(c => c.header).join(', ')}`)
+  }
+  
   return {
-    numero_contador: row[mapping.numero_contador]?.toString().trim() || null,
-    concepto_codigo: parseConcepto(row[mapping.concepto]),
-    lectura_valor: parseNumber(row[mapping.lectura]),
-    fecha_lectura: parseDate(row[mapping.fecha_lectura]),
-    portal: mapping.portal !== undefined ? row[mapping.portal]?.toString().trim() : null,
-    vivienda: mapping.vivienda !== undefined ? row[mapping.vivienda]?.toString().trim() : null,
-    datos_originales: row
+    fixedColumns,
+    conceptColumns,
+    unknownColumns,
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    summary: {
+      totalColumns: headers.length,
+      fixedColumnsFound: Object.values(fixedColumns).filter(i => i >= 0).length,
+      conceptColumnsFound: Object.keys(conceptColumns).length,
+      conceptCodes: Object.values(conceptColumns).map(c => c.concepto_codigo)
+    }
   }
 }
 
 /**
- * Formatea una fecha para mostrar
+ * Extrae los datos de una fila según el mapeo detectado
+ * @param {any[]} row - Fila del Excel
+ * @param {Object} fixedColumns - Mapeo de columnas fijas
+ * @returns {Object} - Datos extraídos de la fila
  */
-export function formatDateForDisplay(date) {
-  if (!date) return '-'
-  const d = date instanceof Date ? date : new Date(date)
-  if (isNaN(d.getTime())) return '-'
-  
-  return d.toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
+export function extractRowData(row, fixedColumns) {
+  return {
+    fecha_lectura: fixedColumns.fecha_lectura >= 0 ? row[fixedColumns.fecha_lectura] : null,
+    numero_contador: fixedColumns.numero_contador >= 0 ? row[fixedColumns.numero_contador] : null,
+    portal: fixedColumns.portal >= 0 ? row[fixedColumns.portal] : null,
+    vivienda: fixedColumns.vivienda >= 0 ? row[fixedColumns.vivienda] : null
+  }
+}
+
+/**
+ * Parsea un string genérico
+ */
+export function parseString(value) {
+  if (value === null || value === undefined) return null
+  const str = String(value).trim()
+  return str === '' ? null : str
+}
+
+/**
+ * Genera una vista previa de las primeras N filas del Excel
+ * @param {string[]} headers - Headers
+ * @param {any[][]} rows - Filas de datos
+ * @param {number} limit - Cantidad máxima de filas a mostrar
+ * @returns {Array<Object>} - Filas como objetos con headers como keys
+ */
+export function getPreviewData(headers, rows, limit = 5) {
+  return rows.slice(0, limit).map((row, rowIndex) => {
+    const obj = { _rowIndex: rowIndex + 1 }
+    headers.forEach((header, colIndex) => {
+      obj[header || `col_${colIndex}`] = row[colIndex]
+    })
+    return obj
   })
 }
-
-/**
- * Formatea una fecha para la BD (YYYY-MM-DD)
- */
-export function formatDateForDB(date) {
-  if (!date) return null
-  const d = date instanceof Date ? date : new Date(date)
-  if (isNaN(d.getTime())) return null
-  
-  return d.toISOString().split('T')[0]
-}
-
-
-
-
-

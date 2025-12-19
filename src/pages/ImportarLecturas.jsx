@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, ArrowRight, ArrowLeft, Check } from 'lucide-react'
+import { Upload, ArrowRight, ArrowLeft, Check, Download } from 'lucide-react'
 import { Button, Card, Select } from '@/components/ui'
 import { FileDropzone, ColumnMapper, ExcelPreview } from '@/features/lecturas/components'
 import { 
@@ -11,7 +11,9 @@ import {
   formatDateForDB 
 } from '@/features/lecturas/utils/excelParser'
 import { detectarAlertas, determinarEstadoFila, contarPorEstado } from '@/features/lecturas/utils/alertDetector'
+import { generarPlantillaMaestra } from '@/features/lecturas/utils/templateGenerator'
 import { useComunidades } from '@/hooks/useComunidades'
+import { useConceptos } from '@/hooks/useConceptos'
 import { 
   useCreateImportacion, 
   useCreateImportacionDetalle,
@@ -40,10 +42,29 @@ export default function ImportarLecturas() {
   const [progress, setProgress] = useState({ current: 0, total: 0 })
 
   const { data: comunidades, isLoading: loadingComunidades } = useComunidades({ activa: true })
+  const { data: conceptos, isLoading: loadingConceptos } = useConceptos({ activo: true })
   const { data: alertasConfig } = useAlertasConfiguracion()
   const createImportacion = useCreateImportacion()
   const createDetalles = useCreateImportacionDetalle()
   const updateImportacion = useUpdateImportacion()
+
+  // Descargar plantilla maestra
+  const handleDescargarPlantilla = () => {
+    if (!conceptos || conceptos.length === 0) {
+      toast.error('No hay conceptos configurados')
+      return
+    }
+    
+    const comunidadSeleccionada = comunidades?.find(c => c.id === comunidadId)
+    const nombreComunidad = comunidadSeleccionada?.nombre || ''
+    
+    try {
+      const nombreArchivo = generarPlantillaMaestra(conceptos, nombreComunidad)
+      toast.success(`Plantilla descargada: ${nombreArchivo}`)
+    } catch (error) {
+      toast.error(`Error al generar plantilla: ${error.message}`)
+    }
+  }
 
   // Paso 1: Manejar selección de archivo
   const handleFileSelect = useCallback(async (selectedFile) => {
@@ -479,13 +500,32 @@ export default function ImportarLecturas() {
         )}
       </Card>
 
-      {/* Información */}
+      {/* Información y descarga de plantilla */}
       <Card className="p-4 bg-blue-50 border-blue-200">
-        <p className="text-sm text-blue-800">
-          <strong>💡 Consejo:</strong> El archivo Excel debe contener las columnas: 
-          Nº Contador, Concepto, Lectura y Fecha Lectura. 
-          Las columnas Portal y Vivienda son opcionales para referencia visual.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-blue-800 mb-2">
+              <strong>💡 Formato de la Plantilla Maestra:</strong>
+            </p>
+            <p className="text-sm text-blue-700">
+              Fecha | Nº Contador | Portal | Vivienda | ACS | CAL | CLI | ...
+            </p>
+            <p className="text-xs text-blue-600 mt-2">
+              Una fila por contador. Cada concepto en su propia columna. 
+              Deja en blanco los conceptos que no apliquen.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDescargarPlantilla}
+            disabled={loadingConceptos}
+            className="shrink-0"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Descargar Plantilla
+          </Button>
+        </div>
       </Card>
     </div>
   )

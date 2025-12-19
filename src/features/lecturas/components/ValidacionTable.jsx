@@ -1,221 +1,255 @@
-import React, { useState, useMemo } from 'react'
-import { Check, AlertTriangle, XCircle, Eye, Edit2 } from 'lucide-react'
-import { cn, formatNumber } from '@/lib/utils'
-import { AlertasList } from './AlertaBadge'
-import { formatDateForDisplay } from '../utils/excelParser'
-
-const estadoIcons = {
-  valido: { icon: Check, color: 'text-green-500', bg: 'bg-green-50' },
-  alerta: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-  error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
-  confirmado: { icon: Check, color: 'text-blue-500', bg: 'bg-blue-50' },
-  descartado: { icon: XCircle, color: 'text-gray-400', bg: 'bg-gray-50' }
-}
-
 /**
- * Tabla de validación de lecturas
+ * Componente ValidacionTable para mostrar las lecturas agrupadas por contador
+ * Sistema de Facturación A360
  */
+
+import React, { useState } from 'react'
+import { ChevronDown, ChevronRight, CheckCircle, AlertTriangle, XCircle, User } from 'lucide-react'
+import { AlertaBadge, AlertasList } from './AlertaBadge'
+import { formatDate } from '../utils/dateParsers'
+import { formatNumber } from '../utils/numberParsers'
+
 export function ValidacionTable({ 
-  filas, 
-  selectedIds,
-  onSelectChange,
-  onSelectAll,
-  onViewDetail,
-  filter = 'todas'
+  lecturasAgrupadas = [], 
+  seleccionados = [],
+  onSeleccionChange,
+  onDetalleClick,
+  filter = 'todos'
 }) {
-  // Filtrar filas
-  const filteredFilas = useMemo(() => {
-    if (filter === 'todas') return filas
-    return filas.filter(f => f.estado === filter)
-  }, [filas, filter])
+  const [expandidos, setExpandidos] = useState(new Set())
 
-  // Filas seleccionables (válidas o con alertas no bloqueantes)
-  const selectableFilas = useMemo(() => {
-    return filteredFilas.filter(f => 
-      f.estado === 'valido' || 
-      (f.estado === 'alerta' && !f.alertas?.some(a => a.bloquea))
-    )
-  }, [filteredFilas])
+  // Filtrar según el estado
+  const lecturasFiltradas = lecturasAgrupadas.filter(grupo => {
+    if (filter === 'todos') return true
+    return grupo.estado === filter
+  })
 
-  const allSelected = selectableFilas.length > 0 && 
-    selectableFilas.every(f => selectedIds.has(f.id))
-
-  const handleSelectAll = () => {
-    if (allSelected) {
-      onSelectAll(new Set())
+  const toggleExpandir = (numeroContador) => {
+    const newExpandidos = new Set(expandidos)
+    if (newExpandidos.has(numeroContador)) {
+      newExpandidos.delete(numeroContador)
     } else {
-      onSelectAll(new Set(selectableFilas.map(f => f.id)))
+      newExpandidos.add(numeroContador)
     }
+    setExpandidos(newExpandidos)
   }
 
-  const handleSelectRow = (id, canSelect) => {
-    if (!canSelect) return
+  const toggleSeleccion = (grupo) => {
+    // Solo permitir seleccionar si no tiene errores bloqueantes
+    if (grupo.estado === 'error') return
     
-    const newSelected = new Set(selectedIds)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
+    const ids = grupo.conceptos
+      .filter(c => c.estado !== 'error')
+      .map(c => c.id)
+    
+    const todosSeleccionados = ids.every(id => seleccionados.includes(id))
+    
+    if (todosSeleccionados) {
+      onSeleccionChange?.(seleccionados.filter(id => !ids.includes(id)))
     } else {
-      newSelected.add(id)
+      onSeleccionChange?.([...new Set([...seleccionados, ...ids])])
     }
-    onSelectChange(newSelected)
   }
 
-  if (filteredFilas.length === 0) {
+  const getEstadoIcon = (estado) => {
+    switch (estado) {
+      case 'valido':
+        return <CheckCircle className="w-5 h-5 text-green-500" />
+      case 'alerta':
+        return <AlertTriangle className="w-5 h-5 text-amber-500" />
+      case 'error':
+        return <XCircle className="w-5 h-5 text-red-500" />
+      default:
+        return null
+    }
+  }
+
+  if (lecturasFiltradas.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        No hay lecturas que coincidan con el filtro
+      <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <p className="text-gray-500">No hay lecturas que mostrar</p>
       </div>
     )
   }
 
   return (
-    <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
+    <div className="border rounded-lg overflow-hidden">
+      <table className="min-w-full">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-3 py-3 text-left">
+            <th className="w-10 px-3 py-3"></th>
+            <th className="w-10 px-3 py-3">
               <input
                 type="checkbox"
-                checked={allSelected}
-                onChange={handleSelectAll}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-gray-300"
+                checked={lecturasFiltradas
+                  .filter(g => g.estado !== 'error')
+                  .every(g => g.conceptos
+                    .filter(c => c.estado !== 'error')
+                    .every(c => seleccionados.includes(c.id))
+                  )
+                }
+                onChange={(e) => {
+                  const allIds = lecturasFiltradas
+                    .flatMap(g => g.conceptos)
+                    .filter(c => c.estado !== 'error')
+                    .map(c => c.id)
+                  
+                  if (e.target.checked) {
+                    onSeleccionChange?.([...new Set([...seleccionados, ...allIds])])
+                  } else {
+                    onSeleccionChange?.(seleccionados.filter(id => !allIds.includes(id)))
+                  }
+                }}
               />
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              #
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Portal
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Contador
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Vivienda
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Concepto
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
               Cliente
             </th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Lectura
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Contador
             </th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Consumo
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Conceptos
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Fecha
-            </th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
               Estado
             </th>
-            <th className="px-3 py-3"></th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {filteredFilas.map((fila) => {
-            const estadoConfig = estadoIcons[fila.estado] || estadoIcons.error
-            const Icon = estadoConfig.icon
-            const canSelect = fila.estado === 'valido' || 
-              (fila.estado === 'alerta' && !fila.alertas?.some(a => a.bloquea))
-            const isSelected = selectedIds.has(fila.id)
-
+        <tbody className="divide-y divide-gray-200 bg-white">
+          {lecturasFiltradas.map((grupo) => {
+            const isExpandido = expandidos.has(grupo.numero_contador)
+            const grupoSeleccionado = grupo.conceptos
+              .filter(c => c.estado !== 'error')
+              .every(c => seleccionados.includes(c.id))
+            
             return (
-              <tr 
-                key={fila.id} 
-                className={cn(
-                  'hover:bg-gray-50 transition-colors',
-                  isSelected && 'bg-blue-50',
-                  fila.estado === 'descartado' && 'opacity-50'
-                )}
-              >
-                <td className="px-3 py-3">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleSelectRow(fila.id, canSelect)}
-                    disabled={!canSelect}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                  />
-                </td>
-                <td className="px-3 py-3 text-sm text-gray-500">
-                  {fila.fila_numero}
-                </td>
-                <td className="px-3 py-3">
-                  <div className="text-sm font-medium text-gray-900">
-                    {fila.numero_contador || '-'}
-                  </div>
-                  {fila.contador && (
-                    <div className="text-xs text-gray-500">
-                      {fila.contador.ubicacion_id ? 'Encontrado' : ''}
-                    </div>
-                  )}
-                </td>
-                <td className="px-3 py-3">
-                  <span className="text-sm text-gray-900">
-                    {fila.concepto?.codigo || fila.concepto_codigo || '-'}
-                  </span>
-                </td>
-                <td className="px-3 py-3">
-                  {fila.cliente ? (
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {fila.cliente.nombre} {fila.cliente.apellidos}
+              <React.Fragment key={grupo.numero_contador}>
+                {/* Fila principal del contador */}
+                <tr 
+                  className={`hover:bg-gray-50 cursor-pointer ${
+                    grupo.estado === 'error' ? 'bg-red-50' : ''
+                  }`}
+                  onClick={() => toggleExpandir(grupo.numero_contador)}
+                >
+                  <td className="px-3 py-3">
+                    <button className="p-1 hover:bg-gray-100 rounded">
+                      {isExpandido 
+                        ? <ChevronDown className="w-4 h-4 text-gray-400" />
+                        : <ChevronRight className="w-4 h-4 text-gray-400" />
+                      }
+                    </button>
+                  </td>
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300"
+                      checked={grupoSeleccionado}
+                      disabled={grupo.estado === 'error'}
+                      onChange={() => toggleSeleccion(grupo)}
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">
+                    {grupo.portal || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">
+                    {grupo.vivienda || '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {grupo.cliente_nombre ? (
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm">{grupo.cliente_nombre}</span>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {fila.cliente.nif}
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-3 py-3 text-right">
-                  <div className="text-sm font-medium text-gray-900">
-                    {fila.lectura_corregida != null 
-                      ? formatNumber(fila.lectura_corregida, 4)
-                      : formatNumber(fila.lectura_valor, 4)}
-                  </div>
-                  {fila.lectura_corregida != null && (
-                    <div className="text-xs text-gray-500 line-through">
-                      {formatNumber(fila.lectura_valor, 4)}
-                    </div>
-                  )}
-                </td>
-                <td className="px-3 py-3 text-right">
-                  <span className={cn(
-                    'text-sm font-medium',
-                    fila.consumo_calculado < 0 ? 'text-red-600' : 'text-gray-900'
-                  )}>
-                    {fila.consumo_calculado != null 
-                      ? formatNumber(fila.consumo_calculado, 4) 
-                      : '-'}
-                  </span>
-                </td>
-                <td className="px-3 py-3 text-sm text-gray-900">
-                  {formatDateForDisplay(fila.fecha_lectura)}
-                </td>
-                <td className="px-3 py-3">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className={cn(
-                      'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs',
-                      estadoConfig.bg, estadoConfig.color
-                    )}>
-                      <Icon className="w-3 h-3" />
-                      {fila.estado}
-                    </span>
-                    {fila.alertas && fila.alertas.length > 0 && (
-                      <AlertasList alertas={fila.alertas} compact />
+                    ) : (
+                      <span className="text-sm text-gray-400">Sin asignar</span>
                     )}
-                  </div>
-                </td>
-                <td className="px-3 py-3">
-                  <button
-                    type="button"
-                    onClick={() => onViewDetail(fila)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Ver detalle"
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-sm font-medium">
+                      {grupo.numero_contador}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {grupo.conceptos.map((concepto) => (
+                        <ConceptoBadge 
+                          key={concepto.concepto_codigo} 
+                          concepto={concepto} 
+                        />
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {getEstadoIcon(grupo.estado)}
+                  </td>
+                </tr>
+
+                {/* Filas expandidas con detalle de conceptos */}
+                {isExpandido && grupo.conceptos.map((concepto) => (
+                  <tr 
+                    key={`${grupo.numero_contador}-${concepto.concepto_codigo}`}
+                    className="bg-gray-50"
                   >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
+                    <td></td>
+                    <td className="px-3 py-2">
+                      {concepto.estado !== 'error' && (
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300"
+                          checked={seleccionados.includes(concepto.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onSeleccionChange?.([...seleccionados, concepto.id])
+                            } else {
+                              onSeleccionChange?.(seleccionados.filter(id => id !== concepto.id))
+                            }
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td colSpan="2" className="px-4 py-2">
+                      <span className="text-sm font-medium text-blue-600">
+                        {concepto.concepto_codigo}
+                      </span>
+                      <span className="text-sm text-gray-500 ml-2">
+                        {concepto.concepto_nombre}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="text-sm">
+                        <span className="text-gray-500">Lectura: </span>
+                        <span className="font-mono font-medium">
+                          {formatNumber(concepto.lectura_valor, 2)} {concepto.unidad_medida}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="text-sm">
+                        <span className="text-gray-500">Consumo: </span>
+                        <span className={`font-mono font-medium ${
+                          concepto.consumo_calculado < 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {concepto.consumo_calculado >= 0 ? '+' : ''}
+                          {formatNumber(concepto.consumo_calculado, 2)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2" colSpan="2">
+                      {concepto.alertas?.length > 0 && (
+                        <AlertasList alertas={concepto.alertas} compact />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </React.Fragment>
             )
           })}
         </tbody>
@@ -224,3 +258,22 @@ export function ValidacionTable({
   )
 }
 
+function ConceptoBadge({ concepto }) {
+  const bgColor = {
+    'valido': 'bg-green-100 text-green-700',
+    'alerta': 'bg-amber-100 text-amber-700',
+    'error': 'bg-red-100 text-red-700'
+  }[concepto.estado] || 'bg-gray-100 text-gray-700'
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${bgColor}`}>
+      <span>{concepto.concepto_codigo}</span>
+      <span className="opacity-70">
+        {concepto.consumo_calculado >= 0 ? '+' : ''}
+        {formatNumber(concepto.consumo_calculado, 1)}
+      </span>
+    </span>
+  )
+}
+
+export default ValidacionTable

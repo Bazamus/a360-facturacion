@@ -1,86 +1,90 @@
-import React from 'react'
-
 /**
- * Componente para previsualizar datos del Excel
+ * Componente ExcelPreview para mostrar vista previa de los datos del Excel
+ * Sistema de Facturación A360
  */
-export function ExcelPreview({ 
-  headers, 
-  rows, 
-  mapping,
-  maxRows = 5 
-}) {
-  const displayRows = rows.slice(0, maxRows)
-  
-  // Obtener índices de columnas mapeadas para resaltarlas
-  const mappedIndices = new Set(Object.values(mapping))
-  
+
+import React from 'react'
+import { formatDate } from '../utils/dateParsers'
+import { formatNumber } from '../utils/numberParsers'
+
+export function ExcelPreview({ headers, rows, limit = 5, conceptColumns = {} }) {
+  if (!headers || headers.length === 0) return null
+
+  const previewRows = rows.slice(0, limit)
+  const conceptIndices = new Set(Object.keys(conceptColumns).map(Number))
+
+  const formatCell = (value, colIndex) => {
+    if (value === null || value === undefined || value === '') {
+      return <span className="text-gray-300">—</span>
+    }
+
+    // Si es una columna de concepto, formatear como número
+    if (conceptIndices.has(colIndex) && typeof value === 'number') {
+      return formatNumber(value, 2)
+    }
+
+    // Si parece una fecha de Excel (número entre 40000 y 50000)
+    if (typeof value === 'number' && value > 40000 && value < 50000) {
+      // Es una fecha de Excel
+      const date = new Date((value - 25569) * 86400 * 1000)
+      return formatDate(date)
+    }
+
+    return String(value)
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800">Vista Previa</h3>
-        <span className="text-sm text-gray-500">
-          Mostrando {displayRows.length} de {rows.length} filas
-        </span>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">
-                #
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-10">
+              #
+            </th>
+            {headers.map((header, i) => (
+              <th
+                key={i}
+                className={`px-3 py-2 text-left text-xs font-medium whitespace-nowrap ${
+                  conceptIndices.has(i)
+                    ? 'text-blue-600 bg-blue-50'
+                    : 'text-gray-600'
+                }`}
+              >
+                {header || `Col ${i + 1}`}
               </th>
-              {headers.map((header, index) => (
-                <th 
-                  key={index}
-                  className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider ${
-                    mappedIndices.has(index) 
-                      ? 'bg-blue-50 text-blue-700' 
-                      : 'bg-gray-50 text-gray-500'
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 bg-white">
+          {previewRows.map((row, rowIndex) => (
+            <tr key={rowIndex} className="hover:bg-gray-50">
+              <td className="px-2 py-2 text-gray-400 text-xs">
+                {rowIndex + 1}
+              </td>
+              {headers.map((_, colIndex) => (
+                <td
+                  key={colIndex}
+                  className={`px-3 py-2 whitespace-nowrap ${
+                    conceptIndices.has(colIndex)
+                      ? 'text-right font-mono text-blue-700'
+                      : 'text-gray-700'
                   }`}
                 >
-                  {header || `Col ${index + 1}`}
-                </th>
+                  {formatCell(row[colIndex], colIndex)}
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {displayRows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50">
-                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-400 bg-gray-50">
-                  {rowIndex + 1}
-                </td>
-                {headers.map((_, cellIndex) => (
-                  <td 
-                    key={cellIndex}
-                    className={`px-3 py-2 whitespace-nowrap text-sm ${
-                      mappedIndices.has(cellIndex)
-                        ? 'text-gray-900 font-medium'
-                        : 'text-gray-500'
-                    }`}
-                  >
-                    {row[cellIndex] !== undefined && row[cellIndex] !== '' 
-                      ? String(row[cellIndex]) 
-                      : <span className="text-gray-300">-</span>
-                    }
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      
-      {rows.length > maxRows && (
-        <p className="text-center text-sm text-gray-500">
-          ... y {rows.length - maxRows} filas más
-        </p>
+          ))}
+        </tbody>
+      </table>
+
+      {rows.length > limit && (
+        <div className="px-4 py-2 bg-gray-50 text-center text-sm text-gray-500">
+          Mostrando {limit} de {rows.length} filas
+        </div>
       )}
     </div>
   )
 }
 
-
-
-
-
+export default ExcelPreview
