@@ -242,3 +242,120 @@ export function getPreviewData(headers, rows, limit = 5) {
     return obj
   })
 }
+
+// =====================================================
+// Funciones de compatibilidad con el formato antiguo
+// =====================================================
+
+/**
+ * Alias para readExcelFile (compatibilidad)
+ */
+export const readExcel = async (file) => {
+  const result = await readExcelFile(file)
+  return {
+    ...result,
+    headersOriginal: result.headers
+  }
+}
+
+/**
+ * Detecta el mapeo de columnas automáticamente (formato antiguo)
+ * @param {string[]} headers - Headers del Excel
+ * @returns {Object} - Mapeo de campos a índices
+ */
+export function detectColumnMapping(headers) {
+  const mapping = {}
+  const headersLower = headers.map(h => h ? String(h).toLowerCase().trim() : '')
+  
+  // Mapeo de campos a variantes aceptadas
+  const fieldVariants = {
+    numero_contador: ['nº contador', 'n contador', 'numero contador', 'num contador', 'contador', 
+                      'serie', 'nº serie', 'numero serie', 'id contador', 'numero_contador', 
+                      'n° contador', 'no contador'],
+    concepto_codigo: ['concepto', 'cod concepto', 'codigo concepto', 'concepto_codigo', 'tipo'],
+    lectura_valor: ['lectura', 'valor', 'lectura actual', 'lectura_valor', 'valor lectura'],
+    fecha_lectura: ['fecha', 'fecha lectura', 'fecha de lectura', 'f. lectura', 'fecha_lectura', 'date'],
+    portal: ['portal', 'bloque', 'escalera', 'edificio', 'port'],
+    vivienda: ['vivienda', 'piso', 'puerta', 'local', 'unidad', 'viv', 'dpto']
+  }
+  
+  for (const [field, variants] of Object.entries(fieldVariants)) {
+    for (let i = 0; i < headersLower.length; i++) {
+      if (variants.includes(headersLower[i])) {
+        mapping[field] = i
+        break
+      }
+    }
+  }
+  
+  return mapping
+}
+
+/**
+ * Valida que el mapeo tenga las columnas requeridas
+ * @param {Object} mapping - Mapeo de columnas
+ * @returns {{ isValid: boolean, missing: string[] }}
+ */
+export function validateMapping(mapping) {
+  const required = ['numero_contador', 'concepto_codigo', 'lectura_valor', 'fecha_lectura']
+  const missing = required.filter(field => mapping[field] === undefined || mapping[field] === -1)
+  
+  return {
+    isValid: missing.length === 0,
+    missing
+  }
+}
+
+/**
+ * Extrae datos de una fila según el mapeo (formato antiguo)
+ */
+export function extractRowDataLegacy(row, mapping) {
+  const getValue = (field) => {
+    const idx = mapping[field]
+    return idx !== undefined && idx >= 0 ? row[idx] : null
+  }
+  
+  const rawFecha = getValue('fecha_lectura')
+  const rawLectura = getValue('lectura_valor')
+  
+  return {
+    numero_contador: parseString(getValue('numero_contador')),
+    concepto_codigo: parseString(getValue('concepto_codigo')),
+    lectura_valor: parseNumber(rawLectura),
+    fecha_lectura: parseDate(rawFecha),
+    portal: parseString(getValue('portal')),
+    vivienda: parseString(getValue('vivienda')),
+    datos_originales: {
+      numero_contador: getValue('numero_contador'),
+      concepto: getValue('concepto_codigo'),
+      lectura: rawLectura,
+      fecha: rawFecha,
+      portal: getValue('portal'),
+      vivienda: getValue('vivienda')
+    }
+  }
+}
+
+// Alias para compatibilidad
+export { extractRowDataLegacy as extractRowData }
+
+/**
+ * Formatea una fecha para guardar en la base de datos (ISO format)
+ * @param {Date|string|number} dateValue - Valor de fecha
+ * @returns {string|null} - Fecha en formato ISO o null
+ */
+export function formatDateForDB(dateValue) {
+  if (!dateValue) return null
+  
+  // Si ya es una fecha Date
+  if (dateValue instanceof Date) {
+    if (isNaN(dateValue.getTime())) return null
+    return dateValue.toISOString().split('T')[0]
+  }
+  
+  // Si es string, intentar parsear
+  const parsed = parseDate(dateValue)
+  if (!parsed) return null
+  
+  return parsed.toISOString().split('T')[0]
+}
