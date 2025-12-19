@@ -203,12 +203,12 @@ export function analyzeExcelStructure(headers, conceptosActivos) {
 }
 
 /**
- * Extrae los datos de una fila según el mapeo detectado
+ * Extrae los datos de una fila según el mapeo detectado (nuevo formato)
  * @param {any[]} row - Fila del Excel
  * @param {Object} fixedColumns - Mapeo de columnas fijas
  * @returns {Object} - Datos extraídos de la fila
  */
-export function extractRowData(row, fixedColumns) {
+export function extractRowDataNew(row, fixedColumns) {
   return {
     fecha_lectura: fixedColumns.fecha_lectura >= 0 ? row[fixedColumns.fecha_lectura] : null,
     numero_contador: fixedColumns.numero_contador >= 0 ? row[fixedColumns.numero_contador] : null,
