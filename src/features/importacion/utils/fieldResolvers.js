@@ -1,8 +1,8 @@
 /**
- * Resolución de Campos Relacionados para Importación
- * Sistema de Facturación A360
+ * Resoluci?n de Campos Relacionados para Importaci?n
+ * Sistema de Facturaci?n A360
  * 
- * Funciones para resolver referencias entre entidades durante la importación
+ * Funciones para resolver referencias entre entidades durante la importaci?n
  */
 
 import { supabase } from '@/lib/supabase'
@@ -16,7 +16,7 @@ const cache = {
 }
 
 /**
- * Limpia el cache de resolución
+ * Limpia el cache de resoluci?n
  */
 export function limpiarCache() {
   cache.comunidades.clear()
@@ -26,8 +26,9 @@ export function limpiarCache() {
 }
 
 /**
- * Resuelve una comunidad por su código
- * @param {string} codigo - Código de la comunidad (ej: "TROYA40")
+ * Resuelve una comunidad por su c?digo
+ * Realiza b?squeda flexible: primero exacta, luego parcial
+ * @param {string} codigo - C?digo de la comunidad (ej: "TROYA40", "TRO40")
  * @returns {Promise<{id: string, nombre: string} | null>}
  */
 export async function resolverComunidad(codigo) {
@@ -40,25 +41,39 @@ export async function resolverComunidad(codigo) {
     return cache.comunidades.get(codigoNorm)
   }
   
-  const { data, error } = await supabase
+  // Primero buscar coincidencia exacta
+  const { data: exactMatch, error: errorExact } = await supabase
     .from('comunidades')
     .select('id, nombre, codigo')
     .eq('codigo', codigoNorm)
-    .single()
+    .maybeSingle()
   
-  if (error || !data) {
-    cache.comunidades.set(codigoNorm, null)
-    return null
+  if (exactMatch) {
+    cache.comunidades.set(codigoNorm, exactMatch)
+    return exactMatch
   }
   
-  cache.comunidades.set(codigoNorm, data)
-  return data
+  // Si no hay coincidencia exacta, buscar coincidencia parcial
+  const { data: partialMatches, error: errorPartial } = await supabase
+    .from('comunidades')
+    .select('id, nombre, codigo')
+    .ilike('codigo', `%${codigoNorm}%`)
+  
+  if (partialMatches && partialMatches.length > 0) {
+    const bestMatch = partialMatches[0]
+    cache.comunidades.set(codigoNorm, bestMatch)
+    return bestMatch
+  }
+  
+  cache.comunidades.set(codigoNorm, null)
+  return null
 }
 
 /**
- * Busca una agrupación por nombre dentro de una comunidad
+ * Busca una agrupaci?n por nombre dentro de una comunidad
+ * Realiza b?squeda flexible: primero exacta, luego parcial (para coincidir "3" con "Portal 3")
  * @param {string} comunidadId - ID de la comunidad
- * @param {string} nombre - Nombre de la agrupación (ej: "1", "A")
+ * @param {string} nombre - Nombre de la agrupaci?n (ej: "1", "A", "Portal 1")
  * @returns {Promise<{id: string, nombre: string} | null>}
  */
 export async function buscarAgrupacion(comunidadId, nombre) {
@@ -71,26 +86,46 @@ export async function buscarAgrupacion(comunidadId, nombre) {
     return cache.agrupaciones.get(cacheKey)
   }
   
-  const { data, error } = await supabase
+  // Primero buscar coincidencia exacta
+  const { data: exactMatch, error: errorExact } = await supabase
     .from('agrupaciones')
     .select('id, nombre')
     .eq('comunidad_id', comunidadId)
     .eq('nombre', nombreNorm)
-    .single()
+    .maybeSingle()
   
-  if (error || !data) {
-    cache.agrupaciones.set(cacheKey, null)
-    return null
+  if (exactMatch) {
+    cache.agrupaciones.set(cacheKey, exactMatch)
+    return exactMatch
   }
   
-  cache.agrupaciones.set(cacheKey, data)
-  return data
+  // Si no hay coincidencia exacta, buscar coincidencia parcial
+  // Esto permite que "3" coincida con "Portal 3" o "Escalera 3"
+  const { data: partialMatches, error: errorPartial } = await supabase
+    .from('agrupaciones')
+    .select('id, nombre')
+    .eq('comunidad_id', comunidadId)
+    .ilike('nombre', `%${nombreNorm}%`)
+  
+  if (partialMatches && partialMatches.length > 0) {
+    // Preferir coincidencia que termine con el n?mero/texto buscado
+    const bestMatch = partialMatches.find(a => 
+      a.nombre.endsWith(nombreNorm) || 
+      a.nombre.endsWith(` ${nombreNorm}`)
+    ) || partialMatches[0]
+    
+    cache.agrupaciones.set(cacheKey, bestMatch)
+    return bestMatch
+  }
+  
+  cache.agrupaciones.set(cacheKey, null)
+  return null
 }
 
 /**
- * Busca o crea una agrupación
+ * Busca o crea una agrupaci?n
  * @param {string} comunidadId - ID de la comunidad
- * @param {string} nombre - Nombre de la agrupación
+ * @param {string} nombre - Nombre de la agrupaci?n
  * @param {boolean} crearSiNoExiste - Si crear cuando no existe
  * @returns {Promise<{id: string, nombre: string, created: boolean} | null>}
  */
@@ -118,7 +153,7 @@ export async function buscarOCrearAgrupacion(comunidadId, nombre, crearSiNoExist
       .single()
     
     if (error) {
-      console.error('Error al crear agrupación:', error)
+      console.error('Error al crear agrupaci?n:', error)
       return null
     }
     
@@ -133,9 +168,10 @@ export async function buscarOCrearAgrupacion(comunidadId, nombre, crearSiNoExist
 }
 
 /**
- * Busca una ubicación por nombre dentro de una agrupación
- * @param {string} agrupacionId - ID de la agrupación
- * @param {string} nombre - Nombre de la ubicación (ej: "1ºA", "2ºB")
+ * Busca una ubicaci?n por nombre dentro de una agrupaci?n
+ * Realiza b?squeda flexible: primero exacta, luego parcial (para coincidir "1?A" con "Vivienda 1?A")
+ * @param {string} agrupacionId - ID de la agrupaci?n
+ * @param {string} nombre - Nombre de la ubicaci?n (ej: "1?A", "2?B", "Vivienda 1?A")
  * @returns {Promise<{id: string, nombre: string} | null>}
  */
 export async function buscarUbicacion(agrupacionId, nombre) {
@@ -148,26 +184,46 @@ export async function buscarUbicacion(agrupacionId, nombre) {
     return cache.ubicaciones.get(cacheKey)
   }
   
-  const { data, error } = await supabase
+  // Primero buscar coincidencia exacta
+  const { data: exactMatch, error: errorExact } = await supabase
     .from('ubicaciones')
     .select('id, nombre')
     .eq('agrupacion_id', agrupacionId)
     .eq('nombre', nombreNorm)
-    .single()
+    .maybeSingle()
   
-  if (error || !data) {
-    cache.ubicaciones.set(cacheKey, null)
-    return null
+  if (exactMatch) {
+    cache.ubicaciones.set(cacheKey, exactMatch)
+    return exactMatch
   }
   
-  cache.ubicaciones.set(cacheKey, data)
-  return data
+  // Si no hay coincidencia exacta, buscar coincidencia parcial
+  // Esto permite que "1?A" coincida con "Vivienda 1?A"
+  const { data: partialMatches, error: errorPartial } = await supabase
+    .from('ubicaciones')
+    .select('id, nombre')
+    .eq('agrupacion_id', agrupacionId)
+    .ilike('nombre', `%${nombreNorm}%`)
+  
+  if (partialMatches && partialMatches.length > 0) {
+    // Preferir coincidencia que termine con el nombre buscado
+    const bestMatch = partialMatches.find(u => 
+      u.nombre.endsWith(nombreNorm) || 
+      u.nombre.endsWith(` ${nombreNorm}`)
+    ) || partialMatches[0]
+    
+    cache.ubicaciones.set(cacheKey, bestMatch)
+    return bestMatch
+  }
+  
+  cache.ubicaciones.set(cacheKey, null)
+  return null
 }
 
 /**
- * Busca o crea una ubicación
- * @param {string} agrupacionId - ID de la agrupación
- * @param {string} nombre - Nombre de la ubicación
+ * Busca o crea una ubicaci?n
+ * @param {string} agrupacionId - ID de la agrupaci?n
+ * @param {string} nombre - Nombre de la ubicaci?n
  * @param {boolean} crearSiNoExiste - Si crear cuando no existe
  * @returns {Promise<{id: string, nombre: string, created: boolean} | null>}
  */
@@ -195,7 +251,7 @@ export async function buscarOCrearUbicacion(agrupacionId, nombre, crearSiNoExist
       .single()
     
     if (error) {
-      console.error('Error al crear ubicación:', error)
+      console.error('Error al crear ubicaci?n:', error)
       return null
     }
     
@@ -210,11 +266,11 @@ export async function buscarOCrearUbicacion(agrupacionId, nombre, crearSiNoExist
 }
 
 /**
- * Resuelve la ubicación completa desde código de comunidad, nombre de agrupación y ubicación
- * @param {string} comunidadCodigo - Código de la comunidad
- * @param {string} agrupacionNombre - Nombre de la agrupación
- * @param {string} ubicacionNombre - Nombre de la ubicación
- * @param {Object} options - Opciones de resolución
+ * Resuelve la ubicaci?n completa desde c?digo de comunidad, nombre de agrupaci?n y ubicaci?n
+ * @param {string} comunidadCodigo - C?digo de la comunidad
+ * @param {string} agrupacionNombre - Nombre de la agrupaci?n
+ * @param {string} ubicacionNombre - Nombre de la ubicaci?n
+ * @param {Object} options - Opciones de resoluci?n
  * @returns {Promise<{ubicacionId: string, comunidadId: string, agrupacionId: string, errors: string[]}>}
  */
 export async function resolverUbicacionCompleta(comunidadCodigo, agrupacionNombre, ubicacionNombre, options = {}) {
@@ -228,7 +284,7 @@ export async function resolverUbicacionCompleta(comunidadCodigo, agrupacionNombr
     return { ubicacionId: null, comunidadId: null, agrupacionId: null, errors }
   }
   
-  // Resolver agrupación
+  // Resolver agrupaci?n
   let agrupacion = crearAgrupaciones
     ? await buscarOCrearAgrupacion(comunidad.id, agrupacionNombre, true)
     : await buscarAgrupacion(comunidad.id, agrupacionNombre)
@@ -238,7 +294,7 @@ export async function resolverUbicacionCompleta(comunidadCodigo, agrupacionNombr
     return { ubicacionId: null, comunidadId: comunidad.id, agrupacionId: null, errors }
   }
   
-  // Resolver ubicación
+  // Resolver ubicaci?n
   let ubicacion = crearUbicaciones
     ? await buscarOCrearUbicacion(agrupacion.id, ubicacionNombre, true)
     : await buscarUbicacion(agrupacion.id, ubicacionNombre)
@@ -272,7 +328,7 @@ export async function buscarClientePorNif(nif) {
     .from('clientes')
     .select('id, nombre, apellidos, nif')
     .eq('nif', nifNorm)
-    .single()
+    .maybeSingle()
   
   if (error || !data) return null
   return data
@@ -292,7 +348,7 @@ export async function buscarComunidadPorCodigo(codigo) {
     .from('comunidades')
     .select('id, codigo, nombre')
     .eq('codigo', codigoNorm)
-    .single()
+    .maybeSingle()
   
   if (error || !data) return null
   return data
@@ -312,7 +368,7 @@ export async function buscarContadorPorSerie(numeroSerie) {
     .from('contadores')
     .select('id, numero_serie')
     .eq('numero_serie', serieNorm)
-    .single()
+    .maybeSingle()
   
   if (error || !data) return null
   return data
@@ -337,7 +393,7 @@ export async function buscarConceptoPorCodigo(codigo) {
     .from('conceptos')
     .select('id, codigo, nombre, unidad_medida')
     .eq('codigo', codigoNorm)
-    .single()
+    .maybeSingle()
   
   if (error || !data) {
     cache.conceptos.set(codigoNorm, null)
