@@ -432,8 +432,8 @@ export async function leerExcel(file, options = {}) {
         const sheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[sheetName]
         
-        // Convertir a JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false })
+        // Convertir a JSON con valores crudos para que las fechas vengan como números seriales
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true })
         
         if (jsonData.length < 2) {
           reject(new Error('El archivo debe tener al menos una cabecera y una fila de datos'))
