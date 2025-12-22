@@ -426,7 +426,9 @@ export async function leerExcel(file, options = {}) {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result)
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true })
+        // No usar cellDates para evitar objetos Date que React no puede renderizar
+        // Las fechas vendrán como números seriales de Excel que parseFecha convertirá
+        const workbook = XLSX.read(data, { type: 'array' })
         
         // Usar la primera hoja (Datos)
         const sheetName = workbook.SheetNames[0]
