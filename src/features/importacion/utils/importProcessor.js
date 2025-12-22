@@ -27,26 +27,44 @@ const REGEX_CP = /^[0-9]{5}$/
  */
 function parseFecha(valor) {
   if (!valor) return null
-  
+
   // Si ya es un objeto Date
   if (valor instanceof Date) {
-    return valor.toISOString().split('T')[0]
+    const year = valor.getFullYear()
+    const month = String(valor.getMonth() + 1).padStart(2, '0')
+    const day = String(valor.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
-  
+
+  // Si es un número (número serial de Excel)
+  // Excel cuenta días desde el 1 de enero de 1900 (con un bug del día 29 de febrero de 1900)
+  if (typeof valor === 'number' && valor > 0) {
+    // Convertir número serial de Excel a fecha
+    // Excel usa el día 0 como 1 de enero de 1900
+    // Pero hay que restar 1 día por el bug de Excel del año bisiesto 1900
+    const excelEpoch = new Date(1899, 11, 30) // 30 de diciembre de 1899
+    const date = new Date(excelEpoch.getTime() + valor * 24 * 60 * 60 * 1000)
+    
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const str = String(valor).trim()
-  
+
   // Formato DD/MM/YYYY o DD-MM-YYYY
   const match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
   if (match) {
     const [, day, month, year] = match
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
   }
-  
+
   // Formato YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     return str
   }
-  
+
   return null
 }
 
