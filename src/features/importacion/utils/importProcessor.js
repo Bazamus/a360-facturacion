@@ -12,6 +12,7 @@ import {
   buscarClientePorNif,
   buscarComunidadPorCodigo,
   buscarContadorPorSerie,
+  buscarConceptoPorCodigo,
   limpiarCache
 } from './fieldResolvers'
 
@@ -285,13 +286,67 @@ export async function procesarClientes(filas, onProgress = () => {}) {
 }
 
 /**
+ * Detecta conceptos en una fila del Excel
+ * Busca campos con patrón {CODIGO}_lectura y {CODIGO}_fecha
+ * @param {Object} fila - Fila parseada del Excel
+ * @returns {Array<{codigo: string, lectura: number, fecha: string}>}
+ */
+function detectarConceptosEnFila(fila) {
+  const conceptos = []
+  const codigosEncontrados = new Set()
+  
+  // Buscar campos que terminen en _lectura o _fecha
+  Object.keys(fila).forEach(key => {
+    const keyLower = key.toLowerCase()
+    
+    if (keyLower.endsWith('_lectura')) {
+      const codigo = keyLower.replace('_lectura', '').toUpperCase()
+      codigosEncontrados.add(codigo)
+    } else if (keyLower.endsWith('_fecha')) {
+      const codigo = keyLower.replace('_fecha', '').toUpperCase()
+      codigosEncontrados.add(codigo)
+    }
+  })
+  
+  // Para cada código encontrado, extraer lectura y fecha
+  codigosEncontrados.forEach(codigo => {
+    const lecturaKey = `${codigo.toLowerCase()}_lectura`
+    const fechaKey = `${codigo.toLowerCase()}_fecha`
+    
+    const lecturaValue = fila[lecturaKey]
+    const fechaValue = fila[fechaKey]
+    
+    // Solo incluir si tiene AMBOS valores (lectura y fecha)
+    if (lecturaValue !== null && lecturaValue !== undefined && lecturaValue !== '' &&
+        fechaValue !== null && fechaValue !== undefined && fechaValue !== '') {
+      // Parsear lectura (puede venir con coma o punto)
+      let lectura = 0
+      if (typeof lecturaValue === 'number') {
+        lectura = lecturaValue
+      } else {
+        const lecturaStr = String(lecturaValue).replace(',', '.').trim()
+        lectura = parseFloat(lecturaStr) || 0
+      }
+      
+      conceptos.push({
+        codigo,
+        lectura,
+        fecha: parseFecha(fechaValue)
+      })
+    }
+  })
+  
+  return conceptos
+}
+
+/**
  * Procesa la importación de contadores
  * @param {Array} filas - Filas parseadas del Excel
  * @param {Function} onProgress - Callback de progreso
- * @returns {Promise<{created: number, updated: number, errors: Array}>}
+ * @returns {Promise<{created: number, updated: number, conceptosAsignados: number, errors: Array}>}
  */
 export async function procesarContadores(filas, onProgress = () => {}) {
-  const result = { created: 0, updated: 0, errors: [], total: filas.length }
+  const result = { created: 0, updated: 0, conceptosAsignados: 0, errors: [], total: filas.length }
   limpiarCache()
   
   for (let i = 0; i < filas.length; i++) {
@@ -337,6 +392,7 @@ export async function procesarContadores(filas, onProgress = () => {}) {
       
       // Verificar si existe
       const existente = await buscarContadorPorSerie(contadorData.numero_serie)
+      let contadorId
       
       if (existente) {
         // Actualizar
@@ -346,15 +402,91 @@ export async function procesarContadores(filas, onProgress = () => {}) {
           .eq('id', existente.id)
         
         if (error) throw error
+        contadorId = existente.id
         result.updated++
       } else {
         // Crear
-        const { error } = await supabase
+        const { data: nuevoContador, error } = await supabase
           .from('contadores')
           .insert(contadorData)
+          .select('id')
+          .single()
         
         if (error) throw error
+        contadorId = nuevoContador.id
         result.created++
+      }
+      
+      // Detectar y procesar conceptos en la fila
+      const conceptosEnFila = detectarConceptosEnFila(fila)
+      
+      for (const conceptoData of conceptosEnFila) {
+        try {
+          // Resolver el concepto por código
+          const concepto = await buscarConceptoPorCodigo(conceptoData.codigo)
+          
+          if (!concepto) {
+            erroresRow.push(`Concepto "${conceptoData.codigo}" no existe`)
+            continue
+          }
+          
+          if (!conceptoData.fecha) {
+            erroresRow.push(`Fecha inválida para concepto ${conceptoData.codigo}`)
+            continue
+          }
+          
+          // Verificar si ya existe la asignación
+          const { data: asignacionExistente } = await supabase
+            .from('contadores_conceptos')
+            .select('id')
+            .eq('contador_id', contadorId)
+            .eq('concepto_id', concepto.id)
+            .single()
+          
+          if (asignacionExistente) {
+            // Actualizar asignación existente
+            const { error: updateError } = await supabase
+              .from('contadores_conceptos')
+              .update({
+                lectura_inicial: conceptoData.lectura,
+                fecha_lectura_inicial: conceptoData.fecha,
+                lectura_actual: conceptoData.lectura,
+                fecha_lectura_actual: conceptoData.fecha,
+                activo: true
+              })
+              .eq('id', asignacionExistente.id)
+            
+            if (updateError) {
+              erroresRow.push(`Error actualizando concepto ${conceptoData.codigo}: ${updateError.message}`)
+            }
+          } else {
+            // Crear nueva asignación
+            const { error: insertError } = await supabase
+              .from('contadores_conceptos')
+              .insert({
+                contador_id: contadorId,
+                concepto_id: concepto.id,
+                lectura_inicial: conceptoData.lectura,
+                fecha_lectura_inicial: conceptoData.fecha,
+                lectura_actual: conceptoData.lectura,
+                fecha_lectura_actual: conceptoData.fecha,
+                activo: true
+              })
+            
+            if (insertError) {
+              erroresRow.push(`Error asignando concepto ${conceptoData.codigo}: ${insertError.message}`)
+            } else {
+              result.conceptosAsignados++
+            }
+          }
+        } catch (conceptoError) {
+          erroresRow.push(`Error procesando concepto ${conceptoData.codigo}: ${conceptoError.message}`)
+        }
+      }
+      
+      // Si hubo errores con conceptos pero el contador se procesó, reportar como advertencias
+      if (erroresRow.length > 0) {
+        result.errors.push({ fila: rowNum, errores: erroresRow })
       }
       
     } catch (error) {

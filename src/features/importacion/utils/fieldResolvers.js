@@ -11,7 +11,8 @@ import { supabase } from '@/lib/supabase'
 const cache = {
   comunidades: new Map(),
   agrupaciones: new Map(),
-  ubicaciones: new Map()
+  ubicaciones: new Map(),
+  conceptos: new Map()
 }
 
 /**
@@ -21,6 +22,7 @@ export function limpiarCache() {
   cache.comunidades.clear()
   cache.agrupaciones.clear()
   cache.ubicaciones.clear()
+  cache.conceptos.clear()
 }
 
 /**
@@ -316,6 +318,57 @@ export async function buscarContadorPorSerie(numeroSerie) {
   return data
 }
 
+/**
+ * Busca un concepto por código
+ * @param {string} codigo - Código del concepto (ej: "ACS", "CAL", "CLI")
+ * @returns {Promise<{id: string, codigo: string, nombre: string, unidad_medida: string} | null>}
+ */
+export async function buscarConceptoPorCodigo(codigo) {
+  if (!codigo) return null
+  
+  const codigoNorm = codigo.toString().trim().toUpperCase()
+  
+  // Buscar en cache
+  if (cache.conceptos.has(codigoNorm)) {
+    return cache.conceptos.get(codigoNorm)
+  }
+  
+  const { data, error } = await supabase
+    .from('conceptos')
+    .select('id, codigo, nombre, unidad_medida')
+    .eq('codigo', codigoNorm)
+    .single()
+  
+  if (error || !data) {
+    cache.conceptos.set(codigoNorm, null)
+    return null
+  }
+  
+  cache.conceptos.set(codigoNorm, data)
+  return data
+}
+
+/**
+ * Obtiene todos los conceptos activos
+ * @returns {Promise<Array<{id: string, codigo: string, nombre: string, unidad_medida: string}>>}
+ */
+export async function obtenerConceptosActivos() {
+  const { data, error } = await supabase
+    .from('conceptos')
+    .select('id, codigo, nombre, unidad_medida')
+    .eq('activo', true)
+    .order('orden')
+  
+  if (error || !data) return []
+  
+  // Poblar cache
+  data.forEach(concepto => {
+    cache.conceptos.set(concepto.codigo, concepto)
+  })
+  
+  return data
+}
+
 export default {
   limpiarCache,
   resolverComunidad,
@@ -326,5 +379,7 @@ export default {
   resolverUbicacionCompleta,
   buscarClientePorNif,
   buscarComunidadPorCodigo,
-  buscarContadorPorSerie
+  buscarContadorPorSerie,
+  buscarConceptoPorCodigo,
+  obtenerConceptosActivos
 }

@@ -1,9 +1,9 @@
 /**
- * Hook de Importación/Exportación de Datos
- * Sistema de Facturación A360
+ * Hook de Importaci?n/Exportaci?n de Datos
+ * Sistema de Facturaci?n A360
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { 
   generarPlantillaVacia, 
@@ -12,7 +12,8 @@ import {
   validarFilas,
   procesarComunidades,
   procesarClientes,
-  procesarContadores
+  procesarContadores,
+  obtenerConceptosActivos
 } from '../utils'
 import {
   getComunidadesParaExport,
@@ -30,7 +31,7 @@ const ESTADOS = {
 }
 
 /**
- * Hook principal para gestionar importación y exportación
+ * Hook principal para gestionar importaci?n y exportaci?n
  */
 export function useImportExport() {
   const queryClient = useQueryClient()
@@ -44,27 +45,45 @@ export function useImportExport() {
   const [archivo, setArchivo] = useState(null)
   const [datosExcel, setDatosExcel] = useState(null)
   
-  // Estado de validación
+  // Estado de validaci?n
   const [validacion, setValidacion] = useState(null)
   
   // Estado de progreso
   const [progreso, setProgreso] = useState({ porcentaje: 0, actual: 0, total: 0 })
   
-  // Resultado de importación
+  // Resultado de importaci?n
   const [resultado, setResultado] = useState(null)
+  
+  // Conceptos activos (para contadores)
+  const [conceptos, setConceptos] = useState([])
+  
+  // Cargar conceptos activos al montar
+  useEffect(() => {
+    const cargarConceptos = async () => {
+      try {
+        const conceptosActivos = await obtenerConceptosActivos()
+        setConceptos(conceptosActivos)
+      } catch (err) {
+        console.error('Error al cargar conceptos:', err)
+      }
+    }
+    cargarConceptos()
+  }, [])
 
   /**
-   * Descargar plantilla vacía
+   * Descargar plantilla vac?a
    */
   const descargarPlantilla = useCallback((entidad, conEjemplo = true) => {
     try {
-      const fileName = generarPlantillaVacia(entidad, conEjemplo)
+      // Para contadores, pasar conceptos para generar columnas din?micas
+      const options = entidad === 'contadores' ? { conceptos } : {}
+      const fileName = generarPlantillaVacia(entidad, conEjemplo, options)
       return { success: true, fileName }
     } catch (err) {
       setError(err.message)
       return { success: false, error: err.message }
     }
-  }, [])
+  }, [conceptos])
 
   /**
    * Exportar datos existentes
@@ -93,7 +112,9 @@ export function useImportExport() {
         throw new Error('No hay datos para exportar')
       }
       
-      const fileName = exportarDatos(entidad, datos)
+      // Para contadores, pasar conceptos para generar columnas din?micas
+      const options = entidad === 'contadores' ? { conceptos } : {}
+      const fileName = exportarDatos(entidad, datos, options)
       setEstado(ESTADOS.COMPLETADO)
       return { success: true, fileName, count: datos.length }
     } catch (err) {
@@ -101,7 +122,7 @@ export function useImportExport() {
       setError(err.message)
       return { success: false, error: err.message }
     }
-  }, [])
+  }, [conceptos])
 
   /**
    * Cargar archivo Excel
@@ -113,13 +134,14 @@ export function useImportExport() {
     setResultado(null)
     
     try {
-      const datos = await leerExcel(file)
+      // Pasar conceptos para detectar columnas din?micas en contadores
+      const datos = await leerExcel(file, { conceptos })
       
       setArchivo(file)
       setDatosExcel(datos)
       setEntidadActiva(datos.entidad)
       
-      // Validar automáticamente
+      // Validar autom?ticamente
       setEstado(ESTADOS.VALIDANDO)
       const validacionResult = await validarFilas(datos.entidad, datos.rows)
       setValidacion(validacionResult)
@@ -133,7 +155,7 @@ export function useImportExport() {
       setDatosExcel(null)
       return { success: false, error: err.message }
     }
-  }, [])
+  }, [conceptos])
 
   /**
    * Limpiar archivo cargado
@@ -149,7 +171,7 @@ export function useImportExport() {
   }, [])
 
   /**
-   * Ejecutar importación
+   * Ejecutar importaci?n
    */
   const ejecutarImportacion = useCallback(async () => {
     if (!datosExcel || !datosExcel.rows.length) {
@@ -218,7 +240,7 @@ export function useImportExport() {
     archivo,
     datosExcel,
     
-    // Validación
+    // Validaci?n
     validacion,
     
     // Progreso
@@ -226,6 +248,9 @@ export function useImportExport() {
     
     // Resultado
     resultado,
+    
+    // Conceptos (para contadores)
+    conceptos,
     
     // Acciones
     descargarPlantilla,

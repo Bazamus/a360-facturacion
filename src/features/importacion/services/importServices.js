@@ -45,7 +45,7 @@ export async function getClientesParaExport() {
 }
 
 /**
- * Obtiene todos los contadores con ubicaciones para exportación
+ * Obtiene todos los contadores con ubicaciones y conceptos asignados para exportación
  */
 export async function getContadoresParaExport() {
   const { data, error } = await supabase
@@ -58,6 +58,14 @@ export async function getContadoresParaExport() {
           nombre,
           comunidad:comunidades(codigo, nombre)
         )
+      ),
+      contadores_conceptos(
+        lectura_inicial,
+        fecha_lectura_inicial,
+        lectura_actual,
+        fecha_lectura_actual,
+        activo,
+        concepto:conceptos(id, codigo, nombre, unidad_medida)
       )
     `)
     .order('numero_serie')

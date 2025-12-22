@@ -8,6 +8,7 @@ export {
   exportarDatos,
   leerExcel,
   getColumnConfig,
+  generarConfigContadores,
   COLUMN_CONFIG
 } from './excelGenerator'
 
@@ -21,7 +22,9 @@ export {
   resolverUbicacionCompleta,
   buscarClientePorNif,
   buscarComunidadPorCodigo,
-  buscarContadorPorSerie
+  buscarContadorPorSerie,
+  buscarConceptoPorCodigo,
+  obtenerConceptosActivos
 } from './fieldResolvers'
 
 export {

@@ -5,8 +5,8 @@
 
 import * as XLSX from 'xlsx'
 
-// Configuración de columnas por entidad
-const COLUMN_CONFIG = {
+// Configuración base de columnas por entidad
+const COLUMN_CONFIG_BASE = {
   comunidades: {
     headers: [
       'Código', 'Nombre', 'CIF', 'Dirección', 'Código Postal', 
@@ -92,14 +92,79 @@ const COLUMN_CONFIG = {
   }
 }
 
+// Alias para compatibilidad
+const COLUMN_CONFIG = COLUMN_CONFIG_BASE
+
+/**
+ * Genera configuración dinámica de contadores con columnas de conceptos
+ * @param {Array} conceptos - Array de conceptos activos [{codigo, nombre, unidad_medida}]
+ * @returns {Object} Configuración de columnas para contadores
+ */
+export function generarConfigContadores(conceptos = []) {
+  const baseConfig = { ...COLUMN_CONFIG_BASE.contadores }
+  
+  if (!conceptos || conceptos.length === 0) {
+    return baseConfig
+  }
+  
+  // Columnas base (sin observaciones al final, lo movemos después de conceptos)
+  const headersBase = [
+    'Nº Serie', 'Marca', 'Modelo', 'Fecha Instalación', 'Fecha Verificación',
+    'Código Comunidad', 'Portal', 'Vivienda'
+  ]
+  const fieldsBase = [
+    'numero_serie', 'marca', 'modelo', 'fecha_instalacion', 'fecha_ultima_verificacion',
+    'comunidad_codigo', 'agrupacion_nombre', 'ubicacion_nombre'
+  ]
+  
+  // Añadir columnas de conceptos
+  const conceptoHeaders = []
+  const conceptoFields = []
+  const conceptoExample = {}
+  
+  conceptos.forEach(concepto => {
+    const codigo = concepto.codigo.toUpperCase()
+    // Columna de lectura inicial
+    conceptoHeaders.push(`${codigo}_Lectura`)
+    conceptoFields.push(`${codigo.toLowerCase()}_lectura`)
+    conceptoExample[`${codigo.toLowerCase()}_lectura`] = '0'
+    
+    // Columna de fecha inicial
+    conceptoHeaders.push(`${codigo}_Fecha`)
+    conceptoFields.push(`${codigo.toLowerCase()}_fecha`)
+    conceptoExample[`${codigo.toLowerCase()}_fecha`] = '01/01/2024'
+  })
+  
+  return {
+    headers: [...headersBase, ...conceptoHeaders, 'Observaciones'],
+    fields: [...fieldsBase, ...conceptoFields, 'observaciones'],
+    required: ['numero_serie', 'comunidad_codigo', 'agrupacion_nombre', 'ubicacion_nombre'],
+    example: {
+      ...COLUMN_CONFIG_BASE.contadores.example,
+      ...conceptoExample
+    },
+    conceptos: conceptos.map(c => c.codigo.toUpperCase())
+  }
+}
+
 /**
  * Genera una plantilla Excel vacía para una entidad
  * @param {string} entidad - 'comunidades' | 'clientes' | 'contadores'
  * @param {boolean} incluirEjemplo - Si incluir una fila de ejemplo
+ * @param {Object} options - Opciones adicionales
+ * @param {Array} options.conceptos - Conceptos activos (para contadores)
  * @returns {string} Nombre del archivo generado
  */
-export function generarPlantillaVacia(entidad, incluirEjemplo = true) {
-  const config = COLUMN_CONFIG[entidad]
+export function generarPlantillaVacia(entidad, incluirEjemplo = true, options = {}) {
+  let config
+  
+  // Para contadores, generar config dinámica con conceptos
+  if (entidad === 'contadores' && options.conceptos) {
+    config = generarConfigContadores(options.conceptos)
+  } else {
+    config = COLUMN_CONFIG[entidad]
+  }
+  
   if (!config) {
     throw new Error(`Entidad no soportada: ${entidad}`)
   }
@@ -124,7 +189,7 @@ export function generarPlantillaVacia(entidad, incluirEjemplo = true) {
   XLSX.utils.book_append_sheet(wb, ws, 'Datos')
 
   // Añadir hoja de instrucciones
-  const instrucciones = generarHojaInstrucciones(entidad, config)
+  const instrucciones = generarHojaInstrucciones(entidad, config, options.conceptos)
   XLSX.utils.book_append_sheet(wb, instrucciones, 'Instrucciones')
 
   // Generar y descargar
@@ -137,7 +202,7 @@ export function generarPlantillaVacia(entidad, incluirEjemplo = true) {
 /**
  * Genera hoja de instrucciones para la plantilla
  */
-function generarHojaInstrucciones(entidad, config) {
+function generarHojaInstrucciones(entidad, config, conceptos = []) {
   const instrucciones = [
     [`INSTRUCCIONES PARA IMPORTAR ${entidad.toUpperCase()}`],
     [''],
@@ -157,12 +222,38 @@ function generarHojaInstrucciones(entidad, config) {
     ['  - Código Comunidad: Código único de la comunidad (ej: TROYA40)'],
     ['  - Portal: Nombre del portal/bloque (ej: 1, 2, A, B)'],
     ['  - Vivienda: Nombre de la vivienda (ej: 1ºA, 2ºB, Bajo C)'],
-    [''],
+    ['']
+  ]
+  
+  // Añadir instrucciones de conceptos para contadores
+  if (entidad === 'contadores' && conceptos && conceptos.length > 0) {
+    instrucciones.push(
+      ['CONCEPTOS ASIGNADOS AL CONTADOR:'],
+      ['  Para asignar conceptos al contador, rellene las columnas de lectura y fecha:'],
+      ['']
+    )
+    conceptos.forEach(concepto => {
+      const codigo = concepto.codigo.toUpperCase()
+      instrucciones.push(
+        [`  ${codigo} - ${concepto.nombre} (${concepto.unidad_medida}):`],
+        [`    - ${codigo}_Lectura: Lectura inicial (número, ej: 0 o 125.50)`],
+        [`    - ${codigo}_Fecha: Fecha de lectura inicial (DD/MM/YYYY)`]
+      )
+    })
+    instrucciones.push(
+      [''],
+      ['  NOTA: Solo se asignarán los conceptos que tengan AMBOS campos rellenados'],
+      ['        (lectura Y fecha). Deje vacíos los conceptos que no apliquen.'],
+      ['']
+    )
+  }
+  
+  instrucciones.push(
     ['NOTAS:'],
     ['  - La primera fila (cabeceras) NO se importa'],
     ['  - Deje las celdas vacías si no tiene el dato'],
     ['  - Si el código/NIF/Nº serie ya existe, se actualizarán los datos']
-  ]
+  )
 
   return XLSX.utils.aoa_to_sheet(instrucciones)
 }
@@ -171,10 +262,20 @@ function generarHojaInstrucciones(entidad, config) {
  * Exporta datos existentes a Excel
  * @param {string} entidad - 'comunidades' | 'clientes' | 'contadores'
  * @param {Array} datos - Array de objetos con los datos
+ * @param {Object} options - Opciones adicionales
+ * @param {Array} options.conceptos - Conceptos activos (para contadores)
  * @returns {string} Nombre del archivo generado
  */
-export function exportarDatos(entidad, datos) {
-  const config = COLUMN_CONFIG[entidad]
+export function exportarDatos(entidad, datos, options = {}) {
+  let config
+  
+  // Para contadores, generar config dinámica con conceptos
+  if (entidad === 'contadores' && options.conceptos) {
+    config = generarConfigContadores(options.conceptos)
+  } else {
+    config = COLUMN_CONFIG[entidad]
+  }
+  
   if (!config) {
     throw new Error(`Entidad no soportada: ${entidad}`)
   }
@@ -184,7 +285,9 @@ export function exportarDatos(entidad, datos) {
   }
 
   // Transformar datos según la entidad
-  const datosTransformados = datos.map(item => transformarParaExport(entidad, item))
+  const datosTransformados = datos.map(item => 
+    transformarParaExport(entidad, item, options.conceptos)
+  )
 
   // Crear filas de datos
   const wsData = [config.headers]
@@ -216,7 +319,7 @@ export function exportarDatos(entidad, datos) {
 /**
  * Transforma un registro de BD al formato de exportación
  */
-function transformarParaExport(entidad, item) {
+function transformarParaExport(entidad, item, conceptos = []) {
   switch (entidad) {
     case 'comunidades':
       return {
@@ -258,7 +361,7 @@ function transformarParaExport(entidad, item) {
       }
     
     case 'contadores':
-      return {
+      const base = {
         numero_serie: item.numero_serie,
         marca: item.marca,
         modelo: item.modelo,
@@ -269,6 +372,27 @@ function transformarParaExport(entidad, item) {
         ubicacion_nombre: item.ubicacion?.nombre || '',
         observaciones: item.observaciones
       }
+      
+      // Añadir columnas de conceptos asignados
+      if (conceptos && conceptos.length > 0 && item.contadores_conceptos) {
+        conceptos.forEach(concepto => {
+          const codigoLower = concepto.codigo.toLowerCase()
+          // Buscar si este contador tiene este concepto asignado
+          const conceptoAsignado = item.contadores_conceptos?.find(
+            cc => cc.concepto?.codigo?.toUpperCase() === concepto.codigo.toUpperCase()
+          )
+          
+          if (conceptoAsignado) {
+            base[`${codigoLower}_lectura`] = conceptoAsignado.lectura_inicial || 0
+            base[`${codigoLower}_fecha`] = formatDate(conceptoAsignado.fecha_lectura_inicial)
+          } else {
+            base[`${codigoLower}_lectura`] = ''
+            base[`${codigoLower}_fecha`] = ''
+          }
+        })
+      }
+      
+      return base
     
     default:
       return item
@@ -291,9 +415,11 @@ function formatDate(date) {
 /**
  * Lee un archivo Excel y devuelve los datos parseados
  * @param {File} file - Archivo Excel
- * @returns {Promise<{headers: string[], rows: any[], entidad: string}>}
+ * @param {Object} options - Opciones de lectura
+ * @param {Array} options.conceptos - Conceptos activos (para detectar columnas dinámicas)
+ * @returns {Promise<{headers: string[], rows: any[], entidad: string, conceptosDetectados: string[]}>}
  */
-export async function leerExcel(file) {
+export async function leerExcel(file, options = {}) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
@@ -320,15 +446,33 @@ export async function leerExcel(file) {
         // Detectar entidad basándose en las cabeceras
         const entidad = detectarEntidad(headers)
         
+        // Detectar columnas de conceptos (para contadores)
+        const conceptosDetectados = detectarColumnasConceptos(headers)
+        
+        // Obtener config (dinámica para contadores si hay conceptos)
+        let config
+        if (entidad === 'contadores' && options.conceptos) {
+          config = generarConfigContadores(options.conceptos)
+        } else {
+          config = COLUMN_CONFIG[entidad]
+        }
+        
         // Parsear filas a objetos
-        const config = COLUMN_CONFIG[entidad]
         const parsedRows = rows.map((row, index) => {
           const obj = { _rowIndex: index + 2 } // +2 por cabecera y base 1
+          
           headers.forEach((header, colIndex) => {
+            // Buscar en config estática
             const fieldIndex = config.headers.indexOf(header)
             if (fieldIndex !== -1) {
               const field = config.fields[fieldIndex]
               obj[field] = row[colIndex] || null
+            } else {
+              // Para columnas de conceptos no reconocidas, guardar con nombre normalizado
+              const headerLower = header?.toLowerCase() || ''
+              if (headerLower.endsWith('_lectura') || headerLower.endsWith('_fecha')) {
+                obj[headerLower] = row[colIndex] || null
+              }
             }
           })
           return obj
@@ -338,7 +482,8 @@ export async function leerExcel(file) {
           headers,
           rows: parsedRows,
           entidad,
-          totalRows: parsedRows.length
+          totalRows: parsedRows.length,
+          conceptosDetectados
         })
       } catch (error) {
         reject(new Error(`Error al leer el archivo: ${error.message}`))
@@ -348,6 +493,34 @@ export async function leerExcel(file) {
     reader.onerror = () => reject(new Error('Error al leer el archivo'))
     reader.readAsArrayBuffer(file)
   })
+}
+
+/**
+ * Detecta columnas de conceptos en los headers
+ * Busca patrones como ACS_Lectura, ACS_Fecha, CAL_Lectura, etc.
+ * @param {string[]} headers - Cabeceras del Excel
+ * @returns {string[]} Array de códigos de conceptos detectados
+ */
+function detectarColumnasConceptos(headers) {
+  const conceptos = new Set()
+  
+  headers.forEach(header => {
+    if (!header) return
+    const headerLower = header.toLowerCase()
+    
+    // Buscar patrón CODIGO_Lectura o CODIGO_Fecha
+    const matchLectura = headerLower.match(/^([a-z]+)_lectura$/)
+    const matchFecha = headerLower.match(/^([a-z]+)_fecha$/)
+    
+    if (matchLectura) {
+      conceptos.add(matchLectura[1].toUpperCase())
+    }
+    if (matchFecha) {
+      conceptos.add(matchFecha[1].toUpperCase())
+    }
+  })
+  
+  return Array.from(conceptos)
 }
 
 /**
@@ -387,5 +560,6 @@ export default {
   exportarDatos,
   leerExcel,
   getColumnConfig,
+  generarConfigContadores,
   COLUMN_CONFIG
 }
