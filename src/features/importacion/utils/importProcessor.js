@@ -23,6 +23,15 @@ const REGEX_CIF = /^[A-Z][0-9]{7}[A-Z0-9]$/i
 const REGEX_CP = /^[0-9]{5}$/
 
 /**
+ * Convierte cualquier valor a string y hace trim
+ * Útil porque Excel puede enviar números donde esperamos strings
+ */
+function toStr(valor) {
+  if (valor === null || valor === undefined) return ''
+  return String(valor).trim()
+}
+
+/**
  * Parsea una fecha en formato DD/MM/YYYY a formato ISO
  */
 function parseFecha(valor) {
@@ -111,20 +120,20 @@ export async function procesarComunidades(filas, onProgress = () => {}) {
         continue
       }
       
-      // Preparar datos
+      // Preparar datos (usar toStr para manejar valores numéricos de Excel)
       const data = {
-        codigo: fila.codigo.toString().trim().toUpperCase(),
-        nombre: fila.nombre.trim(),
-        cif: fila.cif?.trim() || null,
-        direccion: fila.direccion.trim(),
-        codigo_postal: fila.codigo_postal.trim(),
-        ciudad: fila.ciudad.trim(),
-        provincia: fila.provincia.trim(),
-        email: fila.email?.trim() || null,
-        telefono: fila.telefono?.trim() || null,
-        persona_contacto: fila.persona_contacto?.trim() || null,
-        nombre_agrupacion: fila.nombre_agrupacion?.trim() || 'Portal',
-        nombre_ubicacion: fila.nombre_ubicacion?.trim() || 'Vivienda',
+        codigo: toStr(fila.codigo).toUpperCase(),
+        nombre: toStr(fila.nombre),
+        cif: toStr(fila.cif) || null,
+        direccion: toStr(fila.direccion),
+        codigo_postal: toStr(fila.codigo_postal),
+        ciudad: toStr(fila.ciudad),
+        provincia: toStr(fila.provincia),
+        email: toStr(fila.email) || null,
+        telefono: toStr(fila.telefono) || null,
+        persona_contacto: toStr(fila.persona_contacto) || null,
+        nombre_agrupacion: toStr(fila.nombre_agrupacion) || 'Portal',
+        nombre_ubicacion: toStr(fila.nombre_ubicacion) || 'Vivienda',
         activa: true
       }
       
@@ -191,7 +200,7 @@ export async function procesarClientes(filas, onProgress = () => {}) {
       }
       
       // Validar tipo
-      const tipoNorm = fila.tipo?.toString().toLowerCase().trim()
+      const tipoNorm = toStr(fila.tipo).toLowerCase()
       if (tipoNorm && !['propietario', 'inquilino'].includes(tipoNorm)) {
         erroresRow.push('Tipo debe ser "propietario" o "inquilino"')
       }
@@ -201,22 +210,22 @@ export async function procesarClientes(filas, onProgress = () => {}) {
         continue
       }
       
-      // Preparar datos del cliente
+      // Preparar datos del cliente (usar toStr para manejar valores numéricos de Excel)
       const clienteData = {
-        nif: fila.nif.toString().trim().toUpperCase(),
-        nombre: fila.nombre.trim(),
-        apellidos: fila.apellidos.trim(),
+        nif: toStr(fila.nif).toUpperCase(),
+        nombre: toStr(fila.nombre),
+        apellidos: toStr(fila.apellidos),
         tipo: tipoNorm,
-        email: fila.email?.trim() || null,
-        telefono: fila.telefono?.trim() || null,
-        telefono_secundario: fila.telefono_secundario?.trim() || null,
-        iban: fila.iban?.replace(/\s/g, '').toUpperCase() || null,
-        titular_cuenta: fila.titular_cuenta?.trim() || null,
-        codigo_cliente: fila.codigo_cliente?.trim() || null,
-        direccion_correspondencia: fila.direccion_correspondencia?.trim() || null,
-        cp_correspondencia: fila.cp_correspondencia?.trim() || null,
-        ciudad_correspondencia: fila.ciudad_correspondencia?.trim() || null,
-        provincia_correspondencia: fila.provincia_correspondencia?.trim() || null,
+        email: toStr(fila.email) || null,
+        telefono: toStr(fila.telefono) || null,
+        telefono_secundario: toStr(fila.telefono_secundario) || null,
+        iban: toStr(fila.iban).replace(/\s/g, '').toUpperCase() || null,
+        titular_cuenta: toStr(fila.titular_cuenta) || null,
+        codigo_cliente: toStr(fila.codigo_cliente) || null,
+        direccion_correspondencia: toStr(fila.direccion_correspondencia) || null,
+        cp_correspondencia: toStr(fila.cp_correspondencia) || null,
+        ciudad_correspondencia: toStr(fila.ciudad_correspondencia) || null,
+        provincia_correspondencia: toStr(fila.provincia_correspondencia) || null,
         activo: true
       }
       
@@ -396,15 +405,15 @@ export async function procesarContadores(filas, onProgress = () => {}) {
         continue
       }
       
-      // Preparar datos del contador
+      // Preparar datos del contador (usar toStr para manejar valores numéricos de Excel)
       const contadorData = {
-        numero_serie: fila.numero_serie.toString().trim(),
+        numero_serie: toStr(fila.numero_serie),
         ubicacion_id: ubicacionResult.ubicacionId,
-        marca: fila.marca?.trim() || null,
-        modelo: fila.modelo?.trim() || null,
+        marca: toStr(fila.marca) || null,
+        modelo: toStr(fila.modelo) || null,
         fecha_instalacion: parseFecha(fila.fecha_instalacion),
         fecha_ultima_verificacion: parseFecha(fila.fecha_ultima_verificacion),
-        observaciones: fila.observaciones?.trim() || null,
+        observaciones: toStr(fila.observaciones) || null,
         activo: true
       }
       
