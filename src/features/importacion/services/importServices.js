@@ -148,10 +148,82 @@ export async function verificarIntegridad(entidad, filas) {
   return warnings
 }
 
+/**
+ * Obtiene todos los datos de una comunidad para exportación completa
+ * @param {string} comunidadId - ID de la comunidad
+ */
+export async function getComunidadCompletaParaExport(comunidadId) {
+  // Obtener datos de la comunidad
+  const { data: comunidad, error: errComunidad } = await supabase
+    .from('comunidades')
+    .select('*')
+    .eq('id', comunidadId)
+    .single()
+  
+  if (errComunidad) throw errComunidad
+  
+  // Obtener portales
+  const { data: portales, error: errPortales } = await supabase
+    .from('agrupaciones')
+    .select('id, nombre, descripcion, orden')
+    .eq('comunidad_id', comunidadId)
+    .eq('activa', true)
+    .order('orden')
+  
+  if (errPortales) throw errPortales
+  
+  // Obtener viviendas con nombre del portal
+  const { data: viviendas, error: errViviendas } = await supabase
+    .from('ubicaciones')
+    .select(`
+      id,
+      nombre,
+      descripcion,
+      referencia_catastral,
+      orden,
+      agrupacion:agrupaciones(nombre)
+    `)
+    .in('agrupacion_id', portales?.map(p => p.id) || [])
+    .eq('activa', true)
+    .order('orden')
+  
+  if (errViviendas) throw errViviendas
+  
+  // Transformar viviendas para incluir nombre de portal
+  const viviendasConPortal = viviendas?.map(v => ({
+    ...v,
+    agrupacion_nombre: v.agrupacion?.nombre || ''
+  })) || []
+  
+  // Obtener precios vigentes
+  const { data: precios, error: errPrecios } = await supabase
+    .from('precios')
+    .select(`
+      id,
+      precio_unitario,
+      fecha_inicio,
+      concepto:conceptos(codigo, nombre, unidad_medida)
+    `)
+    .eq('comunidad_id', comunidadId)
+    .eq('activo', true)
+    .is('fecha_fin', null)
+    .order('fecha_inicio', { ascending: false })
+  
+  if (errPrecios) throw errPrecios
+  
+  return {
+    comunidad,
+    portales: portales || [],
+    viviendas: viviendasConPortal,
+    precios: precios || []
+  }
+}
+
 export default {
   getComunidadesParaExport,
   getClientesParaExport,
   getContadoresParaExport,
+  getComunidadCompletaParaExport,
   contarRegistros,
   verificarIntegridad
 }

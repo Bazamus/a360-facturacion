@@ -582,9 +582,386 @@ export async function validarFilas(entidad, filas) {
   return { validas, errores, total: filas.length }
 }
 
+// ============================================================
+// PROCESADORES PARA COMUNIDAD COMPLETA
+// ============================================================
+
+/**
+ * Procesa la importación de portales (agrupaciones)
+ * @param {Array} filas - Filas parseadas del Excel
+ * @param {string} comunidadId - ID de la comunidad (opcional, si ya existe)
+ * @param {Function} onProgress - Callback de progreso
+ * @returns {Promise<{created: number, updated: number, errors: Array}>}
+ */
+export async function procesarPortales(filas, comunidadId = null, onProgress = () => {}) {
+  const result = { created: 0, updated: 0, errors: [], total: filas.length }
+  
+  for (let i = 0; i < filas.length; i++) {
+    const fila = filas[i]
+    const rowNum = fila._rowIndex || i + 2
+    const erroresRow = []
+    
+    try {
+      // Validar campos obligatorios
+      const codigoComunidad = toStr(fila.comunidad_codigo)
+      const nombrePortal = toStr(fila.nombre)
+      
+      if (!codigoComunidad) erroresRow.push('Código Comunidad es obligatorio')
+      if (!nombrePortal) erroresRow.push('Nombre Portal es obligatorio')
+      
+      if (erroresRow.length > 0) {
+        result.errors.push({ fila: rowNum, errores: erroresRow })
+        continue
+      }
+      
+      // Resolver comunidad
+      let comId = comunidadId
+      if (!comId) {
+        const comunidad = await resolverComunidad(codigoComunidad)
+        if (!comunidad) {
+          result.errors.push({ fila: rowNum, errores: [`Comunidad "${codigoComunidad}" no encontrada`] })
+          continue
+        }
+        comId = comunidad.id
+      }
+      
+      // Preparar datos
+      const data = {
+        comunidad_id: comId,
+        nombre: nombrePortal,
+        descripcion: toStr(fila.descripcion) || null,
+        orden: parseInt(fila.orden) || 0,
+        activa: true
+      }
+      
+      // Buscar si existe
+      const { data: existente } = await supabase
+        .from('agrupaciones')
+        .select('id')
+        .eq('comunidad_id', comId)
+        .eq('nombre', nombrePortal)
+        .maybeSingle()
+      
+      if (existente) {
+        // Actualizar
+        const { error } = await supabase
+          .from('agrupaciones')
+          .update(data)
+          .eq('id', existente.id)
+        
+        if (error) throw error
+        result.updated++
+      } else {
+        // Crear
+        const { error } = await supabase
+          .from('agrupaciones')
+          .insert(data)
+        
+        if (error) throw error
+        result.created++
+      }
+    } catch (error) {
+      result.errors.push({ 
+        fila: rowNum, 
+        errores: [`Error: ${error.message}`] 
+      })
+    }
+    
+    onProgress((i + 1) / filas.length, i + 1, filas.length)
+  }
+  
+  return result
+}
+
+/**
+ * Procesa la importación de viviendas (ubicaciones)
+ * @param {Array} filas - Filas parseadas del Excel
+ * @param {string} comunidadId - ID de la comunidad (opcional)
+ * @param {Function} onProgress - Callback de progreso
+ * @returns {Promise<{created: number, updated: number, errors: Array}>}
+ */
+export async function procesarViviendas(filas, comunidadId = null, onProgress = () => {}) {
+  const result = { created: 0, updated: 0, errors: [], total: filas.length }
+  
+  // Cache de agrupaciones para evitar consultas repetidas
+  const cacheAgrupaciones = new Map()
+  
+  for (let i = 0; i < filas.length; i++) {
+    const fila = filas[i]
+    const rowNum = fila._rowIndex || i + 2
+    const erroresRow = []
+    
+    try {
+      // Validar campos obligatorios
+      const codigoComunidad = toStr(fila.comunidad_codigo)
+      const portalNombre = toStr(fila.portal_nombre)
+      const nombreVivienda = toStr(fila.nombre)
+      
+      if (!codigoComunidad) erroresRow.push('Código Comunidad es obligatorio')
+      if (!portalNombre) erroresRow.push('Portal es obligatorio')
+      if (!nombreVivienda) erroresRow.push('Nombre Vivienda es obligatorio')
+      
+      if (erroresRow.length > 0) {
+        result.errors.push({ fila: rowNum, errores: erroresRow })
+        continue
+      }
+      
+      // Resolver comunidad
+      let comId = comunidadId
+      if (!comId) {
+        const comunidad = await resolverComunidad(codigoComunidad)
+        if (!comunidad) {
+          result.errors.push({ fila: rowNum, errores: [`Comunidad "${codigoComunidad}" no encontrada`] })
+          continue
+        }
+        comId = comunidad.id
+      }
+      
+      // Buscar agrupación (usar cache)
+      const cacheKey = `${comId}_${portalNombre}`
+      let agrupacionId = cacheAgrupaciones.get(cacheKey)
+      
+      if (!agrupacionId) {
+        const { data: agrupacion } = await supabase
+          .from('agrupaciones')
+          .select('id')
+          .eq('comunidad_id', comId)
+          .eq('nombre', portalNombre)
+          .maybeSingle()
+        
+        if (!agrupacion) {
+          result.errors.push({ fila: rowNum, errores: [`Portal "${portalNombre}" no encontrado en comunidad`] })
+          continue
+        }
+        agrupacionId = agrupacion.id
+        cacheAgrupaciones.set(cacheKey, agrupacionId)
+      }
+      
+      // Preparar datos
+      const data = {
+        agrupacion_id: agrupacionId,
+        nombre: nombreVivienda,
+        descripcion: toStr(fila.descripcion) || null,
+        referencia_catastral: toStr(fila.referencia_catastral) || null,
+        orden: parseInt(fila.orden) || 0,
+        activa: true
+      }
+      
+      // Buscar si existe
+      const { data: existente } = await supabase
+        .from('ubicaciones')
+        .select('id')
+        .eq('agrupacion_id', agrupacionId)
+        .eq('nombre', nombreVivienda)
+        .maybeSingle()
+      
+      if (existente) {
+        // Actualizar
+        const { error } = await supabase
+          .from('ubicaciones')
+          .update(data)
+          .eq('id', existente.id)
+        
+        if (error) throw error
+        result.updated++
+      } else {
+        // Crear
+        const { error } = await supabase
+          .from('ubicaciones')
+          .insert(data)
+        
+        if (error) throw error
+        result.created++
+      }
+    } catch (error) {
+      result.errors.push({ 
+        fila: rowNum, 
+        errores: [`Error: ${error.message}`] 
+      })
+    }
+    
+    onProgress((i + 1) / filas.length, i + 1, filas.length)
+  }
+  
+  return result
+}
+
+/**
+ * Procesa la importación de precios
+ * @param {Array} filas - Filas parseadas del Excel
+ * @param {string} comunidadId - ID de la comunidad (opcional)
+ * @param {Function} onProgress - Callback de progreso
+ * @returns {Promise<{created: number, errors: Array}>}
+ */
+export async function procesarPrecios(filas, comunidadId = null, onProgress = () => {}) {
+  const result = { created: 0, errors: [], total: filas.length }
+  
+  // Cache de conceptos
+  const cacheConceptos = new Map()
+  
+  for (let i = 0; i < filas.length; i++) {
+    const fila = filas[i]
+    const rowNum = fila._rowIndex || i + 2
+    const erroresRow = []
+    
+    try {
+      // Validar campos obligatorios
+      const codigoComunidad = toStr(fila.comunidad_codigo)
+      const codigoConcepto = toStr(fila.concepto_codigo).toUpperCase()
+      const precioUnitario = parseFloat(String(fila.precio_unitario).replace(',', '.'))
+      const fechaInicio = parseFecha(fila.fecha_inicio)
+      
+      if (!codigoComunidad) erroresRow.push('Código Comunidad es obligatorio')
+      if (!codigoConcepto) erroresRow.push('Código Concepto es obligatorio')
+      if (isNaN(precioUnitario) || precioUnitario < 0) erroresRow.push('Precio Unitario debe ser un número positivo')
+      if (!fechaInicio) erroresRow.push('Fecha Inicio es obligatoria (formato DD/MM/YYYY)')
+      
+      if (erroresRow.length > 0) {
+        result.errors.push({ fila: rowNum, errores: erroresRow })
+        continue
+      }
+      
+      // Resolver comunidad
+      let comId = comunidadId
+      if (!comId) {
+        const comunidad = await resolverComunidad(codigoComunidad)
+        if (!comunidad) {
+          result.errors.push({ fila: rowNum, errores: [`Comunidad "${codigoComunidad}" no encontrada`] })
+          continue
+        }
+        comId = comunidad.id
+      }
+      
+      // Buscar concepto (usar cache)
+      let conceptoId = cacheConceptos.get(codigoConcepto)
+      
+      if (!conceptoId) {
+        const concepto = await buscarConceptoPorCodigo(codigoConcepto)
+        if (!concepto) {
+          result.errors.push({ fila: rowNum, errores: [`Concepto "${codigoConcepto}" no encontrado`] })
+          continue
+        }
+        conceptoId = concepto.id
+        cacheConceptos.set(codigoConcepto, conceptoId)
+      }
+      
+      // Marcar precio anterior como histórico (si existe)
+      await supabase
+        .from('precios')
+        .update({ fecha_fin: fechaInicio, activo: false })
+        .eq('comunidad_id', comId)
+        .eq('concepto_id', conceptoId)
+        .is('fecha_fin', null)
+      
+      // Crear nuevo precio
+      const { error } = await supabase
+        .from('precios')
+        .insert({
+          comunidad_id: comId,
+          concepto_id: conceptoId,
+          precio_unitario: precioUnitario,
+          fecha_inicio: fechaInicio,
+          activo: true
+        })
+      
+      if (error) throw error
+      result.created++
+      
+    } catch (error) {
+      result.errors.push({ 
+        fila: rowNum, 
+        errores: [`Error: ${error.message}`] 
+      })
+    }
+    
+    onProgress((i + 1) / filas.length, i + 1, filas.length)
+  }
+  
+  return result
+}
+
+/**
+ * Procesa la importación de una comunidad completa (multi-hoja)
+ * @param {Object} hojas - Objeto con las hojas parseadas
+ * @param {Function} onProgress - Callback de progreso general
+ * @returns {Promise<Object>} Resultados de cada procesamiento
+ */
+export async function procesarComunidadCompleta(hojas, onProgress = () => {}) {
+  const resultados = {
+    comunidad: null,
+    portales: null,
+    viviendas: null,
+    precios: null,
+    erroresGlobales: []
+  }
+  
+  limpiarCache()
+  
+  try {
+    // Paso 1: Procesar comunidad (Datos Generales)
+    onProgress('comunidad', 0, 'Procesando datos generales...')
+    if (hojas.datosGenerales && hojas.datosGenerales.length > 0) {
+      resultados.comunidad = await procesarComunidades(hojas.datosGenerales, (p, c, t) => {
+        onProgress('comunidad', p, `Comunidad ${c}/${t}`)
+      })
+      
+      // Si hubo errores en comunidad, no continuar
+      if (resultados.comunidad.errors.length > 0 && resultados.comunidad.created === 0 && resultados.comunidad.updated === 0) {
+        resultados.erroresGlobales.push('Error al crear/actualizar la comunidad. Revise los errores.')
+        return resultados
+      }
+    }
+    
+    // Obtener ID de comunidad creada/actualizada
+    const codigoComunidad = toStr(hojas.datosGenerales[0]?.codigo).toUpperCase()
+    const comunidad = await resolverComunidad(codigoComunidad)
+    const comunidadId = comunidad?.id
+    
+    if (!comunidadId) {
+      resultados.erroresGlobales.push(`No se pudo encontrar la comunidad "${codigoComunidad}" después de procesarla`)
+      return resultados
+    }
+    
+    // Paso 2: Procesar portales
+    onProgress('portales', 0, 'Procesando portales...')
+    if (hojas.portales && hojas.portales.length > 0) {
+      resultados.portales = await procesarPortales(hojas.portales, comunidadId, (p, c, t) => {
+        onProgress('portales', p, `Portal ${c}/${t}`)
+      })
+    }
+    
+    // Paso 3: Procesar viviendas
+    onProgress('viviendas', 0, 'Procesando viviendas...')
+    if (hojas.viviendas && hojas.viviendas.length > 0) {
+      resultados.viviendas = await procesarViviendas(hojas.viviendas, comunidadId, (p, c, t) => {
+        onProgress('viviendas', p, `Vivienda ${c}/${t}`)
+      })
+    }
+    
+    // Paso 4: Procesar precios
+    onProgress('precios', 0, 'Procesando precios...')
+    if (hojas.precios && hojas.precios.length > 0) {
+      resultados.precios = await procesarPrecios(hojas.precios, comunidadId, (p, c, t) => {
+        onProgress('precios', p, `Precio ${c}/${t}`)
+      })
+    }
+    
+    onProgress('completado', 1, 'Importación completada')
+    
+  } catch (error) {
+    resultados.erroresGlobales.push(`Error general: ${error.message}`)
+  }
+  
+  return resultados
+}
+
 export default {
   procesarComunidades,
   procesarClientes,
   procesarContadores,
+  procesarPortales,
+  procesarViviendas,
+  procesarPrecios,
+  procesarComunidadCompleta,
   validarFilas
 }

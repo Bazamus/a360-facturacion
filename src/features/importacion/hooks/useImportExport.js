@@ -13,12 +13,17 @@ import {
   procesarComunidades,
   procesarClientes,
   procesarContadores,
-  obtenerConceptosActivos
+  procesarComunidadCompleta,
+  obtenerConceptosActivos,
+  generarPlantillaComunidadCompleta,
+  leerExcelMultiHoja,
+  exportarComunidadCompleta
 } from '../utils'
 import {
   getComunidadesParaExport,
   getClientesParaExport,
-  getContadoresParaExport
+  getContadoresParaExport,
+  getComunidadCompletaParaExport
 } from '../services'
 
 const ESTADOS = {
@@ -229,6 +234,127 @@ export function useImportExport() {
     limpiarArchivo()
   }, [limpiarArchivo])
 
+  // ============================================================
+  // FUNCIONES PARA COMUNIDAD COMPLETA (Multi-Hoja)
+  // ============================================================
+  
+  // Estado específico para comunidad completa
+  const [datosComunidadCompleta, setDatosComunidadCompleta] = useState(null)
+  const [resultadoComunidadCompleta, setResultadoComunidadCompleta] = useState(null)
+  const [progresoMultiHoja, setProgresoMultiHoja] = useState({
+    etapa: 'idle',
+    porcentaje: 0,
+    mensaje: ''
+  })
+
+  /**
+   * Descargar plantilla de comunidad completa
+   */
+  const descargarPlantillaComunidadCompleta = useCallback((codigoComunidad = 'CODIGO') => {
+    try {
+      const fileName = generarPlantillaComunidadCompleta({ 
+        incluirEjemplos: true, 
+        codigoComunidad 
+      })
+      return { success: true, fileName }
+    } catch (err) {
+      setError(err.message)
+      return { success: false, error: err.message }
+    }
+  }, [])
+
+  /**
+   * Cargar archivo Excel multi-hoja
+   */
+  const cargarArchivoComunidadCompleta = useCallback(async (file) => {
+    setEstado(ESTADOS.CARGANDO)
+    setError(null)
+    setResultadoComunidadCompleta(null)
+    
+    try {
+      const datos = await leerExcelMultiHoja(file)
+      setArchivo(file)
+      setDatosComunidadCompleta(datos)
+      setEstado(ESTADOS.IDLE)
+      return { success: true, datos }
+    } catch (err) {
+      setEstado(ESTADOS.ERROR)
+      setError(err.message)
+      setArchivo(null)
+      setDatosComunidadCompleta(null)
+      return { success: false, error: err.message }
+    }
+  }, [])
+
+  /**
+   * Ejecutar importación de comunidad completa
+   */
+  const ejecutarImportacionComunidadCompleta = useCallback(async () => {
+    if (!datosComunidadCompleta || !datosComunidadCompleta.hojas) {
+      setError('No hay datos para importar')
+      return { success: false, error: 'No hay datos para importar' }
+    }
+    
+    setEstado(ESTADOS.PROCESANDO)
+    setError(null)
+    
+    const onProgress = (etapa, porcentaje, mensaje) => {
+      setProgresoMultiHoja({ etapa, porcentaje, mensaje })
+    }
+    
+    try {
+      const resultado = await procesarComunidadCompleta(datosComunidadCompleta.hojas, onProgress)
+      
+      // Invalidar queries
+      queryClient.invalidateQueries({ queryKey: ['comunidades'] })
+      queryClient.invalidateQueries({ queryKey: ['agrupaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['ubicaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['precios'] })
+      
+      setResultadoComunidadCompleta(resultado)
+      setEstado(ESTADOS.COMPLETADO)
+      return { success: true, resultado }
+    } catch (err) {
+      setEstado(ESTADOS.ERROR)
+      setError(err.message)
+      return { success: false, error: err.message }
+    }
+  }, [datosComunidadCompleta, queryClient])
+
+  /**
+   * Exportar una comunidad completa
+   */
+  const exportarComunidadCompletaFn = useCallback(async (comunidadId) => {
+    setEstado(ESTADOS.CARGANDO)
+    setError(null)
+    
+    try {
+      const datos = await getComunidadCompletaParaExport(comunidadId)
+      const fileName = exportarComunidadCompleta(
+        datos.comunidad,
+        datos.portales,
+        datos.viviendas,
+        datos.precios
+      )
+      setEstado(ESTADOS.COMPLETADO)
+      return { success: true, fileName }
+    } catch (err) {
+      setEstado(ESTADOS.ERROR)
+      setError(err.message)
+      return { success: false, error: err.message }
+    }
+  }, [])
+
+  /**
+   * Limpiar datos de comunidad completa
+   */
+  const limpiarComunidadCompleta = useCallback(() => {
+    setDatosComunidadCompleta(null)
+    setResultadoComunidadCompleta(null)
+    setProgresoMultiHoja({ etapa: 'idle', porcentaje: 0, mensaje: '' })
+    limpiarArchivo()
+  }, [limpiarArchivo])
+
   return {
     // Estado
     estado,
@@ -268,7 +394,18 @@ export function useImportExport() {
     isProcessing: estado === ESTADOS.PROCESANDO,
     isCompleted: estado === ESTADOS.COMPLETADO,
     isError: estado === ESTADOS.ERROR,
-    canImport: datosExcel && validacion && validacion.validas > 0
+    canImport: datosExcel && validacion && validacion.validas > 0,
+    
+    // Comunidad Completa
+    datosComunidadCompleta,
+    resultadoComunidadCompleta,
+    progresoMultiHoja,
+    descargarPlantillaComunidadCompleta,
+    cargarArchivoComunidadCompleta,
+    ejecutarImportacionComunidadCompleta,
+    exportarComunidadCompletaFn,
+    limpiarComunidadCompleta,
+    canImportComunidadCompleta: datosComunidadCompleta?.hojas?.datosGenerales?.length > 0
   }
 }
 

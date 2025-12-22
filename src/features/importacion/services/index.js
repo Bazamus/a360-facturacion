@@ -7,6 +7,7 @@ export {
   getComunidadesParaExport,
   getClientesParaExport,
   getContadoresParaExport,
+  getComunidadCompletaParaExport,
   contarRegistros,
   verificarIntegridad
 } from './importServices'

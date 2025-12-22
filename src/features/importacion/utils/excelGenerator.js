@@ -557,11 +557,350 @@ export function getColumnConfig(entidad) {
   return COLUMN_CONFIG[entidad]
 }
 
+// ============================================================
+// CONFIGURACIÓN PARA COMUNIDAD COMPLETA (Multi-Hoja)
+// ============================================================
+
+const COMUNIDAD_COMPLETA_CONFIG = {
+  portales: {
+    sheetName: 'Portales',
+    headers: ['Código Comunidad', 'Nombre Portal', 'Descripción', 'Orden'],
+    fields: ['comunidad_codigo', 'nombre', 'descripcion', 'orden'],
+    required: ['comunidad_codigo', 'nombre'],
+    example: {
+      comunidad_codigo: 'POLVO40',
+      nombre: '1',
+      descripcion: 'Portal principal',
+      orden: 1
+    }
+  },
+  viviendas: {
+    sheetName: 'Viviendas',
+    headers: ['Código Comunidad', 'Portal', 'Nombre Vivienda', 'Descripción', 'Ref. Catastral', 'Orden'],
+    fields: ['comunidad_codigo', 'portal_nombre', 'nombre', 'descripcion', 'referencia_catastral', 'orden'],
+    required: ['comunidad_codigo', 'portal_nombre', 'nombre'],
+    example: {
+      comunidad_codigo: 'POLVO40',
+      portal_nombre: '1',
+      nombre: '1ºA',
+      descripcion: '',
+      referencia_catastral: '12345ABC',
+      orden: 1
+    }
+  },
+  precios: {
+    sheetName: 'Precios',
+    headers: ['Código Comunidad', 'Código Concepto', 'Precio Unitario', 'Fecha Inicio'],
+    fields: ['comunidad_codigo', 'concepto_codigo', 'precio_unitario', 'fecha_inicio'],
+    required: ['comunidad_codigo', 'concepto_codigo', 'precio_unitario', 'fecha_inicio'],
+    example: {
+      comunidad_codigo: 'POLVO40',
+      concepto_codigo: 'ACS',
+      precio_unitario: '0.0234',
+      fecha_inicio: '01/01/2024'
+    }
+  }
+}
+
+/**
+ * Genera una plantilla Excel multi-hoja para importar una comunidad completa
+ * @param {Object} options - Opciones
+ * @param {boolean} options.incluirEjemplos - Si incluir filas de ejemplo
+ * @param {string} options.codigoComunidad - Código de comunidad para pre-rellenar
+ * @returns {string} Nombre del archivo generado
+ */
+export function generarPlantillaComunidadCompleta(options = {}) {
+  const { incluirEjemplos = true, codigoComunidad = 'CODIGO' } = options
+  
+  const wb = XLSX.utils.book_new()
+  
+  // Hoja 1: Datos Generales (usar config existente de comunidades)
+  const configComunidad = COLUMN_CONFIG.comunidades
+  const wsDatosGenerales = [configComunidad.headers]
+  if (incluirEjemplos) {
+    const ejemploRow = configComunidad.fields.map(field => {
+      if (field === 'codigo') return codigoComunidad
+      return configComunidad.example[field] || ''
+    })
+    wsDatosGenerales.push(ejemploRow)
+  }
+  const sheetDatos = XLSX.utils.aoa_to_sheet(wsDatosGenerales)
+  sheetDatos['!cols'] = configComunidad.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetDatos, 'Datos Generales')
+  
+  // Hoja 2: Portales
+  const configPortales = COMUNIDAD_COMPLETA_CONFIG.portales
+  const wsPortales = [configPortales.headers]
+  if (incluirEjemplos) {
+    const ejemplo = { ...configPortales.example, comunidad_codigo: codigoComunidad }
+    wsPortales.push(configPortales.fields.map(f => ejemplo[f] || ''))
+    // Añadir un segundo ejemplo
+    wsPortales.push([codigoComunidad, '2', '', 2])
+  }
+  const sheetPortales = XLSX.utils.aoa_to_sheet(wsPortales)
+  sheetPortales['!cols'] = configPortales.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetPortales, configPortales.sheetName)
+  
+  // Hoja 3: Viviendas
+  const configViviendas = COMUNIDAD_COMPLETA_CONFIG.viviendas
+  const wsViviendas = [configViviendas.headers]
+  if (incluirEjemplos) {
+    wsViviendas.push([codigoComunidad, '1', '1ºA', '', '', 1])
+    wsViviendas.push([codigoComunidad, '1', '1ºB', '', '', 2])
+    wsViviendas.push([codigoComunidad, '2', 'Bajo A', 'Local comercial', '', 1])
+  }
+  const sheetViviendas = XLSX.utils.aoa_to_sheet(wsViviendas)
+  sheetViviendas['!cols'] = configViviendas.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetViviendas, configViviendas.sheetName)
+  
+  // Hoja 4: Precios
+  const configPrecios = COMUNIDAD_COMPLETA_CONFIG.precios
+  const wsPrecios = [configPrecios.headers]
+  if (incluirEjemplos) {
+    wsPrecios.push([codigoComunidad, 'ACS', '0.0234', '01/01/2024'])
+    wsPrecios.push([codigoComunidad, 'CAL', '0.0456', '01/01/2024'])
+    wsPrecios.push([codigoComunidad, 'CLI', '0.0123', '01/01/2024'])
+  }
+  const sheetPrecios = XLSX.utils.aoa_to_sheet(wsPrecios)
+  sheetPrecios['!cols'] = configPrecios.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetPrecios, configPrecios.sheetName)
+  
+  // Hoja 5: Instrucciones
+  const instrucciones = generarInstruccionesComunidadCompleta()
+  XLSX.utils.book_append_sheet(wb, instrucciones, 'Instrucciones')
+  
+  // Generar y descargar
+  const fileName = `plantilla_comunidad_completa_${new Date().toISOString().split('T')[0]}.xlsx`
+  XLSX.writeFile(wb, fileName)
+  
+  return fileName
+}
+
+/**
+ * Genera la hoja de instrucciones para comunidad completa
+ */
+function generarInstruccionesComunidadCompleta() {
+  const instrucciones = [
+    ['INSTRUCCIONES PARA IMPORTAR COMUNIDAD COMPLETA'],
+    [''],
+    ['Este archivo permite importar todos los datos de una comunidad en un solo proceso.'],
+    [''],
+    ['HOJAS DEL ARCHIVO:'],
+    [''],
+    ['1. DATOS GENERALES - Información básica de la comunidad'],
+    ['   Campos obligatorios: Código, Nombre, Dirección, CP, Ciudad, Provincia'],
+    ['   Si la comunidad ya existe (mismo código), se actualizarán sus datos.'],
+    [''],
+    ['2. PORTALES - Agrupaciones/bloques de la comunidad'],
+    ['   Campos obligatorios: Código Comunidad, Nombre Portal'],
+    ['   El Código Comunidad debe coincidir con el de la hoja Datos Generales.'],
+    ['   Si el portal ya existe (mismo nombre), se actualizará.'],
+    [''],
+    ['3. VIVIENDAS - Ubicaciones dentro de cada portal'],
+    ['   Campos obligatorios: Código Comunidad, Portal, Nombre Vivienda'],
+    ['   El Portal debe existir (crearse en hoja Portales o ya existir).'],
+    ['   Si la vivienda ya existe (mismo nombre en mismo portal), se actualizará.'],
+    [''],
+    ['4. PRECIOS - Precios de facturación por concepto'],
+    ['   Campos obligatorios: Código Comunidad, Código Concepto, Precio Unitario, Fecha Inicio'],
+    ['   Los conceptos deben existir en el sistema (ACS, CAL, CLI, etc.).'],
+    ['   El precio anterior para el mismo concepto quedará como histórico.'],
+    [''],
+    ['ORDEN DE PROCESAMIENTO:'],
+    ['   1. Primero se procesa Datos Generales (crear/actualizar comunidad)'],
+    ['   2. Luego Portales (crear/actualizar agrupaciones)'],
+    ['   3. Después Viviendas (crear/actualizar ubicaciones)'],
+    ['   4. Finalmente Precios (crear nuevos precios)'],
+    [''],
+    ['FORMATO DE DATOS:'],
+    ['   - Fechas: DD/MM/YYYY (ej: 01/01/2024)'],
+    ['   - Precios: Usar punto como separador decimal (ej: 0.0234)'],
+    ['   - Orden: Número entero para ordenar portales/viviendas'],
+    [''],
+    ['NOTAS:'],
+    ['   - La primera fila de cada hoja (cabeceras) NO se importa'],
+    ['   - Deje las celdas vacías si no tiene el dato']
+  ]
+  
+  return XLSX.utils.aoa_to_sheet(instrucciones)
+}
+
+/**
+ * Lee un archivo Excel multi-hoja para comunidad completa
+ * @param {File} file - Archivo Excel
+ * @returns {Promise<{hojas: Object, resumen: Object}>}
+ */
+export async function leerExcelMultiHoja(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result)
+        const workbook = XLSX.read(data, { type: 'array' })
+        
+        const hojas = {}
+        const resumen = {
+          datosGenerales: 0,
+          portales: 0,
+          viviendas: 0,
+          precios: 0
+        }
+        
+        // Procesar cada hoja conocida
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName]
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true })
+          
+          if (jsonData.length < 1) return
+          
+          const headers = jsonData[0] || []
+          const rows = jsonData.slice(1).filter(row => row.some(cell => cell !== '' && cell != null))
+          
+          // Detectar tipo de hoja por nombre o cabeceras
+          const sheetNameLower = sheetName.toLowerCase()
+          
+          if (sheetNameLower.includes('datos generales') || sheetNameLower === 'datos') {
+            hojas.datosGenerales = parsearHoja(headers, rows, COLUMN_CONFIG.comunidades)
+            resumen.datosGenerales = hojas.datosGenerales.length
+          } else if (sheetNameLower.includes('portal')) {
+            hojas.portales = parsearHoja(headers, rows, COMUNIDAD_COMPLETA_CONFIG.portales)
+            resumen.portales = hojas.portales.length
+          } else if (sheetNameLower.includes('vivienda')) {
+            hojas.viviendas = parsearHoja(headers, rows, COMUNIDAD_COMPLETA_CONFIG.viviendas)
+            resumen.viviendas = hojas.viviendas.length
+          } else if (sheetNameLower.includes('precio')) {
+            hojas.precios = parsearHoja(headers, rows, COMUNIDAD_COMPLETA_CONFIG.precios)
+            resumen.precios = hojas.precios.length
+          }
+        })
+        
+        // Validar que al menos hay datos generales
+        if (!hojas.datosGenerales || hojas.datosGenerales.length === 0) {
+          reject(new Error('El archivo debe contener una hoja "Datos Generales" con al menos una comunidad'))
+          return
+        }
+        
+        resolve({ hojas, resumen, workbook })
+      } catch (error) {
+        reject(new Error(`Error al leer el archivo: ${error.message}`))
+      }
+    }
+    
+    reader.onerror = () => reject(new Error('Error al leer el archivo'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+/**
+ * Parsea una hoja a objetos según configuración
+ */
+function parsearHoja(headers, rows, config) {
+  return rows.map((row, index) => {
+    const obj = { _rowIndex: index + 2 }
+    
+    headers.forEach((header, colIndex) => {
+      const fieldIndex = config.headers.indexOf(header)
+      if (fieldIndex !== -1) {
+        const field = config.fields[fieldIndex]
+        obj[field] = row[colIndex] ?? null
+      }
+    })
+    
+    return obj
+  })
+}
+
+/**
+ * Exporta una comunidad completa a Excel multi-hoja
+ * @param {Object} comunidad - Datos de la comunidad
+ * @param {Array} portales - Agrupaciones
+ * @param {Array} viviendas - Ubicaciones  
+ * @param {Array} precios - Precios vigentes
+ * @returns {string} Nombre del archivo generado
+ */
+export function exportarComunidadCompleta(comunidad, portales = [], viviendas = [], precios = []) {
+  const wb = XLSX.utils.book_new()
+  const codigoComunidad = comunidad.codigo
+  
+  // Hoja 1: Datos Generales
+  const configComunidad = COLUMN_CONFIG.comunidades
+  const datosGenerales = [configComunidad.headers]
+  datosGenerales.push(configComunidad.fields.map(field => {
+    const value = comunidad[field]
+    if (value === null || value === undefined) return ''
+    return String(value)
+  }))
+  const sheetDatos = XLSX.utils.aoa_to_sheet(datosGenerales)
+  sheetDatos['!cols'] = configComunidad.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetDatos, 'Datos Generales')
+  
+  // Hoja 2: Portales
+  const configPortales = COMUNIDAD_COMPLETA_CONFIG.portales
+  const dataPortales = [configPortales.headers]
+  portales.forEach(portal => {
+    dataPortales.push([
+      codigoComunidad,
+      portal.nombre || '',
+      portal.descripcion || '',
+      portal.orden || 0
+    ])
+  })
+  const sheetPortales = XLSX.utils.aoa_to_sheet(dataPortales)
+  sheetPortales['!cols'] = configPortales.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetPortales, 'Portales')
+  
+  // Hoja 3: Viviendas
+  const configViviendas = COMUNIDAD_COMPLETA_CONFIG.viviendas
+  const dataViviendas = [configViviendas.headers]
+  viviendas.forEach(vivienda => {
+    dataViviendas.push([
+      codigoComunidad,
+      vivienda.agrupacion_nombre || vivienda.portal_nombre || '',
+      vivienda.ubicacion_nombre || vivienda.nombre || '',
+      vivienda.descripcion || '',
+      vivienda.referencia_catastral || '',
+      vivienda.orden || 0
+    ])
+  })
+  const sheetViviendas = XLSX.utils.aoa_to_sheet(dataViviendas)
+  sheetViviendas['!cols'] = configViviendas.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetViviendas, 'Viviendas')
+  
+  // Hoja 4: Precios
+  const configPrecios = COMUNIDAD_COMPLETA_CONFIG.precios
+  const dataPrecios = [configPrecios.headers]
+  precios.forEach(precio => {
+    dataPrecios.push([
+      codigoComunidad,
+      precio.concepto?.codigo || precio.concepto_codigo || '',
+      precio.precio_unitario || 0,
+      formatDate(precio.fecha_inicio)
+    ])
+  })
+  const sheetPrecios = XLSX.utils.aoa_to_sheet(dataPrecios)
+  sheetPrecios['!cols'] = configPrecios.headers.map(h => ({ wch: Math.max(h.length + 2, 15) }))
+  XLSX.utils.book_append_sheet(wb, sheetPrecios, 'Precios')
+  
+  // Generar y descargar
+  const fileName = `comunidad_${codigoComunidad}_${new Date().toISOString().split('T')[0]}.xlsx`
+  XLSX.writeFile(wb, fileName)
+  
+  return fileName
+}
+
+// Exportar configuración adicional
+export { COMUNIDAD_COMPLETA_CONFIG }
+
 export default {
   generarPlantillaVacia,
   exportarDatos,
   leerExcel,
   getColumnConfig,
   generarConfigContadores,
-  COLUMN_CONFIG
+  generarPlantillaComunidadCompleta,
+  leerExcelMultiHoja,
+  exportarComunidadCompleta,
+  COLUMN_CONFIG,
+  COMUNIDAD_COMPLETA_CONFIG
 }

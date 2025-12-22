@@ -9,7 +9,11 @@ export {
   leerExcel,
   getColumnConfig,
   generarConfigContadores,
-  COLUMN_CONFIG
+  generarPlantillaComunidadCompleta,
+  leerExcelMultiHoja,
+  exportarComunidadCompleta,
+  COLUMN_CONFIG,
+  COMUNIDAD_COMPLETA_CONFIG
 } from './excelGenerator'
 
 export {
@@ -31,5 +35,9 @@ export {
   procesarComunidades,
   procesarClientes,
   procesarContadores,
+  procesarPortales,
+  procesarViviendas,
+  procesarPrecios,
+  procesarComunidadCompleta,
   validarFilas
 } from './importProcessor'
