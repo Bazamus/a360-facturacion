@@ -6,7 +6,9 @@ import {
   useCliente, 
   useCreateCliente, 
   useUpdateCliente,
-  useToggleBloqueoCliente 
+  useToggleBloqueoCliente,
+  useAsignarClienteUbicacion,
+  useFinalizarOcupacion
 } from '@/hooks'
 import { 
   Button, 
@@ -236,11 +238,26 @@ function ClientesList() {
 function ClienteNuevo() {
   const navigate = useNavigate()
   const createMutation = useCreateCliente()
+  const asignarUbicacion = useAsignarClienteUbicacion()
   const toast = useToast()
 
   const handleSubmit = async (data) => {
     try {
-      const result = await createMutation.mutateAsync(data)
+      // Extraer ubicacion_id del data
+      const { ubicacion_id, ...clienteData } = data
+      
+      // Crear cliente
+      const result = await createMutation.mutateAsync(clienteData)
+      
+      // Si se seleccionó una ubicación, asignarla
+      if (ubicacion_id) {
+        await asignarUbicacion.mutateAsync({
+          cliente_id: result.id,
+          ubicacion_id: ubicacion_id,
+          fecha_inicio: new Date().toISOString().split('T')[0]
+        })
+      }
+      
       toast.success('Cliente creado correctamente')
       navigate(`/clientes/${result.id}`)
     } catch (error) {
@@ -523,11 +540,42 @@ function ClienteEditar() {
   const navigate = useNavigate()
   const { data: cliente, isLoading } = useCliente(id)
   const updateMutation = useUpdateCliente()
+  const asignarUbicacion = useAsignarClienteUbicacion()
+  const finalizarOcupacion = useFinalizarOcupacion()
   const toast = useToast()
 
   const handleSubmit = async (data) => {
     try {
-      await updateMutation.mutateAsync({ id, ...data })
+      // Extraer ubicacion_id del data
+      const { ubicacion_id, ...clienteData } = data
+      
+      // Actualizar datos del cliente
+      await updateMutation.mutateAsync({ id, ...clienteData })
+      
+      // Obtener ubicación actual
+      const ubicacionActual = cliente?.ubicaciones_clientes?.find(uc => uc.es_actual)
+      const ubicacionActualId = ubicacionActual?.ubicacion?.id
+      
+      // Si la ubicación cambió
+      if (ubicacion_id !== ubicacionActualId) {
+        // Finalizar la ocupación anterior si existe
+        if (ubicacionActual) {
+          await finalizarOcupacion.mutateAsync({
+            id: ubicacionActual.id,
+            fecha_fin: new Date().toISOString().split('T')[0]
+          })
+        }
+        
+        // Asignar nueva ubicación si se seleccionó una
+        if (ubicacion_id) {
+          await asignarUbicacion.mutateAsync({
+            cliente_id: id,
+            ubicacion_id: ubicacion_id,
+            fecha_inicio: new Date().toISOString().split('T')[0]
+          })
+        }
+      }
+      
       toast.success('Cliente actualizado')
       navigate(`/clientes/${id}`)
     } catch (error) {

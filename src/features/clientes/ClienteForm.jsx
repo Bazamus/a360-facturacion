@@ -1,10 +1,34 @@
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { clienteSchema } from '@/lib/validations'
 import { Button, Input, Select, FormField, Textarea, Checkbox } from '@/components/ui'
 import { formatIBAN } from '@/lib/utils'
+import { useComunidades, useUbicacionesByComunidad } from '@/hooks/useComunidades'
 
 export function ClienteForm({ cliente, onSubmit, loading }) {
+  // Obtener la ubicación actual del cliente para edición
+  const ubicacionActual = cliente?.ubicaciones_clientes?.find(uc => uc.es_actual)
+  const comunidadIdInicial = ubicacionActual?.ubicacion?.agrupacion?.comunidad?.id || ''
+  const ubicacionIdInicial = ubicacionActual?.ubicacion?.id || ''
+
+  const [comunidadId, setComunidadId] = useState(comunidadIdInicial)
+  const [ubicacionId, setUbicacionId] = useState(ubicacionIdInicial)
+
+  // Cargar comunidades y ubicaciones
+  const { data: comunidades, isLoading: loadingComunidades } = useComunidades({ activa: true })
+  const { data: ubicaciones, isLoading: loadingUbicaciones } = useUbicacionesByComunidad(comunidadId)
+
+  // Cuando cambia la comunidad, resetear ubicación si ya no es válida
+  useEffect(() => {
+    if (ubicaciones && ubicacionId) {
+      const ubicacionValida = ubicaciones.some(u => u.ubicacion_id === ubicacionId)
+      if (!ubicacionValida) {
+        setUbicacionId('')
+      }
+    }
+  }, [ubicaciones, ubicacionId])
+
   const {
     register,
     handleSubmit,
@@ -32,6 +56,14 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
     }
   })
 
+  // Wrapper para onSubmit que incluye ubicación
+  const handleFormSubmit = (data) => {
+    onSubmit({
+      ...data,
+      ubicacion_id: ubicacionId || null
+    })
+  }
+
   // Formatear IBAN mientras se escribe
   const handleIBANChange = (e) => {
     let value = e.target.value.replace(/\s/g, '').toUpperCase()
@@ -40,7 +72,7 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Datos personales */}
       <div>
         <h3 className="text-sm font-medium text-gray-900 mb-4">Datos Personales</h3>
@@ -89,6 +121,62 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
             />
           </FormField>
         </div>
+      </div>
+
+      {/* Ubicación */}
+      <div className="border-t pt-6">
+        <h3 className="text-sm font-medium text-gray-900 mb-4">Ubicación</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Asigna este cliente a una ubicación (vivienda) en una comunidad.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField label="Comunidad">
+            <Select
+              value={comunidadId}
+              onChange={(e) => {
+                setComunidadId(e.target.value)
+                setUbicacionId('') // Reset ubicación al cambiar comunidad
+              }}
+              disabled={loadingComunidades}
+            >
+              <option value="">Selecciona una comunidad</option>
+              {comunidades?.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.codigo} - {c.nombre}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+
+          <FormField label="Ubicación (Vivienda)">
+            <Select
+              value={ubicacionId}
+              onChange={(e) => setUbicacionId(e.target.value)}
+              disabled={!comunidadId || loadingUbicaciones}
+            >
+              <option value="">
+                {!comunidadId 
+                  ? 'Primero selecciona una comunidad' 
+                  : loadingUbicaciones 
+                    ? 'Cargando...' 
+                    : 'Selecciona una ubicación'
+                }
+              </option>
+              {ubicaciones?.map(u => (
+                <option key={u.ubicacion_id} value={u.ubicacion_id}>
+                  {u.agrupacion_nombre} - {u.ubicacion_nombre}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
+
+        {ubicacionActual && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+            <strong>Ubicación actual:</strong> {ubicacionActual.ubicacion?.agrupacion?.comunidad?.nombre} - {ubicacionActual.ubicacion?.agrupacion?.nombre} - {ubicacionActual.ubicacion?.nombre}
+          </div>
+        )}
       </div>
 
       {/* Contacto */}
