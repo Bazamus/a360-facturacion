@@ -139,3 +139,6 @@ export function isNumeric(value) {
   if (typeof value !== 'string') return false
   return parseNumber(value) !== null
 }
+
+
+

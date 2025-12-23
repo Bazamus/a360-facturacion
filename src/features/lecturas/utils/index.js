@@ -41,3 +41,6 @@ export {
   groupLecturasByContador,
   calculateStats
 } from './lecturaProcessor'
+
+
+

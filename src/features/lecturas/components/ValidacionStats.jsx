@@ -81,3 +81,6 @@ export function ValidacionStats({ stats, onFilterChange, activeFilter = 'todos' 
 }
 
 export default ValidacionStats
+
+
+

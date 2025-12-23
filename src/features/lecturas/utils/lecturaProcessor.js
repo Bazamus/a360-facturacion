@@ -410,3 +410,6 @@ export function calculateStats(lecturas) {
   
   return stats
 }
+
+
+

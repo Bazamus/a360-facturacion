@@ -157,3 +157,6 @@ export function ColumnMapper({ analisis, headers }) {
 }
 
 export default ColumnMapper
+
+
+

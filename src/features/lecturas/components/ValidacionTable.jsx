@@ -346,3 +346,6 @@ function ConceptoBadge({ concepto }) {
 }
 
 export default ValidacionTable
+
+
+

@@ -300,3 +300,6 @@ export function DetallePanel({ fila, onClose, onUpdate }) {
 }
 
 export default DetallePanel
+
+
+

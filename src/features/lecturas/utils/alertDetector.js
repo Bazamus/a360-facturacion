@@ -318,3 +318,6 @@ export default {
   getAlertaLabel,
   calcularMediaConsumo
 }
+
+
+

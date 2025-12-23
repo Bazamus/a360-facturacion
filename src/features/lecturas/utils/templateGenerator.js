@@ -153,3 +153,6 @@ export function generarPlantillaConContadores(contadores, conceptos, comunidadNo
 }
 
 export default { generarPlantillaMaestra, generarPlantillaConContadores }
+
+
+
