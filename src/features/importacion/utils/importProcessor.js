@@ -937,31 +937,32 @@ export async function procesarComunidadCompleta(hojas, onProgress = () => {}) {
   try {
     // Paso 1: Procesar comunidad (Datos Generales)
     onProgress('comunidad', 0, 'Procesando datos generales...')
+    let comunidadId = null
+    let codigoComunidad = ''
+    
     if (hojas.datosGenerales && hojas.datosGenerales.length > 0) {
+      codigoComunidad = toStr(hojas.datosGenerales[0]?.codigo).toUpperCase()
+      
       resultados.comunidad = await procesarComunidades(hojas.datosGenerales, (p, c, t) => {
         onProgress('comunidad', p, `Comunidad ${c}/${t}`)
       })
       
-      // Si hubo errores en comunidad, no continuar
+      // Intentar obtener ID de comunidad (puede haber fallado la creación pero existir ya en BD)
+      const comunidad = await resolverComunidad(codigoComunidad)
+      comunidadId = comunidad?.id
+      
+      // Si hubo errores y no se pudo obtener comunidad, añadir error global
       if (resultados.comunidad.errors.length > 0 && resultados.comunidad.created === 0 && resultados.comunidad.updated === 0) {
-        resultados.erroresGlobales.push('Error al crear/actualizar la comunidad. Revise los errores.')
-        return resultados
+        if (!comunidadId) {
+          resultados.erroresGlobales.push('Error al crear/actualizar la comunidad. Revise los errores.')
+        }
       }
     }
     
-    // Obtener ID de comunidad creada/actualizada
-    const codigoComunidad = toStr(hojas.datosGenerales[0]?.codigo).toUpperCase()
-    const comunidad = await resolverComunidad(codigoComunidad)
-    const comunidadId = comunidad?.id
-    
-    if (!comunidadId) {
-      resultados.erroresGlobales.push(`No se pudo encontrar la comunidad "${codigoComunidad}" después de procesarla`)
-      return resultados
-    }
-    
-    // Paso 2: Procesar portales
+    // Paso 2: Procesar portales (incluso si comunidad falló, para mostrar errores de validación)
     onProgress('portales', 0, 'Procesando portales...')
     if (hojas.portales && hojas.portales.length > 0) {
+      // Pasar comunidadId si existe, sino null y cada fila validará individualmente
       resultados.portales = await procesarPortales(hojas.portales, comunidadId, (p, c, t) => {
         onProgress('portales', p, `Portal ${c}/${t}`)
       })
