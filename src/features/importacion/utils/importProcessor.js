@@ -279,7 +279,7 @@ export async function procesarClientes(filas, onProgress = () => {}) {
             .eq('cliente_id', clienteId)
             .eq('ubicacion_id', ubicacionResult.ubicacionId)
             .eq('es_actual', true)
-            .single()
+            .maybeSingle()
           
           if (!asignacionExistente) {
             // Asignar ubicación
@@ -468,7 +468,7 @@ export async function procesarContadores(filas, onProgress = () => {}) {
             .select('id')
             .eq('contador_id', contadorId)
             .eq('concepto_id', concepto.id)
-            .single()
+            .maybeSingle()
           
           if (asignacionExistente) {
             // Actualizar asignación existente

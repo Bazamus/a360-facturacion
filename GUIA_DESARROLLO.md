@@ -186,6 +186,7 @@ Importar desde `@/components/ui`:
 | React error #31 `[object Date]` | `cellDates: true` crea objetos Date | Quitar `cellDates: true` de `XLSX.read()` |
 | Fechas inválidas en import | `raw: false` en `sheet_to_json` | Usar `raw: true` |
 | `readExcel` not exported | Nombre de función diferente | Crear alias en exports |
+| **Conceptos no se asignan a contadores** | `.single()` en verificación de asignación (línea 471) | **Cambiar a `.maybeSingle()`** |
 
 ---
 
