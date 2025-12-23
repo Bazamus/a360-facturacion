@@ -13,6 +13,7 @@ import { FacturacionPage } from '@/pages/Facturacion'
 import { ReportesPage } from '@/pages/Reportes'
 import { RemesasPage } from '@/pages/RemesasRouter'
 import { ConfiguracionPage } from '@/pages/Configuracion'
+import { ImportarExportarPage } from '@/pages/ImportarExportar'
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
           <Route path="comunidades/*" element={<ComunidadesPage />} />
           <Route path="clientes/*" element={<ClientesPage />} />
           <Route path="contadores/*" element={<ContadoresPage />} />
+          <Route path="importar-exportar" element={<ImportarExportarPage />} />
           <Route path="lecturas/*" element={<LecturasPage />} />
           <Route path="facturacion/*" element={<FacturacionPage />} />
           <Route path="remesas/*" element={<RemesasPage />} />

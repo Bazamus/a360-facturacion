@@ -21,7 +21,8 @@ import {
   Send,
   Landmark,
   Plus,
-  PieChart
+  PieChart,
+  ArrowUpDown
 } from 'lucide-react'
 
 const navigation = [
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Comunidades', href: '/comunidades', icon: Building2 },
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Contadores', href: '/contadores', icon: Gauge },
+  { name: 'Importar/Exportar', href: '/importar-exportar', icon: ArrowUpDown },
   { 
     name: 'Lecturas', 
     href: '/lecturas', 

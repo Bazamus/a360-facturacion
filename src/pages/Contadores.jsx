@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
-import { Gauge, Plus, Eye, Edit2 } from 'lucide-react'
+import { Gauge, Plus, Eye, Edit2, MoreVertical, Upload, Download, FileSpreadsheet } from 'lucide-react'
 import { 
   useContadores, 
   useContador, 
@@ -28,6 +28,8 @@ import { useToast } from '@/components/ui/Toast'
 import { ContadorForm } from '@/features/contadores/ContadorForm'
 import { ConceptosContadorTab } from '@/features/contadores/ConceptosContadorTab'
 import { formatDate } from '@/lib/utils'
+import { ImportModal } from '@/features/importacion/components'
+import { useImportExport } from '@/features/importacion/hooks'
 
 export function ContadoresPage() {
   return (
@@ -45,13 +47,55 @@ function ContadoresList() {
   const [search, setSearch] = useState('')
   const [filtroComunidad, setFiltroComunidad] = useState('')
   const [soloActivos, setSoloActivos] = useState(true)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const actionsMenuRef = useRef(null)
+  const toast = useToast()
 
   const { data: comunidades } = useComunidades({ activa: true })
-  const { data: contadores, isLoading, error } = useContadores({ 
+  const { data: contadores, isLoading, error, refetch } = useContadores({ 
     search,
     comunidadId: filtroComunidad || undefined,
     activo: soloActivos ? true : undefined
   })
+
+  const { descargarPlantilla, exportarEntidad } = useImportExport()
+
+  // Cerrar menú al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target)) {
+        setShowActionsMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleExportar = async () => {
+    setShowActionsMenu(false)
+    const result = await exportarEntidad('contadores')
+    if (result.success) {
+      toast.success(`Exportados ${result.count} registros: ${result.fileName}`)
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const handleDescargarPlantilla = () => {
+    setShowActionsMenu(false)
+    const result = descargarPlantilla('contadores', true)
+    if (result.success) {
+      toast.success(`Plantilla descargada: ${result.fileName}`)
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const handleImportSuccess = () => {
+    refetch()
+    setShowImportModal(false)
+  }
 
   const columns = [
     {
@@ -156,10 +200,49 @@ function ContadoresList() {
             Gestiona los contadores de consumo
           </p>
         </div>
-        <Button onClick={() => navigate('/contadores/nuevo')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Contador
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => navigate('/contadores/nuevo')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Contador
+          </Button>
+          
+          {/* Dropdown de acciones */}
+          <div className="relative" ref={actionsMenuRef}>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowActionsMenu(!showActionsMenu)}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+            
+            {showActionsMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  onClick={() => { setShowActionsMenu(false); setShowImportModal(true) }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Upload className="w-4 h-4 text-blue-500" />
+                  Importar desde Excel
+                </button>
+                <button
+                  onClick={handleExportar}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Download className="w-4 h-4 text-green-500" />
+                  Exportar a Excel
+                </button>
+                <hr className="my-1" />
+                <button
+                  onClick={handleDescargarPlantilla}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-gray-500" />
+                  Descargar plantilla
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <Card>
@@ -224,6 +307,14 @@ function ContadoresList() {
           />
         )}
       </Card>
+
+      {/* Modal de importación */}
+      <ImportModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        entidad="contadores"
+        onSuccess={handleImportSuccess}
+      />
     </div>
   )
 }

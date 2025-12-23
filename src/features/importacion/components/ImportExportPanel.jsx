@@ -1,10 +1,11 @@
 /**
  * Componente ImportExportPanel - Panel principal con tabs
  * Sistema de Facturación A360
+ * Rediseñado con layout vertical para mejor UX
  */
 
 import React, { useState } from 'react'
-import { Building2, Users, Gauge, Download, Upload, FileSpreadsheet, Layers, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Building2, Users, Gauge, Download, Upload, FileSpreadsheet, Layers, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button, Card, Tabs, TabsList, TabsTrigger, TabsContent, Badge } from '@/components/ui'
 import { ImportDropzone } from './ImportDropzone'
 import { ImportPreview } from './ImportPreview'
@@ -16,10 +17,10 @@ import { useToast } from '@/components/ui/Toast'
 import { useComunidades } from '@/hooks'
 
 const ENTIDADES = [
-  { id: 'comunidades', label: 'Comunidades', icon: Building2 },
-  { id: 'clientes', label: 'Clientes', icon: Users },
-  { id: 'contadores', label: 'Contadores', icon: Gauge },
-  { id: 'comunidad_completa', label: 'Comunidad Completa', icon: Layers }
+  { id: 'comunidades', label: 'Comunidades', icon: Building2, description: 'Datos básicos de comunidades de propietarios' },
+  { id: 'clientes', label: 'Clientes', icon: Users, description: 'Información de clientes y propietarios' },
+  { id: 'contadores', label: 'Contadores', icon: Gauge, description: 'Contadores y sus conceptos asignados' },
+  { id: 'comunidad_completa', label: 'Comunidad Completa', icon: Layers, description: 'Todos los datos de una comunidad en un solo archivo' }
 ]
 
 export function ImportExportPanel() {
@@ -121,30 +122,77 @@ export function ImportExportPanel() {
 
   // Entidades básicas (sin comunidad completa)
   const entidadesBasicas = ENTIDADES.filter(e => e.id !== 'comunidad_completa')
+  const entidadActual = ENTIDADES.find(e => e.id === entidadActiva)
 
   return (
     <div className="space-y-6">
-      {/* Tabs de entidad */}
+      {/* Header de la página */}
+      <div className="border-b pb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Importar / Exportar Datos</h1>
+        <p className="mt-1 text-gray-500">
+          Gestiona la importación y exportación masiva de datos mediante archivos Excel
+        </p>
+      </div>
+
+      {/* Tabs de entidad - ancho completo */}
       <Tabs value={entidadActiva} onValueChange={setEntidadActiva}>
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-          {ENTIDADES.map(ent => (
-            <TabsTrigger key={ent.id} value={ent.id} disabled={isProcessing}>
-              <ent.icon className="w-4 h-4 mr-2" />
-              {ent.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="bg-white rounded-lg border shadow-sm">
+          <TabsList className="flex w-full border-b bg-gray-50 rounded-t-lg p-0 h-auto">
+            {ENTIDADES.map(ent => (
+              <TabsTrigger 
+                key={ent.id} 
+                value={ent.id} 
+                disabled={isProcessing}
+                className="flex-1 flex items-center justify-center gap-2 py-4 px-6 text-sm font-medium rounded-none first:rounded-tl-lg last:rounded-tr-lg border-b-2 border-transparent data-[state=active]:border-primary-500 data-[state=active]:bg-white data-[state=active]:text-primary-600 hover:bg-gray-100 transition-colors"
+              >
+                <ent.icon className="w-5 h-5" />
+                <span className="hidden sm:inline">{ent.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
+          {/* Descripción de la entidad activa */}
+          {entidadActual && (
+            <div className="px-6 py-3 bg-gray-50 border-b">
+              <p className="text-sm text-gray-600">
+                <ent.icon className="w-4 h-4 inline mr-2" />
+                {entidadActual.description}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Contenido para entidades básicas */}
         {entidadesBasicas.map(ent => (
-          <TabsContent key={ent.id} value={ent.id} className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Panel de Importación */}
-              <Card className="p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Upload className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-medium">Importar {ent.label}</h3>
+          <TabsContent key={ent.id} value={ent.id} className="mt-6 space-y-6">
+            {/* Sección de IMPORTACIÓN - Ancho completo */}
+            <Card className="overflow-hidden">
+              <div className="bg-blue-50 border-b border-blue-100 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Upload className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-900">Importar {ent.label}</h3>
+                      <p className="text-sm text-blue-600">Carga un archivo Excel con los datos a importar</p>
+                    </div>
+                  </div>
+                  {!archivo && !isProcessing && !isCompleted && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDescargarPlantilla(ent.id)}
+                      className="border-blue-200 text-blue-700 hover:bg-blue-100"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Descargar plantilla
+                    </Button>
+                  )}
                 </div>
+              </div>
 
+              <div className="p-6">
                 {!isProcessing && !isCompleted && (
                   <>
                     <ImportDropzone
@@ -155,33 +203,61 @@ export function ImportExportPanel() {
                     />
 
                     {error && !resultado && (
-                      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                        {error}
+                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <XCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-red-800">Error al procesar archivo</p>
+                            <p className="text-sm text-red-600 mt-1">{error}</p>
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {datosExcel && (
-                      <div className="mt-4 space-y-4">
-                        <ImportPreview 
-                          datosExcel={datosExcel} 
-                          validacion={validacion}
-                          maxRows={5}
-                        />
+                      <div className="mt-6 space-y-6">
+                        {/* Preview con ancho completo */}
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="bg-gray-50 px-4 py-2 border-b flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">
+                              Vista previa de datos
+                            </span>
+                            <Badge variant={validacion?.validas > 0 ? 'success' : 'default'}>
+                              {validacion?.validas || 0} de {datosExcel?.length || 0} válidos
+                            </Badge>
+                          </div>
+                          <ImportPreview 
+                            datosExcel={datosExcel} 
+                            validacion={validacion}
+                            maxRows={15}
+                          />
+                        </div>
 
                         {validacion?.errores.length > 0 && (
-                          <ImportErrors errores={validacion.errores} maxVisible={3} />
+                          <ImportErrors errores={validacion.errores} maxVisible={5} />
                         )}
 
-                        <div className="flex justify-end gap-3 pt-4 border-t">
-                          <Button variant="outline" onClick={limpiarArchivo}>
-                            Cancelar
-                          </Button>
-                          <Button 
-                            onClick={handleImportar} 
-                            disabled={!canImport}
-                          >
-                            Importar {validacion?.validas || 0} registros
-                          </Button>
+                        <div className="flex items-center justify-between pt-4 border-t">
+                          <div className="text-sm text-gray-500">
+                            {validacion?.invalidas > 0 && (
+                              <span className="text-amber-600">
+                                ⚠️ {validacion.invalidas} registros con errores serán omitidos
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-3">
+                            <Button variant="outline" onClick={limpiarArchivo}>
+                              Cancelar
+                            </Button>
+                            <Button 
+                              onClick={handleImportar} 
+                              disabled={!canImport}
+                              className="min-w-[200px]"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Importar {validacion?.validas || 0} registros
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -197,7 +273,7 @@ export function ImportExportPanel() {
                 )}
 
                 {isCompleted && resultado && (
-                  <>
+                  <div className="space-y-4">
                     <ImportProgress 
                       progreso={progreso} 
                       estado={estado}
@@ -205,98 +281,114 @@ export function ImportExportPanel() {
                     />
 
                     {resultado.errors?.length > 0 && (
-                      <div className="mt-4">
-                        <ImportErrors errores={resultado.errors} maxVisible={5} />
-                      </div>
+                      <ImportErrors errores={resultado.errors} maxVisible={10} />
                     )}
 
-                    <div className="mt-4 flex justify-end">
+                    <div className="flex justify-end pt-4 border-t">
                       <Button onClick={reiniciar}>
                         Nueva importación
                       </Button>
                     </div>
-                  </>
+                  </div>
                 )}
+              </div>
+            </Card>
 
-                {/* Botón de plantilla */}
-                {!archivo && !isProcessing && !isCompleted && (
-                  <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                    <p className="text-sm text-gray-500">
-                      ¿Necesitas la plantilla?
-                    </p>
+            {/* Sección de EXPORTACIÓN - Ancho completo */}
+            <Card className="overflow-hidden">
+              <div className="bg-green-50 border-b border-green-100 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Download className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-green-900">Exportar {ent.label}</h3>
+                    <p className="text-sm text-green-600">Descarga los datos actuales en formato Excel</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+                  <p className="text-gray-600">
+                    Descarga todos los datos de {ent.label.toLowerCase()} en un archivo Excel.
+                    Puedes usar este archivo como respaldo o para modificar datos y volver a importarlos.
+                  </p>
+                  <div className="flex gap-3 shrink-0">
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      variant="outline"
                       onClick={() => handleDescargarPlantilla(ent.id)}
                     >
                       <FileSpreadsheet className="w-4 h-4 mr-2" />
-                      Descargar plantilla
+                      Plantilla vacía
                     </Button>
+                    <ExportButton
+                      entidad={ent.id}
+                      onExport={handleExportar}
+                      variant="default"
+                      label={`Exportar ${ent.label.toLowerCase()}`}
+                    />
                   </div>
-                )}
-              </Card>
-
-              {/* Panel de Exportación */}
-              <Card className="p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Download className="w-5 h-5 text-green-600" />
-                  <h3 className="text-lg font-medium">Exportar {ent.label}</h3>
                 </div>
-
-                <p className="text-gray-600 mb-6">
-                  Descarga todos los datos de {ent.label.toLowerCase()} en un archivo Excel.
-                  Puedes usar este archivo como respaldo o para modificar datos y volver a importarlos.
-                </p>
-
-                <div className="space-y-3">
-                  <ExportButton
-                    entidad={ent.id}
-                    onExport={handleExportar}
-                    variant="default"
-                    label={`Exportar todos los ${ent.label.toLowerCase()}`}
-                  />
-
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => handleDescargarPlantilla(ent.id)}
-                  >
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Descargar plantilla vacía
-                  </Button>
-                </div>
-
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
-                    Formato de exportación
-                  </h4>
-                  <p className="text-xs text-gray-500">
-                    El archivo exportado contiene todos los campos de {ent.label.toLowerCase()}.
-                    Las referencias a otras entidades (comunidad, ubicación) se exportan como códigos/nombres
-                    que pueden ser reconocidos durante la importación.
-                  </p>
-                </div>
-              </Card>
-            </div>
+              </div>
+            </Card>
           </TabsContent>
         ))}
 
         {/* Tab Comunidad Completa */}
-        <TabsContent value="comunidad_completa" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Panel de Importación Comunidad Completa */}
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Upload className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-medium">Importar Comunidad Completa</h3>
+        <TabsContent value="comunidad_completa" className="mt-6 space-y-6">
+          {/* Sección de IMPORTACIÓN Comunidad Completa */}
+          <Card className="overflow-hidden">
+            <div className="bg-purple-50 border-b border-purple-100 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Upload className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-purple-900">Importar Comunidad Completa</h3>
+                    <p className="text-sm text-purple-600">Carga todos los datos de una comunidad en un solo archivo</p>
+                  </div>
+                </div>
+                {!archivo && !isProcessing && !isCompleted && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDescargarPlantillaComunidadCompleta}
+                    className="border-purple-200 text-purple-700 hover:bg-purple-100"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Descargar plantilla
+                  </Button>
+                )}
               </div>
+            </div>
 
-              <p className="text-sm text-gray-600 mb-4">
-                Importa todos los datos de una comunidad en un solo archivo: datos generales, portales, viviendas y precios.
-              </p>
-
+            <div className="p-6">
               {!isProcessing && !isCompleted && (
                 <>
+                  <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-100">
+                    <h4 className="text-sm font-medium text-purple-800 mb-2">El archivo debe contener las siguientes hojas:</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                      <div className="flex items-center gap-2 text-purple-700">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full" />
+                        Datos Generales
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-700">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full" />
+                        Portales
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-700">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full" />
+                        Viviendas
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-700">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full" />
+                        Precios
+                      </div>
+                    </div>
+                  </div>
+
                   <ImportDropzone
                     onFileSelect={cargarArchivoComunidadCompleta}
                     file={archivo}
@@ -305,46 +397,70 @@ export function ImportExportPanel() {
                   />
 
                   {error && !resultadoComunidadCompleta && (
-                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                      {error}
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <XCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-red-800">Error al procesar archivo</p>
+                          <p className="text-sm text-red-600 mt-1">{error}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {datosComunidadCompleta && (
-                    <div className="mt-4 space-y-4">
+                    <div className="mt-6 space-y-6">
                       {/* Resumen de hojas detectadas */}
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <h4 className="text-sm font-medium mb-3">Hojas detectadas:</h4>
-                        <div className="grid grid-cols-2 gap-2">
+                      <div className="border rounded-lg overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-2 border-b">
+                          <span className="text-sm font-medium text-gray-700">Hojas detectadas en el archivo</span>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
                           <ResumenHoja 
                             label="Datos Generales" 
                             count={datosComunidadCompleta.resumen?.datosGenerales || 0}
+                            icon={Building2}
                           />
                           <ResumenHoja 
                             label="Portales" 
                             count={datosComunidadCompleta.resumen?.portales || 0}
+                            icon={Layers}
                           />
                           <ResumenHoja 
                             label="Viviendas" 
                             count={datosComunidadCompleta.resumen?.viviendas || 0}
+                            icon={Users}
                           />
                           <ResumenHoja 
                             label="Precios" 
                             count={datosComunidadCompleta.resumen?.precios || 0}
+                            icon={FileSpreadsheet}
                           />
                         </div>
                       </div>
 
-                      <div className="flex justify-end gap-3 pt-4 border-t">
-                        <Button variant="outline" onClick={limpiarComunidadCompleta}>
-                          Cancelar
-                        </Button>
-                        <Button 
-                          onClick={handleImportarComunidadCompleta} 
-                          disabled={!canImportComunidadCompleta}
-                        >
-                          Importar comunidad
-                        </Button>
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div className="text-sm text-gray-500">
+                          Total de registros a procesar: {
+                            (datosComunidadCompleta.resumen?.datosGenerales || 0) +
+                            (datosComunidadCompleta.resumen?.portales || 0) +
+                            (datosComunidadCompleta.resumen?.viviendas || 0) +
+                            (datosComunidadCompleta.resumen?.precios || 0)
+                          }
+                        </div>
+                        <div className="flex gap-3">
+                          <Button variant="outline" onClick={limpiarComunidadCompleta}>
+                            Cancelar
+                          </Button>
+                          <Button 
+                            onClick={handleImportarComunidadCompleta} 
+                            disabled={!canImportComunidadCompleta}
+                            className="min-w-[200px]"
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Importar comunidad
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -353,216 +469,232 @@ export function ImportExportPanel() {
 
               {isProcessing && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm font-medium text-blue-700">
-                      {progresoMultiHoja.mensaje || 'Procesando...'}
-                    </p>
-                    <div className="mt-2 w-full bg-blue-200 rounded-full h-2">
+                  <div className="p-6 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+                      <div>
+                        <p className="font-medium text-purple-800">
+                          {progresoMultiHoja.mensaje || 'Procesando...'}
+                        </p>
+                        <p className="text-sm text-purple-600">Por favor espera mientras se procesan los datos</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-purple-200 rounded-full h-3">
                       <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        className="bg-purple-600 h-3 rounded-full transition-all duration-300"
                         style={{ width: `${progresoMultiHoja.porcentaje * 100}%` }}
                       />
                     </div>
+                    <p className="text-xs text-purple-600 mt-2 text-right">
+                      {Math.round(progresoMultiHoja.porcentaje * 100)}% completado
+                    </p>
                   </div>
                 </div>
               )}
 
               {isCompleted && resultadoComunidadCompleta && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="font-semibold text-green-700">Importación completada</span>
+                  <div className="p-6 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-green-100 rounded-full">
+                        <CheckCircle className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-green-800 text-lg">Importación completada</span>
+                        <p className="text-sm text-green-600">Los datos han sido procesados correctamente</p>
+                      </div>
                     </div>
 
-                    <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {resultadoComunidadCompleta.comunidad && (
                         <ResultadoSeccion
                           label="Comunidad"
                           result={resultadoComunidadCompleta.comunidad}
+                          icon={Building2}
                         />
                       )}
                       {resultadoComunidadCompleta.portales && (
                         <ResultadoSeccion
                           label="Portales"
                           result={resultadoComunidadCompleta.portales}
+                          icon={Layers}
                         />
                       )}
                       {resultadoComunidadCompleta.viviendas && (
                         <ResultadoSeccion
                           label="Viviendas"
                           result={resultadoComunidadCompleta.viviendas}
+                          icon={Users}
                         />
                       )}
                       {resultadoComunidadCompleta.precios && (
                         <ResultadoSeccion
                           label="Precios"
                           result={resultadoComunidadCompleta.precios}
+                          icon={FileSpreadsheet}
                         />
                       )}
                     </div>
-
-                    {resultadoComunidadCompleta.erroresGlobales?.length > 0 && (
-                      <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded">
-                        <div className="flex items-center gap-2 mb-2">
-                          <XCircle className="w-4 h-4 text-red-600" />
-                          <span className="font-medium text-red-700 text-sm">Errores críticos</span>
-                        </div>
-                        <ul className="text-xs text-red-700 space-y-1 list-disc list-inside">
-                          {resultadoComunidadCompleta.erroresGlobales.map((e, i) => (
-                            <li key={i}>{e}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
 
-                  <div className="flex justify-end">
+                  {resultadoComunidadCompleta.erroresGlobales?.length > 0 && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                        <span className="font-semibold text-red-800">Errores críticos detectados</span>
+                      </div>
+                      <ul className="text-sm text-red-700 space-y-1">
+                        {resultadoComunidadCompleta.erroresGlobales.map((e, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-red-400">•</span>
+                            {e}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-4 border-t">
                     <Button onClick={limpiarComunidadCompleta}>
                       Nueva importación
                     </Button>
                   </div>
                 </div>
               )}
+            </div>
+          </Card>
 
-              {/* Botón de plantilla */}
-              {!archivo && !isProcessing && !isCompleted && (
-                <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                  <p className="text-sm text-gray-500">
-                    ¿Necesitas la plantilla?
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleDescargarPlantillaComunidadCompleta}
-                  >
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Descargar plantilla
-                  </Button>
+          {/* Sección de EXPORTACIÓN Comunidad Completa */}
+          <Card className="overflow-hidden">
+            <div className="bg-green-50 border-b border-green-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Download className="w-5 h-5 text-green-600" />
                 </div>
-              )}
-            </Card>
-
-            {/* Panel de Exportación Comunidad Completa */}
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Download className="w-5 h-5 text-green-600" />
-                <h3 className="text-lg font-medium">Exportar Comunidad Completa</h3>
-              </div>
-
-              <p className="text-gray-600 mb-6">
-                Exporta todos los datos de una comunidad (datos generales, portales, viviendas y precios) en un único archivo Excel.
-              </p>
-
-              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Seleccionar comunidad
-                  </label>
-                  <select
-                    value={comunidadExportarId}
-                    onChange={(e) => setComunidadExportarId(e.target.value)}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {comunidades?.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.codigo} - {c.nombre}
-                      </option>
-                    ))}
-                  </select>
+                  <h3 className="text-lg font-semibold text-green-900">Exportar Comunidad Completa</h3>
+                  <p className="text-sm text-green-600">Descarga todos los datos de una comunidad en un único archivo</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Seleccionar comunidad a exportar
+                    </label>
+                    <select
+                      value={comunidadExportarId}
+                      onChange={(e) => setComunidadExportarId(e.target.value)}
+                      className="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    >
+                      <option value="">Seleccionar comunidad...</option>
+                      {comunidades?.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.codigo} - {c.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={handleDescargarPlantillaComunidadCompleta}
+                    >
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Plantilla vacía
+                    </Button>
+                    <Button
+                      onClick={handleExportarComunidadCompleta}
+                      disabled={!comunidadExportarId || isLoading}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Exportar comunidad
+                    </Button>
+                  </div>
                 </div>
 
-                <Button
-                  className="w-full"
-                  onClick={handleExportarComunidadCompleta}
-                  disabled={!comunidadExportarId || isLoading}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar comunidad seleccionada
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleDescargarPlantillaComunidadCompleta}
-                >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Descargar plantilla vacía
-                </Button>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">El archivo exportado contendrá:</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm text-gray-600">
+                    <div>• Datos Generales</div>
+                    <div>• Portales</div>
+                    <div>• Viviendas</div>
+                    <div>• Precios vigentes</div>
+                  </div>
+                </div>
               </div>
-
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">
-                  Contenido del archivo
-                </h4>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li>• <strong>Datos Generales:</strong> Información básica de la comunidad</li>
-                  <li>• <strong>Portales:</strong> Bloques/escaleras de la comunidad</li>
-                  <li>• <strong>Viviendas:</strong> Ubicaciones dentro de cada portal</li>
-                  <li>• <strong>Precios:</strong> Precios vigentes por concepto</li>
-                </ul>
-              </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   )
 }
 
-// Componente auxiliar para resumen de hoja
-function ResumenHoja({ label, count }) {
+// Componente auxiliar para resumen de hoja - Rediseñado
+function ResumenHoja({ label, count, icon: Icon }) {
   return (
-    <div className="flex items-center justify-between p-2 bg-white rounded border">
-      <span className="text-sm text-gray-600">{label}</span>
-      <Badge variant={count > 0 ? 'success' : 'default'}>
-        {count} filas
+    <div className="flex flex-col items-center p-4 bg-white rounded-lg border text-center">
+      {Icon && <Icon className="w-6 h-6 text-gray-400 mb-2" />}
+      <span className="text-xs text-gray-500 mb-1">{label}</span>
+      <Badge variant={count > 0 ? 'success' : 'default'} className="text-lg px-3 py-1">
+        {count}
       </Badge>
+      <span className="text-xs text-gray-400 mt-1">filas</span>
     </div>
   )
 }
 
-// Componente auxiliar para resultado de sección
-function ResultadoSeccion({ label, result }) {
+// Componente auxiliar para resultado de sección - Rediseñado
+function ResultadoSeccion({ label, result, icon: Icon }) {
   const [expandido, setExpandido] = useState(false)
   const hasErrors = result.errors?.length > 0
+  const hasResults = result.created > 0 || result.updated > 0
 
   return (
-    <div className="border-l-2 border-gray-300 pl-3">
-      <div className="flex items-center justify-between">
-        <span className="text-gray-600 font-medium">{label}:</span>
+    <div className="bg-white rounded-lg border p-4">
+      <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
+          {Icon && <Icon className="w-5 h-5 text-gray-400" />}
+          <span className="font-medium text-gray-700">{label}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           {result.created > 0 && (
-            <span className="text-green-600 text-sm">{result.created} creados</span>
+            <Badge variant="success">{result.created} creados</Badge>
           )}
           {result.updated > 0 && (
-            <span className="text-blue-600 text-sm">{result.updated} actualizados</span>
+            <Badge variant="info">{result.updated} actualizados</Badge>
           )}
           {hasErrors && (
             <button
               onClick={() => setExpandido(!expandido)}
-              className="text-red-600 text-sm hover:underline flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-red-600 hover:text-red-800"
             >
-              <AlertCircle className="w-4 h-4" />
-              {result.errors.length} errores
+              <Badge variant="danger">{result.errors.length} errores</Badge>
+              {expandido ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
+          )}
+          {!hasResults && !hasErrors && (
+            <Badge variant="default">Sin cambios</Badge>
           )}
         </div>
       </div>
 
       {/* Mostrar errores expandidos */}
       {hasErrors && expandido && (
-        <div className="mt-2 p-2 bg-red-50 rounded text-xs">
-          <div className="max-h-40 overflow-y-auto space-y-1">
+        <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-100">
+          <div className="max-h-48 overflow-y-auto space-y-2">
             {result.errors.slice(0, 10).map((error, idx) => (
-              <div key={idx} className="text-red-700">
-                <span className="font-semibold">Fila {error.fila}:</span>{' '}
-                {error.errores.join(', ')}
+              <div key={idx} className="text-sm">
+                <span className="font-medium text-red-800">Fila {error.fila}:</span>{' '}
+                <span className="text-red-600">{error.errores.join(', ')}</span>
               </div>
             ))}
             {result.errors.length > 10 && (
-              <div className="text-red-600 italic mt-1">
+              <div className="text-sm text-red-500 italic pt-2 border-t border-red-100">
                 ... y {result.errors.length - 10} errores más
               </div>
             )}
@@ -574,4 +706,3 @@ function ResultadoSeccion({ label, result }) {
 }
 
 export default ImportExportPanel
-
