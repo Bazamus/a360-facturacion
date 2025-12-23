@@ -294,5 +294,92 @@ git push origin main
 
 ---
 
+## ✅ Resultados de Pruebas (23 Diciembre 2024)
+
+### Plan de Pruebas Ejecutado
+
+Todos los tests definidos en `scripts/README_PRUEBAS.md` fueron ejecutados con éxito.
+
+| Test | Archivo | Resultado | Notas |
+|------|---------|-----------|-------|
+| **TEST_01** | Comunidad Completa EXITOSA | ✅ PASS | 1 comunidad, 3 portales, 8 viviendas, 3 precios creados |
+| **TEST_02** | Comunidad con DUPLICADOS | ✅ PASS | Detectó 2 duplicados correctamente (1 portal, 1 vivienda) |
+| **TEST_03** | Comunidad con ERRORES | ✅ PASS | Detectó 12 errores en todas las hojas |
+| **TEST_04** | Clientes EXITOSOS | ✅ PASS | 5 clientes creados con ubicaciones asignadas |
+| **TEST_05** | Contadores EXITOSOS | ✅ PASS | 5 contadores creados, 12 conceptos asignados |
+| **TEST_06** | Actualización TEST01 | ✅ PASS | Comunidad actualizada, portal B añadido, precio histórico |
+
+### Verificación SQL en Supabase
+
+```sql
+-- Resultados del resumen general
+SELECT entidad, total FROM (
+  SELECT 'Comunidades' as entidad, COUNT(*) as total FROM comunidades WHERE codigo LIKE 'TEST%'
+  UNION ALL
+  SELECT 'Portales', COUNT(*) FROM agrupaciones a JOIN comunidades c ON a.comunidad_id = c.id WHERE c.codigo LIKE 'TEST%'
+  UNION ALL
+  SELECT 'Viviendas', COUNT(*) FROM ubicaciones u JOIN agrupaciones a ON u.agrupacion_id = a.id JOIN comunidades c ON a.comunidad_id = c.id WHERE c.codigo LIKE 'TEST%'
+  UNION ALL
+  SELECT 'Clientes', COUNT(*) FROM clientes WHERE nif IN ('12345678A','23456789B','34567890C','45678901D','56789012E')
+  UNION ALL
+  SELECT 'Contadores', COUNT(*) FROM contadores WHERE numero_serie LIKE 'CNT000%'
+) t;
+```
+
+| Entidad | Cantidad |
+|---------|----------|
+| Comunidades | 2 (TEST01, TEST02) |
+| Portales | 8 |
+| Viviendas | 13 |
+| Clientes | 5 |
+| Contadores | 5 |
+
+### Bugs Corregidos Durante Testing
+
+| Bug | Archivo | Fix |
+|-----|---------|-----|
+| Lectura inicial `0` no se grababa | `excelGenerator.js` | Cambiar `\|\| null` por check explícito |
+| Export `COLUMN_CONFIG` faltante | `excelGenerator.js` | Añadir export named |
+| Validación se detenía en error de comunidad | `importProcessor.js` | Continuar validando todas las hojas |
+
+### Checklist de Validación
+
+#### Funcionalidad Básica
+- [x] Importación exitosa de comunidad completa
+- [x] Importación exitosa de clientes
+- [x] Importación exitosa de contadores con conceptos
+- [x] Exportación de comunidad completa
+
+#### Validaciones
+- [x] Detección de portal duplicado
+- [x] Detección de vivienda duplicada
+- [x] Validación de campos obligatorios
+- [x] Validación de entidades relacionadas inexistentes
+- [x] Validación de formatos (fechas, precios)
+
+#### UI y UX
+- [x] Errores se muestran expandibles por hoja
+- [x] Mensajes de error son claros y específicos con número de fila
+- [x] Progreso se muestra durante importación
+- [x] Resumen final muestra contadores correctos
+- [x] Errores globales se muestran separados
+
+#### Actualización
+- [x] Actualización de comunidad existente
+- [x] Creación de nuevos portales en comunidad existente
+- [x] Precios anteriores quedan históricos (fecha_fin se actualiza)
+
+#### Integridad de Datos
+- [x] No se crean duplicados en BD
+- [x] Contadores de created/updated son correctos
+- [x] Relaciones (comunidad→portal→vivienda) son correctas
+- [x] Conceptos se asignan correctamente a contadores
+
+### Datos de Prueba en BD
+
+⚠️ **NOTA:** Los datos de prueba (TEST01, TEST02, CNT000*, clientes de prueba) permanecen en la BD para validación continua durante el desarrollo. Ejecutar script de limpieza en `scripts/README_PRUEBAS.md` antes de pasar a producción.
+
+---
+
 *Última actualización: 23 de Diciembre 2024*
-*Últimas mejoras: Validación de unicidad y mejora de UI para errores por hoja*
+*Estado: Testing completado - Sistema de importación/exportación validado*
