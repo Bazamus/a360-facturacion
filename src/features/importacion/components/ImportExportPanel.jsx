@@ -155,7 +155,7 @@ export function ImportExportPanel() {
           {entidadActual && (
             <div className="px-6 py-3 bg-gray-50 border-b">
               <p className="text-sm text-gray-600">
-                <ent.icon className="w-4 h-4 inline mr-2" />
+                <entidadActual.icon className="w-4 h-4 inline mr-2" />
                 {entidadActual.description}
               </p>
             </div>
