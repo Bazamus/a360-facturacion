@@ -187,6 +187,7 @@ Importar desde `@/components/ui`:
 | Fechas inválidas en import | `raw: false` en `sheet_to_json` | Usar `raw: true` |
 | `readExcel` not exported | Nombre de función diferente | Crear alias en exports |
 | **Conceptos no se asignan a contadores** | `.single()` en verificación de asignación (línea 471) | **Cambiar a `.maybeSingle()`** |
+| **Lectura inicial 0 no se graba** | `row[colIndex] \|\| null` trata `0` como falsy | Usar `row[colIndex] !== undefined ? row[colIndex] : null` |
 
 ---
 

@@ -321,11 +321,11 @@ export async function procesarClientes(filas, onProgress = () => {}) {
 function detectarConceptosEnFila(fila) {
   const conceptos = []
   const codigosEncontrados = new Set()
-  
+
   // Buscar campos que terminen en _lectura o _fecha
   Object.keys(fila).forEach(key => {
     const keyLower = key.toLowerCase()
-    
+
     if (keyLower.endsWith('_lectura')) {
       const codigo = keyLower.replace('_lectura', '').toUpperCase()
       codigosEncontrados.add(codigo)
@@ -339,14 +339,17 @@ function detectarConceptosEnFila(fila) {
   codigosEncontrados.forEach(codigo => {
     const lecturaKey = `${codigo.toLowerCase()}_lectura`
     const fechaKey = `${codigo.toLowerCase()}_fecha`
-    
+
     const lecturaValue = fila[lecturaKey]
     const fechaValue = fila[fechaKey]
-    
+
     // Solo incluir si tiene AMBOS valores (lectura y fecha)
-    if (lecturaValue !== null && lecturaValue !== undefined && lecturaValue !== '' &&
-        fechaValue !== null && fechaValue !== undefined && fechaValue !== '') {
-      // Parsear lectura (puede venir con coma o punto)
+    // NOTA: lecturaValue puede ser 0 (valor válido), por eso no usamos !lecturaValue
+    const tieneLetura = lecturaValue !== null && lecturaValue !== undefined && lecturaValue !== ''
+    const tieneFecha = fechaValue !== null && fechaValue !== undefined && fechaValue !== ''
+    
+    if (tieneLetura && tieneFecha) {
+      // Parsear lectura (puede venir con coma o punto, o ser número)
       let lectura = 0
       if (typeof lecturaValue === 'number') {
         lectura = lecturaValue
@@ -354,7 +357,7 @@ function detectarConceptosEnFila(fila) {
         const lecturaStr = String(lecturaValue).replace(',', '.').trim()
         lectura = parseFloat(lecturaStr) || 0
       }
-      
+
       conceptos.push({
         codigo,
         lectura,
@@ -362,7 +365,7 @@ function detectarConceptosEnFila(fila) {
       })
     }
   })
-  
+
   return conceptos
 }
 

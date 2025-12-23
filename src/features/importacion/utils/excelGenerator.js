@@ -464,16 +464,21 @@ export async function leerExcel(file, options = {}) {
           const obj = { _rowIndex: index + 2 } // +2 por cabecera y base 1
           
           headers.forEach((header, colIndex) => {
+            // Obtener valor (usar ?? para preservar 0 y strings vacíos)
+            // IMPORTANTE: No usar || porque 0 es un valor válido para lecturas
+            const cellValue = row[colIndex]
+            const value = cellValue !== undefined && cellValue !== null ? cellValue : null
+            
             // Buscar en config estática
             const fieldIndex = config.headers.indexOf(header)
             if (fieldIndex !== -1) {
               const field = config.fields[fieldIndex]
-              obj[field] = row[colIndex] || null
+              obj[field] = value
             } else {
               // Para columnas de conceptos no reconocidas, guardar con nombre normalizado
               const headerLower = header?.toLowerCase() || ''
               if (headerLower.endsWith('_lectura') || headerLower.endsWith('_fecha')) {
-                obj[headerLower] = row[colIndex] || null
+                obj[headerLower] = value
               }
             }
           })
@@ -890,7 +895,7 @@ export function exportarComunidadCompleta(comunidad, portales = [], viviendas = 
 }
 
 // Exportar configuración adicional
-export { COMUNIDAD_COMPLETA_CONFIG }
+export { COLUMN_CONFIG, COMUNIDAD_COMPLETA_CONFIG }
 
 export default {
   generarPlantillaVacia,
