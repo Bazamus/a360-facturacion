@@ -595,25 +595,28 @@ export async function validarFilas(entidad, filas) {
  */
 export async function procesarPortales(filas, comunidadId = null, onProgress = () => {}) {
   const result = { created: 0, updated: 0, errors: [], total: filas.length }
-  
+
+  // Trackear portales procesados en esta importación para evitar duplicados
+  const portalesProcesados = new Set()
+
   for (let i = 0; i < filas.length; i++) {
     const fila = filas[i]
     const rowNum = fila._rowIndex || i + 2
     const erroresRow = []
-    
+
     try {
       // Validar campos obligatorios
       const codigoComunidad = toStr(fila.comunidad_codigo)
       const nombrePortal = toStr(fila.nombre)
-      
+
       if (!codigoComunidad) erroresRow.push('Código Comunidad es obligatorio')
       if (!nombrePortal) erroresRow.push('Nombre Portal es obligatorio')
-      
+
       if (erroresRow.length > 0) {
         result.errors.push({ fila: rowNum, errores: erroresRow })
         continue
       }
-      
+
       // Resolver comunidad
       let comId = comunidadId
       if (!comId) {
@@ -624,7 +627,17 @@ export async function procesarPortales(filas, comunidadId = null, onProgress = (
         }
         comId = comunidad.id
       }
-      
+
+      // Verificar duplicados en el archivo actual
+      const portalKey = `${comId}_${nombrePortal.toUpperCase()}`
+      if (portalesProcesados.has(portalKey)) {
+        result.errors.push({
+          fila: rowNum,
+          errores: [`Portal "${nombrePortal}" ya fue procesado en este archivo (fila duplicada)`]
+        })
+        continue
+      }
+
       // Preparar datos
       const data = {
         comunidad_id: comId,
@@ -633,22 +646,22 @@ export async function procesarPortales(filas, comunidadId = null, onProgress = (
         orden: parseInt(fila.orden) || 0,
         activa: true
       }
-      
-      // Buscar si existe
+
+      // Buscar si existe en BD
       const { data: existente } = await supabase
         .from('agrupaciones')
         .select('id')
         .eq('comunidad_id', comId)
         .eq('nombre', nombrePortal)
         .maybeSingle()
-      
+
       if (existente) {
         // Actualizar
         const { error } = await supabase
           .from('agrupaciones')
           .update(data)
           .eq('id', existente.id)
-        
+
         if (error) throw error
         result.updated++
       } else {
@@ -656,20 +669,24 @@ export async function procesarPortales(filas, comunidadId = null, onProgress = (
         const { error } = await supabase
           .from('agrupaciones')
           .insert(data)
-        
+
         if (error) throw error
         result.created++
       }
+
+      // Marcar como procesado
+      portalesProcesados.add(portalKey)
+
     } catch (error) {
-      result.errors.push({ 
-        fila: rowNum, 
-        errores: [`Error: ${error.message}`] 
+      result.errors.push({
+        fila: rowNum,
+        errores: [`Error: ${error.message}`]
       })
     }
-    
+
     onProgress((i + 1) / filas.length, i + 1, filas.length)
   }
-  
+
   return result
 }
 
@@ -682,30 +699,33 @@ export async function procesarPortales(filas, comunidadId = null, onProgress = (
  */
 export async function procesarViviendas(filas, comunidadId = null, onProgress = () => {}) {
   const result = { created: 0, updated: 0, errors: [], total: filas.length }
-  
+
   // Cache de agrupaciones para evitar consultas repetidas
   const cacheAgrupaciones = new Map()
-  
+
+  // Trackear viviendas procesadas en esta importación para evitar duplicados
+  const viviendasProcesadas = new Set()
+
   for (let i = 0; i < filas.length; i++) {
     const fila = filas[i]
     const rowNum = fila._rowIndex || i + 2
     const erroresRow = []
-    
+
     try {
       // Validar campos obligatorios
       const codigoComunidad = toStr(fila.comunidad_codigo)
       const portalNombre = toStr(fila.portal_nombre)
       const nombreVivienda = toStr(fila.nombre)
-      
+
       if (!codigoComunidad) erroresRow.push('Código Comunidad es obligatorio')
       if (!portalNombre) erroresRow.push('Portal es obligatorio')
       if (!nombreVivienda) erroresRow.push('Nombre Vivienda es obligatorio')
-      
+
       if (erroresRow.length > 0) {
         result.errors.push({ fila: rowNum, errores: erroresRow })
         continue
       }
-      
+
       // Resolver comunidad
       let comId = comunidadId
       if (!comId) {
@@ -716,11 +736,11 @@ export async function procesarViviendas(filas, comunidadId = null, onProgress = 
         }
         comId = comunidad.id
       }
-      
+
       // Buscar agrupación (usar cache)
       const cacheKey = `${comId}_${portalNombre}`
       let agrupacionId = cacheAgrupaciones.get(cacheKey)
-      
+
       if (!agrupacionId) {
         const { data: agrupacion } = await supabase
           .from('agrupaciones')
@@ -728,7 +748,7 @@ export async function procesarViviendas(filas, comunidadId = null, onProgress = 
           .eq('comunidad_id', comId)
           .eq('nombre', portalNombre)
           .maybeSingle()
-        
+
         if (!agrupacion) {
           result.errors.push({ fila: rowNum, errores: [`Portal "${portalNombre}" no encontrado en comunidad`] })
           continue
@@ -736,7 +756,17 @@ export async function procesarViviendas(filas, comunidadId = null, onProgress = 
         agrupacionId = agrupacion.id
         cacheAgrupaciones.set(cacheKey, agrupacionId)
       }
-      
+
+      // Verificar duplicados en el archivo actual
+      const viviendaKey = `${agrupacionId}_${nombreVivienda.toUpperCase()}`
+      if (viviendasProcesadas.has(viviendaKey)) {
+        result.errors.push({
+          fila: rowNum,
+          errores: [`Vivienda "${nombreVivienda}" en portal "${portalNombre}" ya fue procesada en este archivo (fila duplicada)`]
+        })
+        continue
+      }
+
       // Preparar datos
       const data = {
         agrupacion_id: agrupacionId,
@@ -746,22 +776,22 @@ export async function procesarViviendas(filas, comunidadId = null, onProgress = 
         orden: parseInt(fila.orden) || 0,
         activa: true
       }
-      
-      // Buscar si existe
+
+      // Buscar si existe en BD
       const { data: existente } = await supabase
         .from('ubicaciones')
         .select('id')
         .eq('agrupacion_id', agrupacionId)
         .eq('nombre', nombreVivienda)
         .maybeSingle()
-      
+
       if (existente) {
         // Actualizar
         const { error } = await supabase
           .from('ubicaciones')
           .update(data)
           .eq('id', existente.id)
-        
+
         if (error) throw error
         result.updated++
       } else {
@@ -769,20 +799,24 @@ export async function procesarViviendas(filas, comunidadId = null, onProgress = 
         const { error } = await supabase
           .from('ubicaciones')
           .insert(data)
-        
+
         if (error) throw error
         result.created++
       }
+
+      // Marcar como procesado
+      viviendasProcesadas.add(viviendaKey)
+
     } catch (error) {
-      result.errors.push({ 
-        fila: rowNum, 
-        errores: [`Error: ${error.message}`] 
+      result.errors.push({
+        fila: rowNum,
+        errores: [`Error: ${error.message}`]
       })
     }
-    
+
     onProgress((i + 1) / filas.length, i + 1, filas.length)
   }
-  
+
   return result
 }
 
@@ -965,3 +999,4 @@ export default {
   procesarComunidadCompleta,
   validarFilas
 }
+

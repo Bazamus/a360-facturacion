@@ -369,44 +369,50 @@ export function ImportExportPanel() {
 
               {isCompleted && resultadoComunidadCompleta && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-3">
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 mb-4">
                       <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="font-medium text-green-700">Importación completada</span>
+                      <span className="font-semibold text-green-700">Importación completada</span>
                     </div>
-                    
-                    <div className="space-y-2 text-sm">
+
+                    <div className="space-y-3 text-sm">
                       {resultadoComunidadCompleta.comunidad && (
-                        <ResultadoSeccion 
-                          label="Comunidad" 
+                        <ResultadoSeccion
+                          label="Comunidad"
                           result={resultadoComunidadCompleta.comunidad}
                         />
                       )}
                       {resultadoComunidadCompleta.portales && (
-                        <ResultadoSeccion 
-                          label="Portales" 
+                        <ResultadoSeccion
+                          label="Portales"
                           result={resultadoComunidadCompleta.portales}
                         />
                       )}
                       {resultadoComunidadCompleta.viviendas && (
-                        <ResultadoSeccion 
-                          label="Viviendas" 
+                        <ResultadoSeccion
+                          label="Viviendas"
                           result={resultadoComunidadCompleta.viviendas}
                         />
                       )}
                       {resultadoComunidadCompleta.precios && (
-                        <ResultadoSeccion 
-                          label="Precios" 
+                        <ResultadoSeccion
+                          label="Precios"
                           result={resultadoComunidadCompleta.precios}
                         />
                       )}
                     </div>
 
                     {resultadoComunidadCompleta.erroresGlobales?.length > 0 && (
-                      <div className="mt-3 p-2 bg-red-100 rounded text-sm text-red-700">
-                        {resultadoComunidadCompleta.erroresGlobales.map((e, i) => (
-                          <p key={i}>{e}</p>
-                        ))}
+                      <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded">
+                        <div className="flex items-center gap-2 mb-2">
+                          <XCircle className="w-4 h-4 text-red-600" />
+                          <span className="font-medium text-red-700 text-sm">Errores críticos</span>
+                        </div>
+                        <ul className="text-xs text-red-700 space-y-1 list-disc list-inside">
+                          {resultadoComunidadCompleta.erroresGlobales.map((e, i) => (
+                            <li key={i}>{e}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                   </div>
@@ -519,24 +525,53 @@ function ResumenHoja({ label, count }) {
 
 // Componente auxiliar para resultado de sección
 function ResultadoSeccion({ label, result }) {
+  const [expandido, setExpandido] = useState(false)
   const hasErrors = result.errors?.length > 0
-  
+
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-gray-600">{label}:</span>
-      <div className="flex items-center gap-2">
-        {result.created > 0 && (
-          <span className="text-green-600">{result.created} creados</span>
-        )}
-        {result.updated > 0 && (
-          <span className="text-blue-600">{result.updated} actualizados</span>
-        )}
-        {hasErrors && (
-          <span className="text-red-600">{result.errors.length} errores</span>
-        )}
+    <div className="border-l-2 border-gray-300 pl-3">
+      <div className="flex items-center justify-between">
+        <span className="text-gray-600 font-medium">{label}:</span>
+        <div className="flex items-center gap-2">
+          {result.created > 0 && (
+            <span className="text-green-600 text-sm">{result.created} creados</span>
+          )}
+          {result.updated > 0 && (
+            <span className="text-blue-600 text-sm">{result.updated} actualizados</span>
+          )}
+          {hasErrors && (
+            <button
+              onClick={() => setExpandido(!expandido)}
+              className="text-red-600 text-sm hover:underline flex items-center gap-1"
+            >
+              <AlertCircle className="w-4 h-4" />
+              {result.errors.length} errores
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Mostrar errores expandidos */}
+      {hasErrors && expandido && (
+        <div className="mt-2 p-2 bg-red-50 rounded text-xs">
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {result.errors.slice(0, 10).map((error, idx) => (
+              <div key={idx} className="text-red-700">
+                <span className="font-semibold">Fila {error.fila}:</span>{' '}
+                {error.errores.join(', ')}
+              </div>
+            ))}
+            {result.errors.length > 10 && (
+              <div className="text-red-600 italic mt-1">
+                ... y {result.errors.length - 10} errores más
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default ImportExportPanel
+

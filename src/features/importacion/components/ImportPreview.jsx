@@ -123,3 +123,4 @@ export function ImportPreview({ datosExcel, validacion, maxRows = 10 }) {
 }
 
 export default ImportPreview
+

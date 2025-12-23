@@ -904,3 +904,4 @@ export default {
   COLUMN_CONFIG,
   COMUNIDAD_COMPLETA_CONFIG
 }
+
