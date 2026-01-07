@@ -1,22 +1,23 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText } from 'lucide-react'
+import { Plus, FileText, CheckSquare, X } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge } from '@/features/facturacion/components'
 import { formatCurrency, formatDate } from '@/features/facturacion/utils/calculos'
 import { useComunidades } from '@/hooks/useComunidades'
-import { 
-  useFacturas, 
-  useDeleteFactura, 
+import {
+  useFacturas,
+  useDeleteFactura,
   useMarcarPagada,
-  useEstadisticasFacturacion 
+  useEstadisticasFacturacion,
+  useEmitirFacturasMasivo
 } from '@/hooks/useFacturas'
 
 export default function Facturas() {
   const navigate = useNavigate()
   const toast = useToast()
-  
+
   const [filters, setFilters] = useState({
     comunidadId: '',
     estado: '',
@@ -24,12 +25,18 @@ export default function Facturas() {
   })
   const [deleteModal, setDeleteModal] = useState({ open: false, factura: null })
   const [pagarModal, setPagarModal] = useState({ open: false, factura: null })
+  const [selectedIds, setSelectedIds] = useState([])
+  const [emitiendo, setEmitiendo] = useState(false)
 
   const { data: comunidades } = useComunidades()
   const { data: facturas, isLoading } = useFacturas(filters)
   const { data: stats } = useEstadisticasFacturacion(filters)
   const deleteFactura = useDeleteFactura()
   const marcarPagada = useMarcarPagada()
+  const emitirMasivo = useEmitirFacturasMasivo()
+
+  // Contar borradores para mostrar botón de emisión rápida
+  const borradoresCount = facturas?.filter(f => f.estado === 'borrador').length || 0
 
   // Handlers
   const handleView = (factura) => {
@@ -72,6 +79,46 @@ export default function Facturas() {
     setFilters({ comunidadId: '', estado: '', search: '' })
   }
 
+  // Handler emisión masiva
+  const handleEmitirMasivo = async () => {
+    if (selectedIds.length === 0) return
+
+    const confirmar = window.confirm(
+      `¿Emitir ${selectedIds.length} factura${selectedIds.length > 1 ? 's' : ''}? Esta acción no se puede deshacer.`
+    )
+
+    if (!confirmar) return
+
+    setEmitiendo(true)
+    try {
+      const resultado = await emitirMasivo.mutateAsync(selectedIds)
+
+      const exitosas = resultado.filter(r => r.success).length
+      const fallidas = resultado.filter(r => !r.success).length
+
+      if (fallidas === 0) {
+        toast.success(`${exitosas} factura${exitosas > 1 ? 's' : ''} emitida${exitosas > 1 ? 's' : ''} correctamente`)
+      } else {
+        toast.warning(`${exitosas} emitidas correctamente, ${fallidas} con errores`)
+      }
+
+      setSelectedIds([])
+    } catch (error) {
+      toast.error('Error al emitir facturas: ' + error.message)
+    } finally {
+      setEmitiendo(false)
+    }
+  }
+
+  // Handler seleccionar todos los borradores
+  const handleSeleccionarTodosBorradores = () => {
+    const borradoresIds = facturas
+      ?.filter(f => f.estado === 'borrador')
+      .map(f => f.id) || []
+
+    setSelectedIds(borradoresIds)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -82,10 +129,22 @@ export default function Facturas() {
             Gestión de facturas emitidas
           </p>
         </div>
-        <Button onClick={() => navigate('/facturacion/generar')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Generar Facturas
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/facturacion/generar')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Generar Facturas
+          </Button>
+          {borradoresCount > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleSeleccionarTodosBorradores}
+              title="Seleccionar todos los borradores para emitir"
+            >
+              <CheckSquare className="w-4 h-4 mr-2" />
+              Emitir {borradoresCount} borrador{borradoresCount > 1 ? 'es' : ''}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Estadísticas */}
@@ -132,6 +191,8 @@ export default function Facturas() {
         onPDF={handlePDF}
         onEmail={handleEmail}
         onMarcarPagada={(f) => setPagarModal({ open: true, factura: f })}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
       />
 
       {/* Modal eliminar */}
@@ -202,6 +263,36 @@ export default function Facturas() {
           </div>
         </div>
       </Modal>
+
+      {/* Barra de acciones masivas flotante */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
+          <Card className="shadow-2xl border-2">
+            <div className="flex items-center gap-4 px-6 py-4">
+              <span className="text-sm font-medium text-gray-700">
+                {selectedIds.length} factura{selectedIds.length > 1 ? 's' : ''} seleccionada{selectedIds.length > 1 ? 's' : ''}
+              </span>
+              <div className="h-6 w-px bg-gray-300"></div>
+              <Button
+                onClick={handleEmitirMasivo}
+                disabled={emitiendo}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {emitiendo ? 'Emitiendo...' : 'Emitir facturas'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedIds([])}
+                title="Cancelar selección"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

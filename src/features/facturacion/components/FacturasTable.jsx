@@ -1,19 +1,53 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Eye, FileText, Mail, Pencil, Trash2, CreditCard } from 'lucide-react'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, Checkbox } from '@/components/ui'
 import { EstadoBadge } from './EstadoBadge'
 import { formatCurrency, formatDate } from '../utils/calculos'
 
-export function FacturasTable({ 
-  facturas = [], 
-  onView, 
-  onEdit, 
-  onDelete, 
-  onPDF, 
+export function FacturasTable({
+  facturas = [],
+  onView,
+  onEdit,
+  onDelete,
+  onPDF,
   onEmail,
   onMarcarPagada,
-  isLoading 
+  isLoading,
+  selectedIds = [],
+  onSelectionChange
 }) {
+  // Estado local para checkboxes
+  const [localSelectedIds, setLocalSelectedIds] = useState(selectedIds)
+
+  // Sincronizar con prop externa
+  useEffect(() => {
+    setLocalSelectedIds(selectedIds)
+  }, [selectedIds])
+
+  // Facturas seleccionables (solo borradores)
+  const facturasSeleccionables = facturas.filter(f => f.estado === 'borrador')
+  const facturaIds = facturasSeleccionables.map(f => f.id)
+
+  // ¿Todas las facturas seleccionables están seleccionadas?
+  const todasSeleccionadas = facturaIds.length > 0 &&
+    facturaIds.every(id => localSelectedIds.includes(id))
+
+  // Handler para seleccionar/deseleccionar todas
+  const handleSelectAll = (checked) => {
+    const newSelection = checked ? facturaIds : []
+    setLocalSelectedIds(newSelection)
+    onSelectionChange?.(newSelection)
+  }
+
+  // Handler para seleccionar/deseleccionar una fila
+  const handleSelectRow = (facturaId, checked) => {
+    const newSelection = checked
+      ? [...localSelectedIds, facturaId]
+      : localSelectedIds.filter(id => id !== facturaId)
+
+    setLocalSelectedIds(newSelection)
+    onSelectionChange?.(newSelection)
+  }
   if (isLoading) {
     return (
       <Card className="p-8">
@@ -40,6 +74,16 @@ export function FacturasTable({
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
+              {/* Columna de selección */}
+              {facturasSeleccionables.length > 0 && (
+                <th className="px-4 py-3 w-12">
+                  <Checkbox
+                    checked={todasSeleccionadas}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Seleccionar todas las facturas en borrador"
+                  />
+                </th>
+              )}
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Nº Factura
               </th>
@@ -66,6 +110,20 @@ export function FacturasTable({
           <tbody className="divide-y divide-gray-200">
             {facturas.map(factura => (
               <tr key={factura.id} className="hover:bg-gray-50">
+                {/* Checkbox de selección - solo para borradores */}
+                {facturasSeleccionables.length > 0 && (
+                  <td className="px-4 py-3 w-12">
+                    {factura.estado === 'borrador' ? (
+                      <Checkbox
+                        checked={localSelectedIds.includes(factura.id)}
+                        onCheckedChange={(checked) => handleSelectRow(factura.id, checked)}
+                        aria-label={`Seleccionar factura ${factura.numero_completo || 'borrador'}`}
+                      />
+                    ) : (
+                      <div className="w-4"></div>
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="font-mono font-medium text-gray-900">
                     {factura.numero_completo || '— Borrador —'}

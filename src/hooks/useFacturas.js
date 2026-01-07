@@ -443,5 +443,97 @@ export function useEstadisticasFacturacion(options = {}) {
   })
 }
 
+/**
+ * Hook para obtener las líneas de una factura específica
+ */
+export function useLineasFactura(facturaId) {
+  return useQuery({
+    queryKey: ['facturas', facturaId, 'lineas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('facturas_lineas')
+        .select('*')
+        .eq('factura_id', facturaId)
+        .order('orden')
+
+      if (error) throw error
+      return data
+    },
+    enabled: !!facturaId
+  })
+}
+
+/**
+ * Hook para actualizar una línea de factura
+ */
+export function useUpdateLineaFactura() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ lineaId, facturaId, updates }) => {
+      const { data, error} = await supabase
+        .from('facturas_lineas')
+        .update(updates)
+        .eq('id', lineaId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (_, { facturaId }) => {
+      queryClient.invalidateQueries({ queryKey: ['facturas', facturaId, 'lineas'] })
+      queryClient.invalidateQueries({ queryKey: ['facturas', facturaId] })
+    }
+  })
+}
+
+/**
+ * Hook para eliminar una línea de factura
+ */
+export function useDeleteLineaFactura() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ lineaId, facturaId }) => {
+      const { error } = await supabase
+        .from('facturas_lineas')
+        .delete()
+        .eq('id', lineaId)
+
+      if (error) throw error
+    },
+    onSuccess: (_, { facturaId }) => {
+      queryClient.invalidateQueries({ queryKey: ['facturas', facturaId, 'lineas'] })
+      queryClient.invalidateQueries({ queryKey: ['facturas', facturaId] })
+    }
+  })
+}
+
+/**
+ * Hook para crear una nueva línea de factura
+ */
+export function useCreateLineaFactura() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (lineaData) => {
+      const { data, error } = await supabase
+        .from('facturas_lineas')
+        .insert(lineaData)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      const facturaId = data.factura_id
+      queryClient.invalidateQueries({ queryKey: ['facturas', facturaId, 'lineas'] })
+      queryClient.invalidateQueries({ queryKey: ['facturas', facturaId] })
+    }
+  })
+}
+
 
 

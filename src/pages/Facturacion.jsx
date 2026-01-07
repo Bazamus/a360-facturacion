@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Facturas from './Facturas'
 import GenerarFacturas from './GenerarFacturas'
 import FacturaDetalle from './FacturaDetalle'
+import FacturaEditar from './FacturaEditar'
 import EnviarFacturas from './EnviarFacturas'
 import EnviosDashboard from './EnviosDashboard'
 import HistorialEnvios from './HistorialEnvios'
@@ -13,6 +14,7 @@ export function FacturacionPage() {
       <Route path="facturas" element={<Facturas />} />
       <Route path="facturas/:id" element={<FacturaDetalle />} />
       <Route path="facturas/:id/pdf" element={<FacturaDetalle showPdf />} />
+      <Route path="facturas/:id/editar" element={<FacturaEditar />} />
       <Route path="generar" element={<GenerarFacturas />} />
       <Route path="enviar" element={<EnviarFacturas />} />
       <Route path="envios" element={<EnviosDashboard />} />

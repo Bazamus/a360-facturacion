@@ -334,7 +334,7 @@ function detectarConceptosEnFila(fila) {
       codigosEncontrados.add(codigo)
     }
   })
-  
+
   // Para cada código encontrado, extraer lectura y fecha
   codigosEncontrados.forEach(codigo => {
     const lecturaKey = `${codigo.toLowerCase()}_lectura`
@@ -347,7 +347,7 @@ function detectarConceptosEnFila(fila) {
     // NOTA: lecturaValue puede ser 0 (valor válido), por eso no usamos !lecturaValue
     const tieneLetura = lecturaValue !== null && lecturaValue !== undefined && lecturaValue !== ''
     const tieneFecha = fechaValue !== null && fechaValue !== undefined && fechaValue !== ''
-    
+
     if (tieneLetura && tieneFecha) {
       // Parsear lectura (puede venir con coma o punto, o ser número)
       let lectura = 0
