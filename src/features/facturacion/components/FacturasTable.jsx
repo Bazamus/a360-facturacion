@@ -33,14 +33,16 @@ export function FacturasTable({
     facturaIds.every(id => localSelectedIds.includes(id))
 
   // Handler para seleccionar/deseleccionar todas
-  const handleSelectAll = (checked) => {
+  const handleSelectAll = (e) => {
+    const checked = e.target.checked
     const newSelection = checked ? facturaIds : []
     setLocalSelectedIds(newSelection)
     onSelectionChange?.(newSelection)
   }
 
   // Handler para seleccionar/deseleccionar una fila
-  const handleSelectRow = (facturaId, checked) => {
+  const handleSelectRow = (facturaId) => (e) => {
+    const checked = e.target.checked
     const newSelection = checked
       ? [...localSelectedIds, facturaId]
       : localSelectedIds.filter(id => id !== facturaId)
@@ -79,7 +81,7 @@ export function FacturasTable({
                 <th className="px-4 py-3 w-12">
                   <Checkbox
                     checked={todasSeleccionadas}
-                    onCheckedChange={handleSelectAll}
+                    onChange={handleSelectAll}
                     aria-label="Seleccionar todas las facturas en borrador"
                   />
                 </th>
@@ -116,7 +118,7 @@ export function FacturasTable({
                     {factura.estado === 'borrador' ? (
                       <Checkbox
                         checked={localSelectedIds.includes(factura.id)}
-                        onCheckedChange={(checked) => handleSelectRow(factura.id, checked)}
+                        onChange={handleSelectRow(factura.id)}
                         aria-label={`Seleccionar factura ${factura.numero_completo || 'borrador'}`}
                       />
                     ) : (
