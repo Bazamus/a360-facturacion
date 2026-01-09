@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, CheckSquare, X } from 'lucide-react'
+import { Plus, FileText, CheckSquare, X, Download } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge } from '@/features/facturacion/components'
@@ -30,6 +30,9 @@ export default function Facturas() {
   const [selectedIds, setSelectedIds] = useState([])
   const [emitiendo, setEmitiendo] = useState(false)
   const [descargandoPDF, setDescargandoPDF] = useState(null) // ID de la factura siendo descargada
+  const [modo, setModo] = useState('emision') // 'emision' | 'descarga'
+  const [descargandoPDFs, setDescargandoPDFs] = useState(false)
+  const [progresoDescarga, setProgresoDescarga] = useState({ actual: 0, total: 0 })
 
   const { data: comunidades } = useComunidades()
   const { data: facturas, isLoading } = useFacturas(filters)
@@ -156,6 +159,91 @@ export default function Facturas() {
     setSelectedIds(borradoresIds)
   }
 
+  // Handler descarga masiva de PDFs
+  const handleDescargarPDFsMasivo = async () => {
+    if (selectedIds.length === 0) return
+
+    // Validar límite máximo
+    if (selectedIds.length > 100) {
+      toast.error('Máximo 100 facturas por descarga')
+      return
+    }
+
+    // Advertencia si >20 facturas
+    if (selectedIds.length > 20) {
+      const confirmar = window.confirm(
+        `Vas a descargar ${selectedIds.length} PDFs. Esto puede tardar varios minutos. ¿Continuar?`
+      )
+      if (!confirmar) return
+    }
+
+    setDescargandoPDFs(true)
+    setProgresoDescarga({ actual: 0, total: selectedIds.length })
+
+    try {
+      // Importar JSZip dinámicamente
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+      const folder = zip.folder("facturas")
+
+      const facturasSeleccionadas = facturas.filter(f => selectedIds.includes(f.id))
+
+      // Generar cada PDF
+      for (let i = 0; i < facturasSeleccionadas.length; i++) {
+        const factura = facturasSeleccionadas[i]
+        setProgresoDescarga({ actual: i + 1, total: selectedIds.length })
+
+        // Fetch líneas de la factura
+        const { data: lineas } = await supabase
+          .from('facturas_lineas')
+          .select('*')
+          .eq('factura_id', factura.id)
+          .order('orden')
+
+        // Fetch histórico de consumo
+        const { data: historico } = await supabase
+          .from('v_historico_consumo_factura')
+          .select('*')
+          .eq('factura_id', factura.id)
+          .order('fecha_lectura')
+
+        // Generar PDF como blob
+        const { getFacturaPDFBlob } = await import('@/features/facturacion/pdf')
+        const pdfBlob = await getFacturaPDFBlob(factura, lineas || [], historico || [])
+
+        // Nombre de archivo sanitizado
+        const nombreArchivo = `${factura.numero_completo}_${factura.cliente_nombre}.pdf`
+          .replace(/[/\\?%*:|"<>]/g, '-')
+          .replace(/\s+/g, '_')
+
+        folder.file(nombreArchivo, pdfBlob)
+      }
+
+      // Generar y descargar ZIP
+      const zipBlob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      })
+
+      const url = URL.createObjectURL(zipBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Facturas_${new Date().toISOString().split('T')[0]}.zip`
+      link.click()
+      URL.revokeObjectURL(url)
+
+      toast.success(`${facturasSeleccionadas.length} PDFs descargados en ZIP correctamente`)
+      setSelectedIds([])
+    } catch (error) {
+      console.error('Error descargando PDFs:', error)
+      toast.error('Error al generar los PDFs: ' + error.message)
+    } finally {
+      setDescargandoPDFs(false)
+      setProgresoDescarga({ actual: 0, total: 0 })
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -218,6 +306,32 @@ export default function Facturas() {
         onClear={clearFilters}
       />
 
+      {/* Toggle de Modo */}
+      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border">
+        <span className="text-sm font-medium text-gray-700">Modo:</span>
+        <div className="flex gap-2">
+          <Button
+            variant={modo === 'emision' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => { setModo('emision'); setSelectedIds([]) }}
+          >
+            Emisión masiva
+          </Button>
+          <Button
+            variant={modo === 'descarga' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => { setModo('descarga'); setSelectedIds([]) }}
+          >
+            Descarga masiva
+          </Button>
+        </div>
+        <span className="text-xs text-gray-500">
+          {modo === 'emision'
+            ? 'Selecciona borradores para emitir'
+            : 'Selecciona facturas emitidas para descargar PDFs'}
+        </span>
+      </div>
+
       {/* Tabla de facturas */}
       <FacturasTable
         facturas={facturas || []}
@@ -230,6 +344,7 @@ export default function Facturas() {
         onMarcarPagada={(f) => setPagarModal({ open: true, factura: f })}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        modo={modo}
       />
 
       {/* Modal eliminar */}
@@ -310,14 +425,29 @@ export default function Facturas() {
                 {selectedIds.length} factura{selectedIds.length > 1 ? 's' : ''} seleccionada{selectedIds.length > 1 ? 's' : ''}
               </span>
               <div className="h-6 w-px bg-gray-300"></div>
-              <Button
-                onClick={handleEmitirMasivo}
-                disabled={emitiendo}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                {emitiendo ? 'Emitiendo...' : 'Emitir facturas'}
-              </Button>
+
+              {modo === 'emision' ? (
+                <Button
+                  onClick={handleEmitirMasivo}
+                  disabled={emitiendo}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  {emitiendo ? 'Emitiendo...' : 'Emitir facturas'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleDescargarPDFsMasivo}
+                  disabled={descargandoPDFs}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {descargandoPDFs
+                    ? `Descargando ${progresoDescarga.actual}/${progresoDescarga.total}...`
+                    : 'Descargar PDFs (ZIP)'}
+                </Button>
+              )}
+
               <Button
                 variant="ghost"
                 size="sm"

@@ -14,7 +14,8 @@ export function FacturasTable({
   onMarcarPagada,
   isLoading,
   selectedIds = [],
-  onSelectionChange
+  onSelectionChange,
+  modo = 'emision' // 'emision' | 'descarga'
 }) {
   // Estado local para checkboxes
   const [localSelectedIds, setLocalSelectedIds] = useState(selectedIds)
@@ -24,8 +25,12 @@ export function FacturasTable({
     setLocalSelectedIds(selectedIds)
   }, [selectedIds])
 
-  // Facturas seleccionables (solo borradores)
-  const facturasSeleccionables = facturas.filter(f => f.estado === 'borrador')
+  // Facturas seleccionables según modo
+  const facturasSeleccionables = facturas.filter(f =>
+    modo === 'emision'
+      ? f.estado === 'borrador'
+      : ['emitida', 'pagada', 'anulada'].includes(f.estado)
+  )
   const facturaIds = facturasSeleccionables.map(f => f.id)
 
   // ¿Todas las facturas seleccionables están seleccionadas?
@@ -115,7 +120,8 @@ export function FacturasTable({
                 {/* Checkbox de selección - solo para borradores */}
                 {facturasSeleccionables.length > 0 && (
                   <td className="px-4 py-3 w-12">
-                    {factura.estado === 'borrador' ? (
+                    {(modo === 'emision' && factura.estado === 'borrador') ||
+                     (modo === 'descarga' && ['emitida', 'pagada', 'anulada'].includes(factura.estado)) ? (
                       <Checkbox
                         checked={localSelectedIds.includes(factura.id)}
                         onChange={handleSelectRow(factura.id)}
