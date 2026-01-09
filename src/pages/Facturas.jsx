@@ -5,6 +5,8 @@ import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge } from '@/features/facturacion/components'
 import { formatCurrency, formatDate } from '@/features/facturacion/utils/calculos'
+import { descargarFacturaPDF } from '@/features/facturacion/pdf'
+import { supabase } from '@/lib/supabase'
 import { useComunidades } from '@/hooks/useComunidades'
 import {
   useFacturas,
@@ -27,6 +29,7 @@ export default function Facturas() {
   const [pagarModal, setPagarModal] = useState({ open: false, factura: null })
   const [selectedIds, setSelectedIds] = useState([])
   const [emitiendo, setEmitiendo] = useState(false)
+  const [descargandoPDF, setDescargandoPDF] = useState(null) // ID de la factura siendo descargada
 
   const { data: comunidades } = useComunidades()
   const { data: facturas, isLoading } = useFacturas(filters)
@@ -67,8 +70,42 @@ export default function Facturas() {
     }
   }
 
-  const handlePDF = (factura) => {
-    navigate(`/facturacion/facturas/${factura.id}/pdf`)
+  const handlePDF = async (factura) => {
+    try {
+      setDescargandoPDF(factura.id)
+
+      // Obtener líneas de la factura
+      const { data: lineas, error: lineasError } = await supabase
+        .from('facturas_lineas')
+        .select('*')
+        .eq('factura_id', factura.id)
+        .order('orden')
+
+      if (lineasError) {
+        console.error('Error al obtener líneas:', lineasError)
+      }
+
+      // Obtener histórico de consumo
+      const { data: historico, error: historicoError } = await supabase
+        .from('v_historico_consumo_factura')
+        .select('*')
+        .eq('factura_id', factura.id)
+        .order('fecha_lectura')
+
+      if (historicoError) {
+        console.error('Error al obtener histórico:', historicoError)
+      }
+
+      // Descargar PDF directamente (aunque falten datos, el PDF se genera)
+      descargarFacturaPDF(factura, lineas || [], historico || [])
+
+      toast.success('PDF descargado correctamente')
+    } catch (error) {
+      console.error('Error descargando PDF:', error)
+      toast.error('Error al descargar el PDF')
+    } finally {
+      setDescargandoPDF(null)
+    }
   }
 
   const handleEmail = (factura) => {
