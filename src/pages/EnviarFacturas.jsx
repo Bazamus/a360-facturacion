@@ -15,7 +15,7 @@ import {
 
 export default function EnviarFacturas() {
   const navigate = useNavigate()
-  const { showToast } = useToast()
+  const toast = useToast()
   
   const [filtros, setFiltros] = useState({
     comunidadId: null,
@@ -38,7 +38,7 @@ export default function EnviarFacturas() {
 
   const handleEnviar = async () => {
     if (selectedIds.length === 0) {
-      showToast('Selecciona al menos una factura para enviar', 'warning')
+      toast.warning('Selecciona al menos una factura para enviar')
       return
     }
 
@@ -59,15 +59,15 @@ export default function EnviarFacturas() {
       setSelectedIds([])
       
       if (result.exitosos > 0) {
-        showToast(`${result.exitosos} facturas enviadas correctamente`, 'success')
+        toast.success(`${result.exitosos} facturas enviadas correctamente`)
       }
       if (result.fallidos > 0) {
-        showToast(`${result.fallidos} facturas no se pudieron enviar`, 'error')
+        toast.error(`${result.fallidos} facturas no se pudieron enviar`)
       }
       
       refetch()
     } catch (error) {
-      showToast('Error al enviar facturas: ' + error.message, 'error')
+      toast.error('Error al enviar facturas: ' + error.message)
       setShowProgress(false)
     }
   }
