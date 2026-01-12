@@ -105,8 +105,14 @@ export function HistorialEnviosTable({
       render: (_, row) => (
         <div className="flex items-center gap-1">
           <button
-            onClick={() => onViewDetalle?.(row?.id)}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            onClick={(e) => {
+              e.stopPropagation()
+              console.log('Ver detalle clicked, row.id:', row?.id)
+              if (onViewDetalle && row?.id) {
+                onViewDetalle(row.id)
+              }
+            }}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded cursor-pointer"
             title="Ver detalle"
           >
             <Eye size={16} />

@@ -28,6 +28,9 @@ export default function HistorialEnvios() {
 
   const { data: historial, isLoading, refetch } = useHistorialEnvios(filtros)
   const { data: envioDetalle, isLoading: detalleLoading } = useEnvio(selectedEnvioId)
+
+  // Debug: Log cuando cambia selectedEnvioId
+  console.log('selectedEnvioId:', selectedEnvioId, 'envioDetalle:', envioDetalle)
   const reintentarEnvio = useReintentarEnvio()
 
   const handleReintentar = async (envioId) => {
