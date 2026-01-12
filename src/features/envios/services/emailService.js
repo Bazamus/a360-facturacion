@@ -1,8 +1,29 @@
-import { resend, EMPRESA_CONFIG } from '@/lib/resend'
+import { EMPRESA_CONFIG } from '@/lib/resend'
 import { render } from '@react-email/render'
 import { FacturaEmailTemplate } from '../templates/FacturaEmailTemplate'
 import { supabase } from '@/lib/supabase'
 import { getFacturaPDFBlob } from '@/features/facturacion/pdf'
+
+/**
+ * Envía email a través de nuestra API serverless (evita CORS)
+ */
+async function sendEmailViaAPI(emailData) {
+  const response = await fetch('/api/send-email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(emailData)
+  })
+
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Error al enviar email')
+  }
+
+  return result
+}
 
 /**
  * Función principal para enviar una factura por email
@@ -136,27 +157,24 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
       ]
     }
 
-    console.log('📧 Enviando email a Resend...', {
+    console.log('📧 Enviando email via API serverless...', {
       to: emailData.to,
       subject: emailData.subject,
       attachments: emailData.attachments.length
     })
 
-    const resendResponse = await resend.emails.send(emailData)
+    // Enviar via nuestra API serverless (evita CORS)
+    const resendResponse = await sendEmailViaAPI(emailData)
 
-    if (resendResponse.error) {
-      throw new Error(resendResponse.error.message || 'Error al enviar email')
-    }
-
-    console.log('✅ Email enviado exitosamente', resendResponse.data)
+    console.log('✅ Email enviado exitosamente', resendResponse)
 
     // 13. Actualizar registro de envío (estado: enviado)
     await supabase
       .from('envios_email')
       .update({
         estado: 'enviado',
-        resend_id: resendResponse.data.id,
-        resend_response: resendResponse.data,
+        resend_id: resendResponse.id,
+        resend_response: resendResponse,
         fecha_enviado: new Date().toISOString(),
         intentos: 1
       })
@@ -174,7 +192,7 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
     return {
       success: true,
       envioId: envio.id,
-      resendId: resendResponse.data.id,
+      resendId: resendResponse.id,
       email: factura.cliente_email
     }
 
