@@ -51,16 +51,19 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
 
     if (facturaError) throw facturaError
 
-    // 2. Si modo test, reemplazar email con dirección de prueba de Resend
-    let emailDestino = factura.cliente_email
+    // 2. Obtener email actual del cliente (no el snapshot de la factura)
+    const emailActualCliente = factura.cliente?.email || factura.cliente_email
+
+    // 3. Si modo test, reemplazar email con dirección de prueba de Resend
+    let emailDestino = emailActualCliente
     if (modoTest) {
       // Usar el ID de factura para generar email de prueba único
       emailDestino = `delivered+factura${facturaId.slice(0, 8)}@resend.dev`
-      console.log(`🧪 MODO TEST activado: Email original ${factura.cliente_email} → ${emailDestino}`)
+      console.log(`🧪 MODO TEST activado: Email original ${emailActualCliente} → ${emailDestino}`)
     }
 
-    // 3. Validar que tiene email
-    if (!factura.cliente_email) {
+    // 4. Validar que tiene email
+    if (!emailActualCliente) {
       throw new Error('El cliente no tiene email configurado')
     }
 
@@ -193,7 +196,7 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
       success: true,
       envioId: envio.id,
       resendId: resendResponse.id,
-      email: factura.cliente_email
+      email: emailActualCliente
     }
 
   } catch (error) {

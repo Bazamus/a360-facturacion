@@ -48,10 +48,10 @@ export async function enviarFacturasMasivo(facturaIds, options = {}) {
     const facturaId = facturaIds[i]
 
     try {
-      // Verificar email antes de enviar
+      // Verificar email antes de enviar (obtener email actual del cliente, no snapshot)
       const { data: factura, error: facturaError } = await supabase
         .from('facturas')
-        .select('numero_completo, cliente_email, email_enviado, estado')
+        .select('numero_completo, cliente_email, email_enviado, estado, cliente:clientes(email)')
         .eq('id', facturaId)
         .single()
 
@@ -59,8 +59,11 @@ export async function enviarFacturasMasivo(facturaIds, options = {}) {
         throw new Error(`No se pudo obtener la factura: ${facturaError.message}`)
       }
 
+      // Email actual del cliente (priorizar email de tabla clientes)
+      const emailActual = factura.cliente?.email || factura.cliente_email
+
       // Validación: sin email
-      if (!factura.cliente_email) {
+      if (!emailActual) {
         resultados.sinEmail++
         resultados.detalles.push({
           facturaId,
