@@ -1,12 +1,13 @@
 import { Modal } from '../../../components/ui'
 import { Check, X, AlertTriangle, Loader2 } from 'lucide-react'
 
-export function EnvioProgress({ 
-  isOpen, 
-  onClose, 
-  progress, 
+export function EnvioProgress({
+  isOpen,
+  onClose,
+  progress,
   resultados,
   isCompleted,
+  modoTest = false,
   onCancel
 }) {
   const porcentaje = progress?.porcentaje || 0
@@ -17,10 +18,16 @@ export function EnvioProgress({
     <Modal
       isOpen={isOpen}
       onClose={isCompleted ? onClose : undefined}
-      title={isCompleted ? 'Envío completado' : 'Enviando facturas...'}
+      title={isCompleted ? 'Envío completado' : (modoTest ? '🧪 Enviando facturas (MODO TEST)' : 'Enviando facturas...')}
       size="md"
     >
       <div className="space-y-6">
+        {/* Advertencia modo test */}
+        {modoTest && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+            ⚠️ Los emails se están enviando a direcciones de prueba de Resend, no a clientes reales
+          </div>
+        )}
         {/* Barra de progreso */}
         <div>
           <div className="flex justify-between text-sm text-gray-600 mb-2">

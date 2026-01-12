@@ -23,6 +23,7 @@ export default function EnviarFacturas() {
   })
   const [selectedIds, setSelectedIds] = useState([])
   const [subirOneDrive, setSubirOneDrive] = useState(true)
+  const [modoTest, setModoTest] = useState(false)
   const [showProgress, setShowProgress] = useState(false)
   const [progress, setProgress] = useState(null)
   const [resultados, setResultados] = useState(null)
@@ -49,7 +50,8 @@ export default function EnviarFacturas() {
     try {
       const result = await enviarMasivo.mutateAsync({
         facturaIds: selectedIds,
-        onProgress: (p) => setProgress(p)
+        onProgress: (p) => setProgress(p),
+        modoTest
       })
 
       setResultados(result)
@@ -106,6 +108,27 @@ export default function EnviarFacturas() {
 
       {/* Filtros */}
       <EnvioFilters filtros={filtros} onFiltrosChange={setFiltros} />
+
+      {/* Toggle de Modo Test */}
+      <div className="flex items-center gap-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+        <input
+          type="checkbox"
+          id="modo-test"
+          checked={modoTest}
+          onChange={(e) => setModoTest(e.target.checked)}
+          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+        <label htmlFor="modo-test" className="flex items-center gap-2 cursor-pointer flex-1">
+          <span className="text-sm font-medium text-yellow-900">
+            🧪 Modo Test (usar direcciones delivered+X@resend.dev)
+          </span>
+        </label>
+        {modoTest && (
+          <span className="text-xs text-yellow-700 bg-yellow-100 px-2 py-1 rounded">
+            Los emails NO se enviarán a clientes reales
+          </span>
+        )}
+      </div>
 
       {/* Resumen */}
       <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
@@ -184,6 +207,7 @@ export default function EnviarFacturas() {
         progress={progress}
         resultados={resultados}
         isCompleted={isCompleted}
+        modoTest={modoTest}
         onCancel={() => {
           // En una implementación real, aquí se cancelaría el proceso
           handleCloseProgress()
