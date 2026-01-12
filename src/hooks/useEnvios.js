@@ -276,73 +276,24 @@ export function useEnviarFactura() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ facturaId, emailDestino, emailCc }) => {
-      // Obtener datos de la factura
-      const { data: factura, error: facturaError } = await supabase
-        .from('facturas')
-        .select('*, cliente:clientes(*)')
-        .eq('id', facturaId)
-        .single()
+    mutationFn: async ({ facturaId, emailCc, modoTest = false }) => {
+      // Importar el servicio de email
+      const { enviarFacturaEmail } = await import('@/features/envios/services/emailService')
 
-      if (facturaError) throw facturaError
+      // Llamar al servicio real de Resend
+      const resultado = await enviarFacturaEmail(facturaId, { emailCc, modoTest })
 
-      // Obtener configuración
-      const { data: config } = await supabase
-        .from('configuracion_email')
-        .select('*')
-        .single()
-
-      // Preparar asunto
-      const asunto = (config?.asunto_template || 'Factura {numero_factura}')
-        .replace('{numero_factura}', factura.numero_completo)
-        .replace('{periodo}', `${factura.periodo_inicio} - ${factura.periodo_fin}`)
-        .replace('{cliente}', factura.cliente_nombre)
-
-      // Registrar envío
-      const { data: envio, error: envioError } = await supabase
-        .from('envios_email')
-        .insert({
-          factura_id: facturaId,
-          cliente_id: factura.cliente_id,
-          email_destino: emailDestino || factura.cliente_email,
-          email_cc: emailCc,
-          asunto,
-          estado: 'pendiente'
-        })
-        .select()
-        .single()
-
-      if (envioError) throw envioError
-
-      // En un entorno real, aquí se llamaría a la API de Resend
-      // Por ahora, simulamos el envío marcándolo como enviado
-      const { error: updateError } = await supabase
-        .from('envios_email')
-        .update({
-          estado: 'enviado',
-          fecha_enviado: new Date().toISOString(),
-          intentos: 1
-        })
-        .eq('id', envio.id)
-
-      if (updateError) throw updateError
-
-      // Marcar factura como enviada
-      await supabase
-        .from('facturas')
-        .update({
-          email_enviado: true,
-          fecha_email_enviado: new Date().toISOString()
-        })
-        .eq('id', facturaId)
-
-      return { envioId: envio.id, status: 'enviado' }
+      return resultado
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['facturas-pendientes-envio'] })
       queryClient.invalidateQueries({ queryKey: ['historial-envios'] })
       queryClient.invalidateQueries({ queryKey: ['envios-stats'] })
       queryClient.invalidateQueries({ queryKey: ['facturas'] })
+      queryClient.invalidateQueries({ queryKey: ['envios-recientes'] })
+    },
+    onError: (error) => {
+      console.error('Error en useEnviarFactura:', error)
     }
   })
 }
@@ -354,106 +305,17 @@ export function useEnviarFacturasMasivo() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ facturaIds, onProgress }) => {
-      const resultados = {
-        total: facturaIds.length,
-        exitosos: 0,
-        fallidos: 0,
-        sinEmail: 0,
-        detalles: []
-      }
+    mutationFn: async ({ facturaIds, onProgress, emailCc, modoTest = false }) => {
+      // Importar el servicio de envío masivo
+      const { enviarFacturasMasivo } = await import('@/features/envios/services/envioMasivoService')
 
-      for (let i = 0; i < facturaIds.length; i++) {
-        const facturaId = facturaIds[i]
-
-        try {
-          // Obtener datos de la factura
-          const { data: factura, error: facturaError } = await supabase
-            .from('facturas')
-            .select('*, cliente:clientes(*)')
-            .eq('id', facturaId)
-            .single()
-
-          if (facturaError) throw facturaError
-
-          if (!factura.cliente_email) {
-            resultados.sinEmail++
-            resultados.detalles.push({
-              facturaId,
-              numero: factura.numero_completo,
-              status: 'sin_email',
-              error: 'Cliente sin email configurado'
-            })
-            continue
-          }
-
-          // Obtener configuración
-          const { data: config } = await supabase
-            .from('configuracion_email')
-            .select('*')
-            .single()
-
-          // Preparar asunto
-          const asunto = (config?.asunto_template || 'Factura {numero_factura}')
-            .replace('{numero_factura}', factura.numero_completo)
-            .replace('{periodo}', `${factura.periodo_inicio} - ${factura.periodo_fin}`)
-
-          // Registrar envío
-          const { data: envio, error: envioError } = await supabase
-            .from('envios_email')
-            .insert({
-              factura_id: facturaId,
-              cliente_id: factura.cliente_id,
-              email_destino: factura.cliente_email,
-              asunto,
-              estado: 'enviado',
-              fecha_enviado: new Date().toISOString(),
-              intentos: 1
-            })
-            .select()
-            .single()
-
-          if (envioError) throw envioError
-
-          // Marcar factura como enviada
-          await supabase
-            .from('facturas')
-            .update({
-              email_enviado: true,
-              fecha_email_enviado: new Date().toISOString()
-            })
-            .eq('id', facturaId)
-
-          resultados.exitosos++
-          resultados.detalles.push({
-            facturaId,
-            numero: factura.numero_completo,
-            status: 'enviado',
-            envioId: envio.id
-          })
-
-        } catch (error) {
-          resultados.fallidos++
-          resultados.detalles.push({
-            facturaId,
-            status: 'error',
-            error: error.message
-          })
-        }
-
-        // Callback de progreso
-        if (onProgress) {
-          onProgress({
-            actual: i + 1,
-            total: facturaIds.length,
-            porcentaje: Math.round(((i + 1) / facturaIds.length) * 100),
-            ultimoResultado: resultados.detalles[resultados.detalles.length - 1]
-          })
-        }
-
-        // Pequeño delay para no sobrecargar
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
+      // Llamar al servicio real
+      const resultados = await enviarFacturasMasivo(facturaIds, {
+        onProgress,
+        emailCc,
+        modoTest,
+        delayEntreEnvios: 150 // 150ms = ~6-7 emails/segundo
+      })
 
       return resultados
     },
@@ -462,6 +324,10 @@ export function useEnviarFacturasMasivo() {
       queryClient.invalidateQueries({ queryKey: ['historial-envios'] })
       queryClient.invalidateQueries({ queryKey: ['envios-stats'] })
       queryClient.invalidateQueries({ queryKey: ['facturas'] })
+      queryClient.invalidateQueries({ queryKey: ['envios-recientes'] })
+    },
+    onError: (error) => {
+      console.error('Error en useEnviarFacturasMasivo:', error)
     }
   })
 }
