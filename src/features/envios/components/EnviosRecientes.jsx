@@ -59,57 +59,99 @@ export function EnviosRecientes({ envios = [], isLoading, onRefresh }) {
         </div>
       </div>
 
-      <div className="divide-y divide-gray-100">
-        {envios.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No hay envíos recientes
-          </div>
-        ) : (
-          envios.map((envio) => (
-            <div
-              key={envio.id}
-              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-              onClick={() => navigate(`/facturacion/envios/historial?envio=${envio.id}`)}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Factura
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Cliente / Email
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Estado
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Fecha
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Importe
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-100">
+            {envios.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                  No hay envíos recientes
+                </td>
+              </tr>
+            ) : (
+              envios.map((envio) => (
+                <tr
+                  key={envio.id}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/facturacion/envios/historial?envio=${envio.id}`)}
+                >
+                  {/* Factura */}
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span className="font-medium text-gray-900">
                       {envio.factura?.numero_completo || 'N/A'}
                     </span>
-                    <EstadoEnvioBadge estado={envio.estado} size="xs" />
-                    {envio.es_test && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        🧪 TEST
+                  </td>
+
+                  {/* Cliente / Email */}
+                  <td className="px-4 py-3">
+                    <div className="max-w-xs">
+                      {envio.cliente && (
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {envio.cliente.nombre} {envio.cliente.apellidos}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 truncate">
+                        {envio.email_destino}
+                      </p>
+                    </div>
+                  </td>
+
+                  {/* Estado */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <EstadoEnvioBadge estado={envio.estado} size="xs" />
+                      {envio.es_test && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                          🧪
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Fecha */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-xs text-gray-500">
+                      {formatFecha(envio.created_at)}
+                    </span>
+                  </td>
+
+                  {/* Importe */}
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    {envio.factura?.total != null ? (
+                      <span className="text-sm font-medium text-gray-900">
+                        {new Intl.NumberFormat('es-ES', {
+                          style: 'currency',
+                          currency: 'EUR'
+                        }).format(envio.factura.total)}
                       </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
                     )}
-                  </div>
-                  <p className="text-sm text-gray-600 truncate">
-                    {envio.email_destino}
-                  </p>
-                  {envio.cliente && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {envio.cliente.nombre} {envio.cliente.apellidos}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs text-gray-400 whitespace-nowrap">
-                    {formatFecha(envio.created_at)}
-                  </p>
-                  {envio.factura?.total != null && (
-                    <p className="text-sm font-medium text-gray-700 mt-1">
-                      {new Intl.NumberFormat('es-ES', {
-                        style: 'currency',
-                        currency: 'EUR'
-                      }).format(envio.factura.total)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )
