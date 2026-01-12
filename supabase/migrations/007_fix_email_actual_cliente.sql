@@ -5,12 +5,15 @@
 --           al momento de crearlas, pero para envíos necesitamos
 --           el email ACTUAL del cliente, no el histórico.
 --
--- Solución: Modificar la vista v_facturas_pendientes_envio para
---           hacer JOIN con la tabla clientes y obtener el email actual.
+-- Solución: Eliminar y recrear la vista v_facturas_pendientes_envio
+--           para hacer JOIN con la tabla clientes y obtener el email actual.
 -- =====================================================
 
+-- Primero eliminar la vista existente
+DROP VIEW IF EXISTS v_facturas_pendientes_envio;
+
 -- Recrear la vista con el email actual del cliente
-CREATE OR REPLACE VIEW v_facturas_pendientes_envio AS
+CREATE VIEW v_facturas_pendientes_envio AS
 SELECT
   f.id,
   f.numero_completo,
@@ -20,9 +23,7 @@ SELECT
   -- Email actual del cliente (no el snapshot de la factura)
   COALESCE(cli.email, f.cliente_email) AS cliente_email,
   f.total,
-  f.comunidad_id,
   c.nombre AS comunidad_nombre,
-  c.codigo AS comunidad_codigo,
   CASE
     WHEN cli.email IS NULL OR cli.email = '' THEN 'sin_email'
     WHEN f.email_enviado = true THEN 'enviado'
