@@ -28,9 +28,6 @@ export default function HistorialEnvios() {
 
   const { data: historial, isLoading, refetch } = useHistorialEnvios(filtros)
   const { data: envioDetalle, isLoading: detalleLoading } = useEnvio(selectedEnvioId)
-
-  // Debug: Log cuando cambia selectedEnvioId
-  console.log('selectedEnvioId:', selectedEnvioId, 'envioDetalle:', envioDetalle)
   const reintentarEnvio = useReintentarEnvio()
 
   const handleReintentar = async (envioId) => {
@@ -124,7 +121,7 @@ export default function HistorialEnvios() {
 
       {/* Modal de detalle */}
       <Modal
-        isOpen={!!selectedEnvioId}
+        open={!!selectedEnvioId}
         onClose={() => setSelectedEnvioId(null)}
         title="Detalle del Envío"
         size="md"

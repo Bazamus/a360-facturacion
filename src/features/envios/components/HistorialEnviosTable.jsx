@@ -107,7 +107,6 @@ export function HistorialEnviosTable({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              console.log('Ver detalle clicked, row.id:', row?.id)
               if (onViewDetalle && row?.id) {
                 onViewDetalle(row.id)
               }
