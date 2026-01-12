@@ -15,7 +15,7 @@ import {
 } from '../hooks/useEnvios'
 
 export default function EnviosDashboard() {
-  const { showToast } = useToast()
+  const toast = useToast()
   const [periodo, setPeriodo] = useState(() => {
     const now = new Date()
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -68,9 +68,9 @@ export default function EnviosDashboard() {
   const handleReintentar = async (envioId) => {
     try {
       await reintentarEnvio.mutateAsync(envioId)
-      showToast('Envío reintentado correctamente', 'success')
+      toast.success('Envío reintentado correctamente')
     } catch (error) {
-      showToast('Error al reintentar: ' + error.message, 'error')
+      toast.error('Error al reintentar: ' + error.message)
     }
   }
 

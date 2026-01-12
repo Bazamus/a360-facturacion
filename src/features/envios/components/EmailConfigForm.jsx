@@ -7,7 +7,7 @@ import { Save, Mail, Clock, RefreshCw, Copy } from 'lucide-react'
 export function EmailConfigForm() {
   const { data: config, isLoading } = useEmailConfig()
   const updateConfig = useUpdateEmailConfig()
-  const { showToast } = useToast()
+  const toast = useToast()
   
   const [formData, setFormData] = useState({
     from_email: '',
@@ -52,9 +52,9 @@ export function EmailConfigForm() {
     
     try {
       await updateConfig.mutateAsync(formData)
-      showToast('Configuración guardada correctamente', 'success')
+      toast.success('Configuración guardada correctamente')
     } catch (error) {
-      showToast('Error al guardar la configuración', 'error')
+      toast.error('Error al guardar la configuración')
     }
   }
 

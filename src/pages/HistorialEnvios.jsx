@@ -14,7 +14,7 @@ import {
 } from '../hooks/useEnvios'
 
 export default function HistorialEnvios() {
-  const { showToast } = useToast()
+  const toast = useToast()
   const [filtros, setFiltros] = useState({
     comunidadId: null,
     estado: null,
@@ -33,10 +33,10 @@ export default function HistorialEnvios() {
   const handleReintentar = async (envioId) => {
     try {
       await reintentarEnvio.mutateAsync(envioId)
-      showToast('Envío reintentado correctamente', 'success')
+      toast.success('Envío reintentado correctamente')
       refetch()
     } catch (error) {
-      showToast('Error al reintentar: ' + error.message, 'error')
+      toast.error('Error al reintentar: ' + error.message)
     }
   }
 
