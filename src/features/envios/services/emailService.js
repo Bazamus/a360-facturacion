@@ -100,12 +100,12 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
     // 10. Convertir Blob a base64 para Resend
     const pdfBase64 = await blobToBase64(pdfBlob)
 
-    // 11. Renderizar plantilla HTML
-    const htmlContent = render(
-      <FacturaEmailTemplate
-        factura={datosEmail}
-        empresa={EMPRESA_CONFIG}
-      />
+    // 11. Renderizar plantilla HTML (llamando al componente como función)
+    const htmlContent = await render(
+      FacturaEmailTemplate({
+        factura: datosEmail,
+        empresa: EMPRESA_CONFIG
+      })
     )
 
     // 12. Enviar via Resend
