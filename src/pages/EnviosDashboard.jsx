@@ -107,28 +107,17 @@ export default function EnviosDashboard() {
       {/* Estadísticas */}
       <EnviosStats stats={stats || {}} />
 
-      {/* Grid de contenido */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Envíos recientes */}
-        <EnviosRecientes
-          envios={enviosRecientes || []}
-          isLoading={recientesLoading}
-          onRefresh={refetchRecientes}
-        />
-
-        {/* Rebotes pendientes */}
-        {(rebotes?.length > 0 || rebotesLoading) && (
-          <RebotesPendientes
-            rebotes={rebotes || []}
-            isLoading={rebotesLoading}
-            onReintentar={handleReintentar}
+      {/* Grid de contenido - Layout dinámico según hay rebotes o no */}
+      {!rebotesLoading && (!rebotes || rebotes.length === 0) ? (
+        // Sin rebotes: Envíos recientes a ancho completo
+        <div className="space-y-6">
+          <EnviosRecientes
+            envios={enviosRecientes || []}
+            isLoading={recientesLoading}
+            onRefresh={refetchRecientes}
           />
-        )}
-      </div>
 
-      {/* Información adicional si no hay rebotes */}
-      {!rebotesLoading && (!rebotes || rebotes.length === 0) && (
-        <div className="lg:col-span-1">
+          {/* Mensaje de éxito sin rebotes */}
           <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <Mail className="text-green-600" size={24} />
@@ -140,6 +129,23 @@ export default function EnviosDashboard() {
               Todos los emails han sido entregados correctamente
             </p>
           </div>
+        </div>
+      ) : (
+        // Con rebotes: Grid de 2 columnas
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Envíos recientes */}
+          <EnviosRecientes
+            envios={enviosRecientes || []}
+            isLoading={recientesLoading}
+            onRefresh={refetchRecientes}
+          />
+
+          {/* Rebotes pendientes */}
+          <RebotesPendientes
+            rebotes={rebotes || []}
+            isLoading={rebotesLoading}
+            onReintentar={handleReintentar}
+          />
         </div>
       )}
     </div>
