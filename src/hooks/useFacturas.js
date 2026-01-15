@@ -12,6 +12,7 @@ export function useFacturas(options = {}) {
   return useQuery({
     queryKey: ['facturas', { comunidadId, estado, clienteId, search, limit }],
     queryFn: async () => {
+      // Primero obtener las facturas
       let query = supabase
         .from('v_facturas_resumen')
         .select('*')
@@ -35,9 +36,34 @@ export function useFacturas(options = {}) {
         query = query.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
       }
 
-      const { data, error } = await query
+      const { data: facturas, error } = await query
       if (error) throw error
-      return data
+
+      // Obtener códigos de cliente para las facturas
+      if (facturas?.length > 0) {
+        const clienteIds = [...new Set(facturas.map(f => f.cliente_id).filter(Boolean))]
+
+        if (clienteIds.length > 0) {
+          const { data: clientes } = await supabase
+            .from('clientes')
+            .select('id, codigo_cliente')
+            .in('id', clienteIds)
+
+          // Crear mapa de cliente_id -> codigo_cliente
+          const codigosMap = {}
+          clientes?.forEach(c => {
+            codigosMap[c.id] = c.codigo_cliente
+          })
+
+          // Añadir codigo_cliente a cada factura
+          return facturas.map(f => ({
+            ...f,
+            codigo_cliente: f.cliente_id ? codigosMap[f.cliente_id] || null : null
+          }))
+        }
+      }
+
+      return facturas
     }
   })
 }
@@ -52,7 +78,8 @@ export function useFactura(id) {
           *,
           comunidad:comunidades(id, nombre, codigo),
           ubicacion:ubicaciones(id, nombre),
-          contador:contadores(id, numero_serie)
+          contador:contadores(id, numero_serie),
+          cliente:clientes(codigo_cliente)
         `)
         .eq('id', id)
         .single()

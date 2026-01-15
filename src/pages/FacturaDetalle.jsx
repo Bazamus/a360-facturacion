@@ -257,6 +257,10 @@ export default function FacturaDetalle({ showPdf = false }) {
               <dd className="font-medium">{factura.cliente_nombre}</dd>
             </div>
             <div>
+              <dt className="text-gray-500 text-sm">Código Cliente</dt>
+              <dd className="font-mono">{factura.cliente?.codigo_cliente || '-'}</dd>
+            </div>
+            <div>
               <dt className="text-gray-500 text-sm">NIF</dt>
               <dd>{factura.cliente_nif}</dd>
             </div>

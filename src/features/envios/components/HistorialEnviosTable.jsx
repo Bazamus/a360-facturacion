@@ -24,7 +24,7 @@ export function HistorialEnviosTable({
       key: 'created_at',
       header: 'Fecha',
       render: (value) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-xs text-gray-600">
           {formatFecha(value)}
         </span>
       )
@@ -33,8 +33,18 @@ export function HistorialEnviosTable({
       key: 'factura',
       header: 'Factura',
       render: (_, row) => (
-        <span className="font-medium text-gray-900">
+        <span className="font-medium text-gray-900 text-sm">
           {row?.factura?.numero_completo || '-'}
+        </span>
+      ),
+      sortable: false
+    },
+    {
+      key: 'codigo_cliente',
+      header: 'Cód.',
+      render: (_, row) => (
+        <span className="font-mono text-xs text-gray-600">
+          {row?.cliente?.codigo_cliente || '-'}
         </span>
       ),
       sortable: false
@@ -44,12 +54,12 @@ export function HistorialEnviosTable({
       header: 'Destinatario',
       render: (value, row) => (
         <div>
-          <p className="text-sm text-gray-900">{value || '-'}</p>
           {row?.cliente && (
-            <p className="text-xs text-gray-500">
+            <p className="text-sm text-gray-900 truncate max-w-[150px]">
               {row.cliente.nombre} {row.cliente.apellidos}
             </p>
           )}
+          <p className="text-xs text-gray-500 truncate max-w-[150px]">{value || '-'}</p>
         </div>
       )
     },
@@ -73,16 +83,16 @@ export function HistorialEnviosTable({
       render: (_, row) => {
         const eventos = []
         if (row?.fecha_enviado) {
-          eventos.push(`Enviado: ${formatFecha(row.fecha_enviado)}`)
+          eventos.push(`Env: ${formatFecha(row.fecha_enviado)}`)
         }
         if (row?.fecha_entregado) {
-          eventos.push(`Entregado: ${formatFecha(row.fecha_entregado)}`)
+          eventos.push(`Ent: ${formatFecha(row.fecha_entregado)}`)
         }
         if (row?.fecha_abierto) {
-          eventos.push(`Abierto: ${formatFecha(row.fecha_abierto)}`)
+          eventos.push(`Abie: ${formatFecha(row.fecha_abierto)}`)
         }
         if (row?.fecha_rebote) {
-          eventos.push(`Rebotado: ${formatFecha(row.fecha_rebote)}`)
+          eventos.push(`Reb: ${formatFecha(row.fecha_rebote)}`)
         }
 
         return (
@@ -116,8 +126,8 @@ export function HistorialEnviosTable({
           >
             <Eye size={16} />
           </button>
-          {(row?.estado === 'fallido' || row?.estado === 'rebotado') && 
-           row?.tipo_rebote !== 'hard' && 
+          {(row?.estado === 'fallido' || row?.estado === 'rebotado') &&
+           row?.tipo_rebote !== 'hard' &&
            row?.intentos < row?.max_intentos && (
             <button
               onClick={() => onReintentar?.(row?.id)}
@@ -129,7 +139,7 @@ export function HistorialEnviosTable({
           )}
         </div>
       ),
-      width: '80px',
+      width: '70px',
       sortable: false
     }
   ]

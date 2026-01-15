@@ -83,7 +83,7 @@ export function FacturasTable({
             <tr>
               {/* Columna de selección */}
               {facturasSeleccionables.length > 0 && (
-                <th className="px-4 py-3 w-12">
+                <th className="px-3 py-3 w-10">
                   <Checkbox
                     checked={todasSeleccionadas}
                     onChange={handleSelectAll}
@@ -91,25 +91,28 @@ export function FacturasTable({
                   />
                 </th>
               )}
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Nº Factura
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Fecha
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                Cód.
+              </th>
+              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Cliente
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Comunidad
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Total
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -119,7 +122,7 @@ export function FacturasTable({
               <tr key={factura.id} className="hover:bg-gray-50">
                 {/* Checkbox de selección - solo para borradores */}
                 {facturasSeleccionables.length > 0 && (
-                  <td className="px-4 py-3 w-12">
+                  <td className="px-3 py-3 w-10">
                     {(modo === 'emision' && factura.estado === 'borrador') ||
                      (modo === 'descarga' && ['emitida', 'pagada', 'anulada'].includes(factura.estado)) ? (
                       <Checkbox
@@ -132,36 +135,41 @@ export function FacturasTable({
                     )}
                   </td>
                 )}
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="font-mono font-medium text-gray-900">
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <span className="font-mono font-medium text-gray-900 text-sm">
                     {factura.numero_completo || '— Borrador —'}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-2 py-3 whitespace-nowrap text-sm text-gray-500">
                   {formatDate(factura.fecha_factura)}
                 </td>
-                <td className="px-4 py-3">
-                  <div className="text-sm font-medium text-gray-900">
+                <td className="px-2 py-3 whitespace-nowrap">
+                  <span className="font-mono text-xs text-gray-600">
+                    {factura.codigo_cliente || '-'}
+                  </span>
+                </td>
+                <td className="px-2 py-3">
+                  <div className="text-sm font-medium text-gray-900 truncate max-w-[150px]">
                     {factura.cliente_nombre}
                   </div>
                   <div className="text-xs text-gray-500">
                     {factura.cliente_nif}
                   </div>
                 </td>
-                <td className="px-4 py-3">
-                  <div className="text-sm text-gray-900">
+                <td className="px-2 py-3">
+                  <div className="text-sm text-gray-900 truncate max-w-[120px]">
                     {factura.comunidad_nombre || factura.comunidad?.nombre}
                   </div>
                   <div className="text-xs text-gray-500">
                     {factura.comunidad_codigo || factura.comunidad?.codigo}
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right">
-                  <span className="font-semibold text-gray-900">
+                <td className="px-2 py-3 whitespace-nowrap text-right">
+                  <span className="font-semibold text-gray-900 text-sm">
                     {formatCurrency(factura.total)}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center">
+                <td className="px-2 py-3 whitespace-nowrap text-center">
                   <EstadoBadge estado={factura.estado} size="sm" />
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">

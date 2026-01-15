@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { LOGO_A360_BASE64 } from './logoA360'
 
 // Colores corporativos
 const COLORS = {
@@ -81,27 +82,23 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // =========================================
   // HEADER - Logo y datos empresa
   // =========================================
-  
-  // Logo
-  doc.setFillColor(...COLORS.primary)
-  doc.roundedRect(margin, y, 28, 28, 3, 3, 'F')
-  doc.setTextColor(...COLORS.white)
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
-  doc.text('A360', margin + 14, y + 13, { align: 'center' })
-  doc.setFontSize(6)
-  doc.text('ENERGÍA', margin + 14, y + 19, { align: 'center' })
 
-  // Datos empresa
+  // Logo - Imagen real de A360
+  const logoWidth = 32
+  const logoHeight = 32
+  doc.addImage(LOGO_A360_BASE64, 'JPEG', margin, y - 2, logoWidth, logoHeight)
+
+  // Datos empresa (ajustado para logo más grande)
+  const empresaX = margin + logoWidth + 6
   doc.setTextColor(...COLORS.text)
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.text(EMPRESA.nombre, margin + 34, y + 8)
+  doc.text(EMPRESA.nombre, empresaX, y + 8)
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${EMPRESA.direccion} · ${EMPRESA.cp} ${EMPRESA.ciudad}, ${EMPRESA.provincia}`, margin + 34, y + 14)
-  doc.text(`Tel: ${EMPRESA.telefono} · ${EMPRESA.email}`, margin + 34, y + 20)
-  doc.text(`CIF: ${EMPRESA.cif}`, margin + 34, y + 26)
+  doc.text(`${EMPRESA.direccion} · ${EMPRESA.cp} ${EMPRESA.ciudad}, ${EMPRESA.provincia}`, empresaX, y + 14)
+  doc.text(`Tel: ${EMPRESA.telefono} · ${EMPRESA.email}`, empresaX, y + 20)
+  doc.text(`CIF: ${EMPRESA.cif}`, empresaX, y + 26)
 
   // Título FACTURA
   doc.setFontSize(28)
@@ -134,21 +131,28 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // Caja cliente
   doc.setFillColor(...COLORS.lightGray)
   doc.roundedRect(margin, y, clienteWidth, boxHeight, 3, 3, 'F')
-  
+
+  // Título con código cliente en la misma línea
+  const codigoCliente = factura.cliente?.codigo_cliente || factura.codigo_cliente || ''
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('DATOS DEL CLIENTE', margin + 5, y + 8)
-  
+  const tituloCliente = codigoCliente ? `CÓDIGO CLIENTE: ${codigoCliente}` : 'DATOS DEL CLIENTE'
+  doc.text(tituloCliente, margin + 5, y + 8)
+
+  // Nombre del cliente
   doc.setFontSize(11)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'bold')
-  doc.text(factura.cliente_nombre || '-', margin + 5, y + 16)
-  
+  doc.text(factura.cliente_nombre || '-', margin + 5, y + 15)
+
+  // NIF
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text(`NIF: ${factura.cliente_nif || '-'}`, margin + 5, y + 22)
-  doc.text(`${factura.cliente_direccion || ''} · ${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`, margin + 5, y + 28)
+  doc.text(`NIF: ${factura.cliente_nif || '-'}`, margin + 5, y + 21)
+
+  // Dirección
+  doc.text(`${factura.cliente_direccion || ''} · ${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`, margin + 5, y + 27)
 
   // Caja periodo
   const periodoX = margin + clienteWidth + 6

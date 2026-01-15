@@ -99,6 +99,15 @@ function ClientesList() {
 
   const columns = [
     {
+      key: 'codigo_cliente',
+      header: 'Cód.',
+      render: (value) => (
+        <span className="font-mono text-xs text-gray-600">
+          {value || '-'}
+        </span>
+      )
+    },
+    {
       key: 'nombre',
       header: 'Cliente',
       render: (_, row) => (
@@ -114,33 +123,33 @@ function ClientesList() {
       key: 'tipo',
       header: 'Tipo',
       render: (value) => (
-        <Badge variant={value === 'propietario' ? 'primary' : 'info'}>
-          {value === 'propietario' ? 'Propietario' : 'Inquilino'}
+        <Badge variant={value === 'propietario' ? 'primary' : 'info'} className="text-xs">
+          {value === 'propietario' ? 'Prop.' : 'Inq.'}
         </Badge>
       )
     },
     {
-      key: 'email',
-      header: 'Email',
-      render: (value) => value || '-'
-    },
-    {
-      key: 'telefono',
-      header: 'Teléfono',
-      render: (value) => value || '-'
+      key: 'contacto',
+      header: 'Contacto',
+      render: (_, row) => (
+        <div className="text-sm">
+          <p className="text-gray-900 truncate max-w-[180px]">{row.email || '-'}</p>
+          <p className="text-xs text-gray-500">{row.telefono || '-'}</p>
+        </div>
+      )
     },
     {
       key: 'ubicacion',
       header: 'Ubicación',
       render: (_, row) => {
         const ubicacionActual = row.ubicaciones_clientes?.find(uc => uc.es_actual)
-        if (!ubicacionActual?.ubicacion) return '-'
-        
+        if (!ubicacionActual?.ubicacion) return <span className="text-gray-400">-</span>
+
         const { ubicacion } = ubicacionActual
         return (
           <div className="text-sm">
-            <p>{ubicacion.agrupacion?.comunidad?.nombre}</p>
-            <p className="text-gray-500">
+            <p className="truncate max-w-[150px]">{ubicacion.agrupacion?.comunidad?.nombre}</p>
+            <p className="text-xs text-gray-500 truncate max-w-[150px]">
               {ubicacion.agrupacion?.nombre} - {ubicacion.nombre}
             </p>
           </div>
@@ -154,13 +163,13 @@ function ClientesList() {
       render: (_, row) => (
         <div className="flex flex-col gap-1">
           {row.bloqueado && (
-            <Badge variant="danger">Bloqueado</Badge>
+            <Badge variant="danger" className="text-xs">Bloq.</Badge>
           )}
           {!row.activo && (
-            <Badge variant="default">Inactivo</Badge>
+            <Badge variant="default" className="text-xs">Inact.</Badge>
           )}
           {row.activo && !row.bloqueado && (
-            <Badge variant="success">Activo</Badge>
+            <Badge variant="success" className="text-xs">Activo</Badge>
           )}
         </div>
       )
@@ -173,13 +182,13 @@ function ClientesList() {
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <Link
             to={`/clientes/${row.id}`}
-            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
           >
             <Eye className="h-4 w-4" />
           </Link>
           <Link
             to={`/clientes/${row.id}/editar`}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
           >
             <Edit2 className="h-4 w-4" />
           </Link>
@@ -493,6 +502,12 @@ function DatosPersonalesTab({ cliente }) {
       <div>
         <h3 className="text-sm font-medium text-gray-500 mb-3">Contacto</h3>
         <dl className="space-y-2">
+          <div className="flex justify-between">
+            <dt className="text-sm text-gray-600">Código Cliente</dt>
+            <dd className="text-sm font-mono font-medium text-gray-900">
+              {cliente.codigo_cliente || '-'}
+            </dd>
+          </div>
           <div className="flex justify-between">
             <dt className="text-sm text-gray-600">Email</dt>
             <dd className="text-sm font-medium text-gray-900">

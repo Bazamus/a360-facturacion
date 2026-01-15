@@ -60,7 +60,7 @@ export function useHistorialEnvios(filtros = {}) {
         .select(`
           *,
           factura:facturas(numero_completo, total, comunidad_id),
-          cliente:clientes(nombre, apellidos)
+          cliente:clientes(nombre, apellidos, codigo_cliente)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1)
