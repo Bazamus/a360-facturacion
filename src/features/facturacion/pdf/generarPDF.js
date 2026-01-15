@@ -126,7 +126,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   
   const clienteWidth = contentWidth * 0.62
   const periodoWidth = contentWidth * 0.35
-  const boxHeight = 32
+  const boxHeight = 38
 
   // Caja cliente
   doc.setFillColor(...COLORS.lightGray)
@@ -134,17 +134,17 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
 
   // Título con código cliente en la misma línea
   const codigoCliente = factura.cliente?.codigo_cliente || factura.codigo_cliente || ''
-  doc.setFontSize(10)
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
   const tituloCliente = codigoCliente ? `CÓDIGO CLIENTE: ${codigoCliente}` : 'DATOS DEL CLIENTE'
-  doc.text(tituloCliente, margin + 5, y + 8)
+  doc.text(tituloCliente, margin + 5, y + 7)
 
   // Nombre del cliente
-  doc.setFontSize(11)
+  doc.setFontSize(10)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'bold')
-  doc.text(factura.cliente_nombre || '-', margin + 5, y + 15)
+  doc.text(factura.cliente_nombre || '-', margin + 5, y + 14)
 
   // NIF
   doc.setFont('helvetica', 'normal')
@@ -152,7 +152,9 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.text(`NIF: ${factura.cliente_nif || '-'}`, margin + 5, y + 21)
 
   // Dirección
-  doc.text(`${factura.cliente_direccion || ''} · ${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`, margin + 5, y + 27)
+  const direccionCompleta = `${factura.cliente_direccion || ''} - ${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`
+  doc.setFontSize(8)
+  doc.text(direccionCompleta, margin + 5, y + 28)
 
   // Caja periodo
   const periodoX = margin + clienteWidth + 6
