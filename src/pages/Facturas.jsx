@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
-import { FacturasTable, FacturaFilters, EstadoBadge } from '@/features/facturacion/components'
+import { FacturasTable, FacturaFilters, EstadoBadge, ModalExportarFacturas, ProgressoExportacion } from '@/features/facturacion/components'
 import { formatCurrency, formatDate } from '@/features/facturacion/utils/calculos'
 import { descargarFacturaPDF } from '@/features/facturacion/pdf'
 import { supabase } from '@/lib/supabase'
@@ -41,7 +41,11 @@ export default function Facturas() {
   const deleteFactura = useDeleteFactura()
   const marcarPagada = useMarcarPagada()
   const emitirMasivo = useEmitirFacturasMasivo()
-  const { exportarCompleto, exportarResumen } = useExportarFacturas()
+  const { exportar } = useExportarFacturas()
+
+  // Estados para exportación
+  const [modalExport, setModalExport] = useState(false)
+  const [progresoExportacion, setProgresoExportacion] = useState(null)
 
   // Contar borradores para mostrar botón de emisión rápida
   const borradoresCount = facturas?.filter(f => f.estado === 'borrador').length || 0
@@ -161,19 +165,39 @@ export default function Facturas() {
     setSelectedIds(borradoresIds)
   }
 
-  // Handler exportar a Excel
-  const handleExportarExcel = async () => {
+  // Handler abrir modal de exportación
+  const handleAbrirModalExportar = () => {
     if (!facturas || facturas.length === 0) {
       toast.error('No hay facturas para exportar')
       return
     }
+    setModalExport(true)
+  }
 
+  // Handler exportar a Excel con configuración
+  const handleExportarExcel = async (config) => {
     try {
-      await exportarCompleto.mutateAsync({ facturas })
+      setModalExport(false)
+      setProgresoExportacion({ current: 0, total: 100, message: 'Iniciando...' })
+
+      await exportar.mutateAsync({
+        facturas,
+        config,
+        onProgress: (progreso) => {
+          setProgresoExportacion(progreso)
+        }
+      })
+
       toast.success(`${facturas.length} factura${facturas.length > 1 ? 's' : ''} exportada${facturas.length > 1 ? 's' : ''} a Excel`)
+
+      // Limpiar progreso después de un delay
+      setTimeout(() => {
+        setProgresoExportacion(null)
+      }, 1000)
     } catch (error) {
       console.error('Error exportando facturas:', error)
       toast.error('Error al exportar facturas: ' + error.message)
+      setProgresoExportacion(null)
     }
   }
 
@@ -275,12 +299,12 @@ export default function Facturas() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={handleExportarExcel}
-            disabled={!facturas || facturas.length === 0 || exportarCompleto.isPending}
+            onClick={handleAbrirModalExportar}
+            disabled={!facturas || facturas.length === 0 || exportar.isPending}
             title="Exportar facturas a Excel"
           >
             <FileSpreadsheet className="w-4 h-4 mr-2" />
-            {exportarCompleto.isPending ? 'Exportando...' : 'Excel'}
+            Excel
           </Button>
           <Button onClick={() => navigate('/facturacion/generar')}>
             <Plus className="w-4 h-4 mr-2" />
@@ -487,6 +511,18 @@ export default function Facturas() {
           </Card>
         </div>
       )}
+
+      {/* Modal de exportación */}
+      <ModalExportarFacturas
+        isOpen={modalExport}
+        onClose={() => setModalExport(false)}
+        onExport={handleExportarExcel}
+        totalFacturas={facturas?.length || 0}
+        isExporting={exportar.isPending}
+      />
+
+      {/* Indicador de progreso */}
+      <ProgressoExportacion progreso={progresoExportacion} />
     </div>
   )
 }

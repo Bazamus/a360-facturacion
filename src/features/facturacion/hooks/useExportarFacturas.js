@@ -4,18 +4,33 @@ import { supabase } from '../../../lib/supabase'
 
 /**
  * Hook para exportar facturas a Excel
- * Ofrece diferentes modos de exportación
+ * Ofrece diferentes modos de exportación con opciones avanzadas
  */
 export function useExportarFacturas() {
   /**
-   * Exporta facturas en modo completo (2 pestañas)
+   * Exporta facturas según la configuración proporcionada
    */
-  const exportarCompleto = useMutation({
-    mutationFn: async ({ facturas, opciones = {} }) => {
+  const exportar = useMutation({
+    mutationFn: async ({ facturas, config, onProgress }) => {
+      const {
+        formato = 'completo',
+        columnasAdicionales = {},
+        formatoNumeros = 'espanol',
+        formatoAvanzado = true
+      } = config
+
+      // Callback de progreso
+      const reportProgress = (current, total, message) => {
+        if (onProgress) onProgress({ current, total, message })
+      }
+
+      reportProgress(0, 100, 'Preparando datos...')
+
       // Obtener IDs de facturas
       const facturasIds = facturas.map(f => f.id)
 
       // Obtener líneas de todas las facturas
+      reportProgress(20, 100, 'Obteniendo detalles de facturas...')
       const { data: lineas, error } = await supabase
         .from('facturas_lineas')
         .select(`
@@ -28,243 +43,368 @@ export function useExportarFacturas() {
 
       if (error) throw error
 
-      // Preparar datos para pestaña "Facturas"
-      const datosFacturas = facturas.map(f => ({
-        'Nº FACTURA': f.numero_completo || '-',
-        'FECHA': formatDate(f.fecha_factura),
-        'CÓD': f.codigo_cliente || f.cliente?.codigo_cliente || '-',
-        'CLIENTE': f.cliente_nombre || '-',
-        'NIF': f.cliente_nif || '-',
-        'COMUNIDAD': f.comunidad_nombre || f.comunidad?.nombre || '-',
-        'ESTADO': formatEstado(f.estado),
-        'BASE IMPONIBLE': f.base_imponible,
-        'IVA (€)': f.importe_iva,
-        'TOTAL (€)': f.total,
-        'PERIODO INICIO': formatDate(f.periodo_inicio),
-        'PERIODO FIN': formatDate(f.periodo_fin),
-        'MÉTODO PAGO': formatMetodoPago(f.metodo_pago)
-      }))
+      reportProgress(40, 100, 'Generando Excel...')
 
-      // Preparar datos para pestaña "Detalles de Consumo"
-      const datosDetalles = lineas.map(l => ({
-        'Nº FACTURA': l.factura.numero_completo || '-',
-        'CONCEPTO': l.concepto_codigo || '-',
-        'DESCRIPCIÓN': l.concepto_nombre || '-',
-        'UNIDAD': l.unidad_medida || '-',
-        'CANTIDAD': l.cantidad,
-        'PRECIO UNITARIO': l.precio_unitario,
-        'SUBTOTAL': l.subtotal,
-        'IVA (€)': Math.round(l.subtotal * 0.21 * 100) / 100,
-        'TOTAL': Math.round((l.subtotal * 1.21) * 100) / 100,
-        'LECTURA ANTERIOR': l.es_termino_fijo ? '-' : (l.lectura_anterior || '-'),
-        'LECTURA ACTUAL': l.es_termino_fijo ? '-' : (l.lectura_actual || '-'),
-        'CONSUMO': l.es_termino_fijo ? '-' : (l.consumo || '-'),
-        'FECHA LECTURA': l.es_termino_fijo ? '-' : formatDate(l.fecha_lectura_actual)
-      }))
+      let wb, resultado
 
-      // Calcular totales para pestaña Facturas
-      const totales = {
-        'Nº FACTURA': 'TOTAL',
-        'FECHA': '',
-        'CÓD': '',
-        'CLIENTE': '',
-        'NIF': '',
-        'COMUNIDAD': '',
-        'ESTADO': '',
-        'BASE IMPONIBLE': datosFacturas.reduce((sum, f) => sum + (f['BASE IMPONIBLE'] || 0), 0),
-        'IVA (€)': datosFacturas.reduce((sum, f) => sum + (f['IVA (€)'] || 0), 0),
-        'TOTAL (€)': datosFacturas.reduce((sum, f) => sum + (f['TOTAL (€)'] || 0), 0),
-        'PERIODO INICIO': '',
-        'PERIODO FIN': '',
-        'MÉTODO PAGO': ''
+      switch (formato) {
+        case 'resumen':
+          resultado = await generarResumen(facturas, { columnasAdicionales, formatoNumeros, formatoAvanzado })
+          wb = resultado.workbook
+          break
+        case 'completo':
+          resultado = await generarCompleto(facturas, lineas, { columnasAdicionales, formatoNumeros, formatoAvanzado })
+          wb = resultado.workbook
+          break
+        case 'detallado':
+          resultado = await generarDetallado(facturas, lineas, { formatoNumeros, formatoAvanzado })
+          wb = resultado.workbook
+          break
+        default:
+          throw new Error('Formato no válido')
       }
 
-      // Añadir totales al final
-      datosFacturas.push(totales)
+      reportProgress(80, 100, 'Descargando archivo...')
 
-      // Crear workbook
-      const wb = XLSX.utils.book_new()
-
-      // Crear hoja "Facturas"
-      const wsFacturas = XLSX.utils.json_to_sheet(datosFacturas)
-
-      // Aplicar formato a columnas numéricas
-      const rangeFacturas = XLSX.utils.decode_range(wsFacturas['!ref'])
-      for (let R = rangeFacturas.s.r + 1; R <= rangeFacturas.e.r; R++) {
-        // Columnas BASE IMPONIBLE, IVA, TOTAL
-        const cellBaseImponible = wsFacturas[XLSX.utils.encode_cell({ r: R, c: 7 })]
-        const cellIVA = wsFacturas[XLSX.utils.encode_cell({ r: R, c: 8 })]
-        const cellTotal = wsFacturas[XLSX.utils.encode_cell({ r: R, c: 9 })]
-
-        if (cellBaseImponible) cellBaseImponible.z = '#,##0.00 "€"'
-        if (cellIVA) cellIVA.z = '#,##0.00 "€"'
-        if (cellTotal) cellTotal.z = '#,##0.00 "€"'
-      }
-
-      // Ajustar anchos de columna
-      wsFacturas['!cols'] = [
-        { wch: 15 }, // Nº FACTURA
-        { wch: 12 }, // FECHA
-        { wch: 10 }, // CÓD
-        { wch: 25 }, // CLIENTE
-        { wch: 12 }, // NIF
-        { wch: 20 }, // COMUNIDAD
-        { wch: 10 }, // ESTADO
-        { wch: 15 }, // BASE IMPONIBLE
-        { wch: 12 }, // IVA
-        { wch: 12 }, // TOTAL
-        { wch: 14 }, // PERIODO INICIO
-        { wch: 14 }, // PERIODO FIN
-        { wch: 16 }  // MÉTODO PAGO
-      ]
-
-      XLSX.utils.book_append_sheet(wb, wsFacturas, 'Facturas')
-
-      // Crear hoja "Detalles de Consumo"
-      const wsDetalles = XLSX.utils.json_to_sheet(datosDetalles)
-
-      // Aplicar formato a columnas numéricas de detalles
-      const rangeDetalles = XLSX.utils.decode_range(wsDetalles['!ref'])
-      for (let R = rangeDetalles.s.r + 1; R <= rangeDetalles.e.r; R++) {
-        // CANTIDAD, PRECIO UNITARIO, SUBTOTAL, IVA, TOTAL
-        const cellCantidad = wsDetalles[XLSX.utils.encode_cell({ r: R, c: 4 })]
-        const cellPrecio = wsDetalles[XLSX.utils.encode_cell({ r: R, c: 5 })]
-        const cellSubtotal = wsDetalles[XLSX.utils.encode_cell({ r: R, c: 6 })]
-        const cellIVA = wsDetalles[XLSX.utils.encode_cell({ r: R, c: 7 })]
-        const cellTotal = wsDetalles[XLSX.utils.encode_cell({ r: R, c: 8 })]
-
-        if (cellCantidad && typeof cellCantidad.v === 'number') cellCantidad.z = '#,##0.00'
-        if (cellPrecio) cellPrecio.z = '#,##0.00 "€"'
-        if (cellSubtotal) cellSubtotal.z = '#,##0.00 "€"'
-        if (cellIVA) cellIVA.z = '#,##0.00 "€"'
-        if (cellTotal) cellTotal.z = '#,##0.00 "€"'
-      }
-
-      // Ajustar anchos de columna
-      wsDetalles['!cols'] = [
-        { wch: 15 }, // Nº FACTURA
-        { wch: 10 }, // CONCEPTO
-        { wch: 28 }, // DESCRIPCIÓN
-        { wch: 8 },  // UNIDAD
-        { wch: 12 }, // CANTIDAD
-        { wch: 16 }, // PRECIO UNITARIO
-        { wch: 12 }, // SUBTOTAL
-        { wch: 10 }, // IVA
-        { wch: 10 }, // TOTAL
-        { wch: 16 }, // LECTURA ANTERIOR
-        { wch: 16 }, // LECTURA ACTUAL
-        { wch: 12 }, // CONSUMO
-        { wch: 14 }  // FECHA LECTURA
-      ]
-
-      XLSX.utils.book_append_sheet(wb, wsDetalles, 'Detalles de Consumo')
-
-      // Generar archivo
+      // Generar y descargar archivo
       const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
       const blob = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       })
 
-      // Generar nombre de archivo
-      const nombreArchivo = generarNombreArchivo(facturas, opciones)
-
-      // Descargar
+      const nombreArchivo = generarNombreArchivo(facturas, config)
       descargarBlob(blob, nombreArchivo)
+
+      reportProgress(100, 100, 'Completado')
 
       return {
         success: true,
         totalFacturas: facturas.length,
-        totalLineas: lineas.length
+        totalLineas: lineas?.length || 0,
+        formato
       }
     }
   })
 
-  /**
-   * Exporta solo resumen de facturas (sin detalles)
-   */
-  const exportarResumen = useMutation({
-    mutationFn: async ({ facturas, opciones = {} }) => {
-      // Preparar datos
-      const datos = facturas.map(f => ({
-        'Nº FACTURA': f.numero_completo || '-',
-        'FECHA': formatDate(f.fecha_factura),
-        'CÓD': f.codigo_cliente || f.cliente?.codigo_cliente || '-',
-        'CLIENTE': f.cliente_nombre || '-',
-        'NIF': f.cliente_nif || '-',
-        'COMUNIDAD': f.comunidad_nombre || f.comunidad?.nombre || '-',
-        'ESTADO': formatEstado(f.estado),
-        'PERIODO INICIO': formatDate(f.periodo_inicio),
-        'PERIODO FIN': formatDate(f.periodo_fin),
-        'BASE IMPONIBLE': f.base_imponible,
-        'IVA (€)': f.importe_iva,
-        'TOTAL (€)': f.total,
-        'MÉTODO PAGO': formatMetodoPago(f.metodo_pago)
-      }))
-
-      // Calcular totales
-      const totales = {
-        'Nº FACTURA': 'TOTAL',
-        'FECHA': '',
-        'CÓD': '',
-        'CLIENTE': '',
-        'NIF': '',
-        'COMUNIDAD': '',
-        'ESTADO': '',
-        'PERIODO INICIO': '',
-        'PERIODO FIN': '',
-        'BASE IMPONIBLE': datos.reduce((sum, f) => sum + (f['BASE IMPONIBLE'] || 0), 0),
-        'IVA (€)': datos.reduce((sum, f) => sum + (f['IVA (€)'] || 0), 0),
-        'TOTAL (€)': datos.reduce((sum, f) => sum + (f['TOTAL (€)'] || 0), 0),
-        'MÉTODO PAGO': ''
-      }
-
-      datos.push(totales)
-
-      // Crear workbook
-      const wb = XLSX.utils.book_new()
-      const ws = XLSX.utils.json_to_sheet(datos)
-
-      // Aplicar formato a columnas numéricas
-      const range = XLSX.utils.decode_range(ws['!ref'])
-      for (let R = range.s.r + 1; R <= range.e.r; R++) {
-        const cellBaseImponible = ws[XLSX.utils.encode_cell({ r: R, c: 9 })]
-        const cellIVA = ws[XLSX.utils.encode_cell({ r: R, c: 10 })]
-        const cellTotal = ws[XLSX.utils.encode_cell({ r: R, c: 11 })]
-
-        if (cellBaseImponible) cellBaseImponible.z = '#,##0.00 "€"'
-        if (cellIVA) cellIVA.z = '#,##0.00 "€"'
-        if (cellTotal) cellTotal.z = '#,##0.00 "€"'
-      }
-
-      // Ajustar anchos
-      ws['!cols'] = [
-        { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 12 },
-        { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 15 },
-        { wch: 12 }, { wch: 12 }, { wch: 16 }
-      ]
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Facturas')
-
-      // Generar y descargar
-      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-      const blob = new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      })
-
-      const nombreArchivo = generarNombreArchivo(facturas, opciones)
-      descargarBlob(blob, nombreArchivo)
-
-      return { success: true, totalFacturas: facturas.length }
-    }
-  })
-
-  return {
-    exportarCompleto,
-    exportarResumen
-  }
+  return { exportar }
 }
 
-// Funciones auxiliares
+// ==============================================
+// FUNCIONES GENERADORAS DE FORMATOS
+// ==============================================
+
+async function generarResumen(facturas, opciones) {
+  const { columnasAdicionales, formatoNumeros, formatoAvanzado } = opciones
+
+  // Construir columnas base
+  const columnas = [
+    'Nº FACTURA',
+    'FECHA',
+    'CÓD',
+    'CLIENTE',
+    'NIF',
+    'COMUNIDAD',
+    'ESTADO',
+    'PERIODO INICIO',
+    'PERIODO FIN',
+    'BASE IMPONIBLE',
+    'IVA (€)',
+    'TOTAL (€)',
+    'MÉTODO PAGO'
+  ]
+
+  // Añadir columnas adicionales
+  if (columnasAdicionales.direccion) columnas.splice(6, 0, 'DIRECCIÓN')
+  if (columnasAdicionales.email) columnas.splice(6, 0, 'EMAIL')
+  if (columnasAdicionales.iban) columnas.splice(6, 0, 'IBAN')
+  if (columnasAdicionales.numeroContador) columnas.push('Nº CONTADOR')
+  if (columnasAdicionales.ubicacion) columnas.push('UBICACIÓN')
+
+  // Preparar datos
+  const datos = facturas.map(f => {
+    const fila = {
+      'Nº FACTURA': f.numero_completo || '-',
+      'FECHA': formatDate(f.fecha_factura),
+      'CÓD': f.codigo_cliente || f.cliente?.codigo_cliente || '-',
+      'CLIENTE': f.cliente_nombre || '-',
+      'NIF': f.cliente_nif || '-',
+      'COMUNIDAD': f.comunidad_nombre || f.comunidad?.nombre || '-',
+      'ESTADO': formatEstado(f.estado),
+      'PERIODO INICIO': formatDate(f.periodo_inicio),
+      'PERIODO FIN': formatDate(f.periodo_fin),
+      'BASE IMPONIBLE': f.base_imponible,
+      'IVA (€)': f.importe_iva,
+      'TOTAL (€)': f.total,
+      'MÉTODO PAGO': formatMetodoPago(f.metodo_pago)
+    }
+
+    // Añadir columnas adicionales
+    if (columnasAdicionales.direccion) {
+      const direccion = [f.cliente_direccion, f.cliente_cp, f.cliente_ciudad]
+        .filter(Boolean).join(', ')
+      fila['DIRECCIÓN'] = direccion || '-'
+    }
+    if (columnasAdicionales.email) fila['EMAIL'] = f.cliente_email || '-'
+    if (columnasAdicionales.iban) fila['IBAN'] = f.cliente_iban || '-'
+    if (columnasAdicionales.numeroContador) fila['Nº CONTADOR'] = f.contador_numero_serie || '-'
+    if (columnasAdicionales.ubicacion) fila['UBICACIÓN'] = f.ubicacion_direccion || '-'
+
+    return fila
+  })
+
+  // Calcular totales
+  const totales = {
+    'Nº FACTURA': 'TOTAL',
+    'BASE IMPONIBLE': datos.reduce((sum, f) => sum + (f['BASE IMPONIBLE'] || 0), 0),
+    'IVA (€)': datos.reduce((sum, f) => sum + (f['IVA (€)'] || 0), 0),
+    'TOTAL (€)': datos.reduce((sum, f) => sum + (f['TOTAL (€)'] || 0), 0)
+  }
+
+  datos.push(totales)
+
+  // Crear workbook
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(datos)
+
+  // Aplicar formato
+  if (formatoAvanzado) {
+    aplicarFormatoAvanzado(ws, datos.length, columnas, formatoNumeros, true)
+  } else {
+    aplicarFormatoBasico(ws, datos.length, columnas, formatoNumeros)
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Facturas')
+
+  return { workbook: wb }
+}
+
+async function generarCompleto(facturas, lineas, opciones) {
+  const { columnasAdicionales, formatoNumeros, formatoAvanzado } = opciones
+
+  // Pestaña 1: Facturas
+  const columnasFacturas = [
+    'Nº FACTURA',
+    'FECHA',
+    'CÓD',
+    'CLIENTE',
+    'NIF',
+    'COMUNIDAD',
+    'ESTADO',
+    'BASE IMPONIBLE',
+    'IVA (€)',
+    'TOTAL (€)',
+    'PERIODO INICIO',
+    'PERIODO FIN',
+    'MÉTODO PAGO'
+  ]
+
+  // Añadir columnas adicionales
+  if (columnasAdicionales.direccion) columnasFacturas.splice(6, 0, 'DIRECCIÓN')
+  if (columnasAdicionales.email) columnasFacturas.splice(6, 0, 'EMAIL')
+  if (columnasAdicionales.iban) columnasFacturas.splice(6, 0, 'IBAN')
+  if (columnasAdicionales.numeroContador) columnasFacturas.push('Nº CONTADOR')
+  if (columnasAdicionales.ubicacion) columnasFacturas.push('UBICACIÓN')
+
+  const datosFacturas = facturas.map(f => {
+    const fila = {
+      'Nº FACTURA': f.numero_completo || '-',
+      'FECHA': formatDate(f.fecha_factura),
+      'CÓD': f.codigo_cliente || f.cliente?.codigo_cliente || '-',
+      'CLIENTE': f.cliente_nombre || '-',
+      'NIF': f.cliente_nif || '-',
+      'COMUNIDAD': f.comunidad_nombre || f.comunidad?.nombre || '-',
+      'ESTADO': formatEstado(f.estado),
+      'BASE IMPONIBLE': f.base_imponible,
+      'IVA (€)': f.importe_iva,
+      'TOTAL (€)': f.total,
+      'PERIODO INICIO': formatDate(f.periodo_inicio),
+      'PERIODO FIN': formatDate(f.periodo_fin),
+      'MÉTODO PAGO': formatMetodoPago(f.metodo_pago)
+    }
+
+    if (columnasAdicionales.direccion) {
+      const direccion = [f.cliente_direccion, f.cliente_cp, f.cliente_ciudad]
+        .filter(Boolean).join(', ')
+      fila['DIRECCIÓN'] = direccion || '-'
+    }
+    if (columnasAdicionales.email) fila['EMAIL'] = f.cliente_email || '-'
+    if (columnasAdicionales.iban) fila['IBAN'] = f.cliente_iban || '-'
+    if (columnasAdicionales.numeroContador) fila['Nº CONTADOR'] = f.contador_numero_serie || '-'
+    if (columnasAdicionales.ubicacion) fila['UBICACIÓN'] = f.ubicacion_direccion || '-'
+
+    return fila
+  })
+
+  // Totales facturas
+  const totalesFacturas = {
+    'Nº FACTURA': 'TOTAL',
+    'BASE IMPONIBLE': datosFacturas.reduce((sum, f) => sum + (f['BASE IMPONIBLE'] || 0), 0),
+    'IVA (€)': datosFacturas.reduce((sum, f) => sum + (f['IVA (€)'] || 0), 0),
+    'TOTAL (€)': datosFacturas.reduce((sum, f) => sum + (f['TOTAL (€)'] || 0), 0)
+  }
+  datosFacturas.push(totalesFacturas)
+
+  // Pestaña 2: Detalles
+  const datosDetalles = lineas.map(l => ({
+    'Nº FACTURA': l.factura.numero_completo || '-',
+    'CONCEPTO': l.concepto_codigo || '-',
+    'DESCRIPCIÓN': l.concepto_nombre || '-',
+    'UNIDAD': l.unidad_medida || '-',
+    'CANTIDAD': l.cantidad,
+    'PRECIO UNITARIO': l.precio_unitario,
+    'SUBTOTAL': l.subtotal,
+    'IVA (€)': Math.round(l.subtotal * 0.21 * 100) / 100,
+    'TOTAL': Math.round((l.subtotal * 1.21) * 100) / 100,
+    'LECTURA ANTERIOR': l.es_termino_fijo ? '-' : (l.lectura_anterior || '-'),
+    'LECTURA ACTUAL': l.es_termino_fijo ? '-' : (l.lectura_actual || '-'),
+    'CONSUMO': l.es_termino_fijo ? '-' : (l.consumo || '-'),
+    'FECHA LECTURA': l.es_termino_fijo ? '-' : formatDate(l.fecha_lectura_actual)
+  }))
+
+  // Crear workbook
+  const wb = XLSX.utils.book_new()
+
+  // Hoja 1: Facturas
+  const wsFacturas = XLSX.utils.json_to_sheet(datosFacturas)
+  if (formatoAvanzado) {
+    aplicarFormatoAvanzado(wsFacturas, datosFacturas.length, columnasFacturas, formatoNumeros, true)
+  } else {
+    aplicarFormatoBasico(wsFacturas, datosFacturas.length, columnasFacturas, formatoNumeros)
+  }
+  XLSX.utils.book_append_sheet(wb, wsFacturas, 'Facturas')
+
+  // Hoja 2: Detalles
+  const wsDetalles = XLSX.utils.json_to_sheet(datosDetalles)
+  const columnasDetalles = ['Nº FACTURA', 'CONCEPTO', 'DESCRIPCIÓN', 'UNIDAD', 'CANTIDAD', 'PRECIO UNITARIO', 'SUBTOTAL', 'IVA (€)', 'TOTAL', 'LECTURA ANTERIOR', 'LECTURA ACTUAL', 'CONSUMO', 'FECHA LECTURA']
+  if (formatoAvanzado) {
+    aplicarFormatoAvanzado(wsDetalles, datosDetalles.length, columnasDetalles, formatoNumeros, false)
+  } else {
+    aplicarFormatoBasico(wsDetalles, datosDetalles.length, columnasDetalles, formatoNumeros)
+  }
+  XLSX.utils.book_append_sheet(wb, wsDetalles, 'Detalles de Consumo')
+
+  return { workbook: wb }
+}
+
+async function generarDetallado(facturas, lineas, opciones) {
+  const { formatoNumeros, formatoAvanzado } = opciones
+
+  // Crear mapa de facturas por ID
+  const facturasMap = {}
+  facturas.forEach(f => {
+    facturasMap[f.id] = f
+  })
+
+  // Combinar datos de facturas y líneas
+  const datos = lineas.map(l => {
+    const factura = facturasMap[l.factura_id]
+    if (!factura) return null
+
+    return {
+      'Nº FACTURA': factura.numero_completo || '-',
+      'FECHA': formatDate(factura.fecha_factura),
+      'CÓD': factura.codigo_cliente || factura.cliente?.codigo_cliente || '-',
+      'CLIENTE': factura.cliente_nombre || '-',
+      'NIF': factura.cliente_nif || '-',
+      'COMUNIDAD': factura.comunidad_nombre || factura.comunidad?.nombre || '-',
+      'ESTADO': formatEstado(factura.estado),
+      'CONCEPTO': l.concepto_codigo || '-',
+      'DESCRIPCIÓN': l.concepto_nombre || '-',
+      'CANTIDAD': l.cantidad,
+      'PRECIO UNITARIO': l.precio_unitario,
+      'SUBTOTAL': l.subtotal,
+      'IVA LÍNEA (€)': Math.round(l.subtotal * 0.21 * 100) / 100,
+      'TOTAL LÍNEA (€)': Math.round((l.subtotal * 1.21) * 100) / 100,
+      'BASE IMPONIBLE': factura.base_imponible,
+      'IVA FACTURA (€)': factura.importe_iva,
+      'TOTAL FACTURA (€)': factura.total
+    }
+  }).filter(Boolean)
+
+  const columnas = ['Nº FACTURA', 'FECHA', 'CÓD', 'CLIENTE', 'NIF', 'COMUNIDAD', 'ESTADO', 'CONCEPTO', 'DESCRIPCIÓN', 'CANTIDAD', 'PRECIO UNITARIO', 'SUBTOTAL', 'IVA LÍNEA (€)', 'TOTAL LÍNEA (€)', 'BASE IMPONIBLE', 'IVA FACTURA (€)', 'TOTAL FACTURA (€)']
+
+  // Crear workbook
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(datos)
+
+  if (formatoAvanzado) {
+    aplicarFormatoAvanzado(ws, datos.length, columnas, formatoNumeros, false)
+  } else {
+    aplicarFormatoBasico(ws, datos.length, columnas, formatoNumeros)
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Facturas Detalladas')
+
+  return { workbook: wb }
+}
+
+// ==============================================
+// FUNCIONES DE FORMATO
+// ==============================================
+
+function aplicarFormatoBasico(ws, numRows, columnas, formatoNumeros) {
+  const range = XLSX.utils.decode_range(ws['!ref'])
+
+  // Aplicar formato a columnas numéricas
+  const formatoMoneda = formatoNumeros === 'espanol' ? '#,##0.00 "€"' : '#,##0.00 " €"'
+  const formatoNumero = formatoNumeros === 'espanol' ? '#,##0.00' : '#,##0.00'
+
+  for (let R = range.s.r + 1; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })]
+      if (!cell) continue
+
+      const colName = columnas[C]
+      if (colName && typeof cell.v === 'number') {
+        if (colName.includes('€') || colName.includes('IMPONIBLE') || colName.includes('IVA') || colName.includes('TOTAL') || colName.includes('PRECIO') || colName.includes('SUBTOTAL')) {
+          cell.z = formatoMoneda
+        } else if (colName === 'CANTIDAD' || colName === 'CONSUMO') {
+          cell.z = formatoNumero
+        }
+      }
+    }
+  }
+
+  // Ajustar anchos
+  const colWidths = columnas.map(col => {
+    if (col.includes('FACTURA')) return { wch: 15 }
+    if (col === 'FECHA' || col.includes('PERIODO')) return { wch: 12 }
+    if (col === 'CÓD') return { wch: 10 }
+    if (col === 'CLIENTE' || col === 'DESCRIPCIÓN') return { wch: 28 }
+    if (col === 'NIF' || col === 'ESTADO') return { wch: 12 }
+    if (col === 'COMUNIDAD') return { wch: 20 }
+    if (col.includes('DIRECCIÓN') || col === 'EMAIL') return { wch: 35 }
+    if (col === 'IBAN') return { wch: 25 }
+    if (col.includes('UBICACIÓN')) return { wch: 30 }
+    return { wch: 15 }
+  })
+  ws['!cols'] = colWidths
+}
+
+function aplicarFormatoAvanzado(ws, numRows, columnas, formatoNumeros, conTotales) {
+  // Aplicar formato básico primero
+  aplicarFormatoBasico(ws, numRows, columnas, formatoNumeros)
+
+  const range = XLSX.utils.decode_range(ws['!ref'])
+
+  // Congelar primera fila (cabeceras)
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+
+  // Aplicar filtros automáticos
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({
+    s: { c: range.s.c, r: range.s.r },
+    e: { c: range.e.c, r: conTotales ? range.e.r - 1 : range.e.r }
+  })}
+
+  // Nota: xlsx library tiene soporte limitado para estilos (colores, negritas, etc.)
+  // Para formato avanzado completo se necesitaría xlsx-style o similar
+  // Por ahora aplicamos lo que podemos con la librería estándar
+}
+
+// ==============================================
+// FUNCIONES AUXILIARES
+// ==============================================
+
 function formatDate(date) {
   if (!date) return '-'
   const d = new Date(date)
@@ -291,14 +431,15 @@ function formatMetodoPago(metodo) {
   return metodos[metodo] || metodo
 }
 
-function generarNombreArchivo(facturas, opciones = {}) {
+function generarNombreArchivo(facturas, config) {
   const fecha = new Date().toISOString().split('T')[0]
+  const formato = config.formato || 'completo'
 
   // Si hay un solo cliente, usar su nombre
   const clientes = [...new Set(facturas.map(f => f.cliente_nombre))]
   if (clientes.length === 1) {
     const nombreCliente = clientes[0].replace(/\s+/g, '-').substring(0, 30)
-    return `Facturas_${nombreCliente}_${fecha}.xlsx`
+    return `Facturas_${nombreCliente}_${formato}_${fecha}.xlsx`
   }
 
   // Si todas son del mismo mes/año
@@ -311,11 +452,11 @@ function generarNombreArchivo(facturas, opciones = {}) {
       primeraFecha.getFullYear() === ultimaFecha.getFullYear()) {
     const mes = String(primeraFecha.getMonth() + 1).padStart(2, '0')
     const anio = primeraFecha.getFullYear()
-    return `Facturas_${anio}-${mes}.xlsx`
+    return `Facturas_${anio}-${mes}_${formato}.xlsx`
   }
 
   // Nombre genérico
-  return `Facturas_${fecha}.xlsx`
+  return `Facturas_${formato}_${fecha}.xlsx`
 }
 
 function descargarBlob(blob, nombreArchivo) {
