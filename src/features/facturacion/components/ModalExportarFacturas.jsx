@@ -52,7 +52,7 @@ export function ModalExportarFacturas({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       onClose={onClose}
       title="Exportar Facturas a Excel"
       size="lg"
