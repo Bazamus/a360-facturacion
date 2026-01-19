@@ -3,7 +3,7 @@
 -- Cambiar formato de "2/230371985" a "230371985"
 -- =====================================================
 
--- Paso 1: Eliminar vistas que dependen de numero_completo
+-- Paso 1: Eliminar vistas que dependen de numero_completo (solo si existen)
 DROP VIEW IF EXISTS v_facturas_pendientes_envio CASCADE;
 DROP VIEW IF EXISTS v_facturas_pendientes_remesa CASCADE;
 DROP VIEW IF EXISTS v_reporte_consumos_vivienda CASCADE;
@@ -23,7 +23,7 @@ GENERATED ALWAYS AS (
   END
 ) STORED;
 
--- Paso 4: Recrear vista v_facturas_resumen
+-- Paso 4: Recrear vista v_facturas_resumen (SIEMPRE existe)
 CREATE VIEW v_facturas_resumen AS
 SELECT
   f.id,
@@ -61,106 +61,134 @@ FROM facturas f
 LEFT JOIN comunidades com ON f.comunidad_id = com.id
 LEFT JOIN contadores cont ON f.contador_id = cont.id;
 
--- Paso 5: Recrear vista v_envios_resumen (de 005_envios_schema.sql)
-CREATE VIEW v_envios_resumen AS
-SELECT
-  e.id,
-  e.factura_id,
-  f.numero_completo as factura_numero,
-  f.cliente_nombre,
-  f.cliente_email as email_destino,
-  e.email_remitente,
-  e.asunto,
-  e.estado,
-  e.fecha_envio,
-  e.error_mensaje,
-  e.intentos,
-  e.ultimo_intento,
-  e.created_at
-FROM envios e
-JOIN facturas f ON e.factura_id = f.id;
+-- Paso 5: Recrear vista v_envios_resumen (solo si tabla envios existe)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'envios') THEN
+    EXECUTE '
+    CREATE VIEW v_envios_resumen AS
+    SELECT
+      e.id,
+      e.factura_id,
+      f.numero_completo as factura_numero,
+      f.cliente_nombre,
+      f.cliente_email as email_destino,
+      e.email_remitente,
+      e.asunto,
+      e.estado,
+      e.fecha_envio,
+      e.error_mensaje,
+      e.intentos,
+      e.ultimo_intento,
+      e.created_at
+    FROM envios e
+    JOIN facturas f ON e.factura_id = f.id;
+    ';
+  END IF;
+END $$;
 
--- Paso 6: Recrear vista v_reporte_consumos_vivienda (de 006_remesas_reportes_schema.sql)
-CREATE VIEW v_reporte_consumos_vivienda AS
-SELECT
-  f.id as factura_id,
-  f.numero_completo,
-  f.fecha_factura,
-  f.periodo_inicio,
-  f.periodo_fin,
-  f.cliente_id,
-  f.cliente_nombre,
-  f.comunidad_id,
-  com.nombre as comunidad_nombre,
-  f.ubicacion_id,
-  u.nombre as ubicacion_nombre,
-  u.portal,
-  u.piso,
-  u.puerta,
-  fl.concepto_codigo,
-  fl.concepto_nombre,
-  fl.unidad_medida,
-  fl.cantidad,
-  fl.precio_unitario,
-  fl.subtotal,
-  fl.lectura_anterior,
-  fl.lectura_actual,
-  fl.consumo,
-  fl.fecha_lectura_actual
-FROM facturas f
-JOIN comunidades com ON f.comunidad_id = com.id
-JOIN ubicaciones u ON f.ubicacion_id = u.id
-JOIN facturas_lineas fl ON f.id = fl.factura_id
-WHERE f.estado IN ('emitida', 'pagada');
+-- Paso 6: Recrear vista v_reporte_consumos_vivienda (solo si existe)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'envios') THEN
+    EXECUTE '
+    CREATE VIEW v_reporte_consumos_vivienda AS
+    SELECT
+      f.id as factura_id,
+      f.numero_completo,
+      f.fecha_factura,
+      f.periodo_inicio,
+      f.periodo_fin,
+      f.cliente_id,
+      f.cliente_nombre,
+      f.comunidad_id,
+      com.nombre as comunidad_nombre,
+      f.ubicacion_id,
+      u.nombre as ubicacion_nombre,
+      u.portal,
+      u.piso,
+      u.puerta,
+      fl.concepto_codigo,
+      fl.concepto_nombre,
+      fl.unidad_medida,
+      fl.cantidad,
+      fl.precio_unitario,
+      fl.subtotal,
+      fl.lectura_anterior,
+      fl.lectura_actual,
+      fl.consumo,
+      fl.fecha_lectura_actual
+    FROM facturas f
+    JOIN comunidades com ON f.comunidad_id = com.id
+    JOIN ubicaciones u ON f.ubicacion_id = u.id
+    JOIN facturas_lineas fl ON f.id = fl.factura_id
+    WHERE f.estado IN (''emitida'', ''pagada'');
+    ';
+  END IF;
+END $$;
 
--- Paso 7: Recrear vista v_facturas_pendientes_remesa (de 006_remesas_reportes_schema.sql)
-CREATE VIEW v_facturas_pendientes_remesa AS
-SELECT
-  f.id,
-  f.numero_completo,
-  f.fecha_factura,
-  f.fecha_vencimiento,
-  f.cliente_id,
-  f.cliente_nombre,
-  f.cliente_nif,
-  f.cliente_iban,
-  f.comunidad_id,
-  com.nombre as comunidad_nombre,
-  f.total,
-  f.estado,
-  f.metodo_pago
-FROM facturas f
-JOIN comunidades com ON f.comunidad_id = com.id
-WHERE f.estado IN ('emitida', 'pagada')
-  AND f.metodo_pago = 'domiciliacion'
-  AND f.cliente_iban IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM remesas_detalles rd
-    WHERE rd.factura_id = f.id
-  );
+-- Paso 7: Recrear vista v_facturas_pendientes_remesa (solo si tabla remesas_detalles existe)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'remesas_detalles') THEN
+    EXECUTE '
+    CREATE VIEW v_facturas_pendientes_remesa AS
+    SELECT
+      f.id,
+      f.numero_completo,
+      f.fecha_factura,
+      f.fecha_vencimiento,
+      f.cliente_id,
+      f.cliente_nombre,
+      f.cliente_nif,
+      f.cliente_iban,
+      f.comunidad_id,
+      com.nombre as comunidad_nombre,
+      f.total,
+      f.estado,
+      f.metodo_pago
+    FROM facturas f
+    JOIN comunidades com ON f.comunidad_id = com.id
+    WHERE f.estado IN (''emitida'', ''pagada'')
+      AND f.metodo_pago = ''domiciliacion''
+      AND f.cliente_iban IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM remesas_detalles rd
+        WHERE rd.factura_id = f.id
+      );
+    ';
+  END IF;
+END $$;
 
--- Paso 8: Recrear vista v_facturas_pendientes_envio (de 005_envios_schema.sql)
-CREATE VIEW v_facturas_pendientes_envio AS
-SELECT
-  f.id,
-  f.numero_completo,
-  f.fecha_factura,
-  f.cliente_id,
-  f.cliente_nombre,
-  f.cliente_email,
-  f.comunidad_id,
-  com.nombre as comunidad_nombre,
-  f.total,
-  f.estado
-FROM facturas f
-JOIN comunidades com ON f.comunidad_id = com.id
-WHERE f.estado IN ('emitida', 'pagada')
-  AND f.cliente_email IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM envios e
-    WHERE e.factura_id = f.id
-      AND e.estado = 'enviado'
-  );
+-- Paso 8: Recrear vista v_facturas_pendientes_envio (solo si tabla envios existe)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'envios') THEN
+    EXECUTE '
+    CREATE VIEW v_facturas_pendientes_envio AS
+    SELECT
+      f.id,
+      f.numero_completo,
+      f.fecha_factura,
+      f.cliente_id,
+      f.cliente_nombre,
+      f.cliente_email,
+      f.comunidad_id,
+      com.nombre as comunidad_nombre,
+      f.total,
+      f.estado
+    FROM facturas f
+    JOIN comunidades com ON f.comunidad_id = com.id
+    WHERE f.estado IN (''emitida'', ''pagada'')
+      AND f.cliente_email IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM envios e
+        WHERE e.factura_id = f.id
+          AND e.estado = ''enviado''
+      );
+    ';
+  END IF;
+END $$;
 
 -- Paso 9: Actualizar la función emitir_factura para retornar solo el número
 CREATE OR REPLACE FUNCTION emitir_factura(p_factura_id UUID)
