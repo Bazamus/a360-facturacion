@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, CheckSquare, X, Download } from 'lucide-react'
+import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge } from '@/features/facturacion/components'
@@ -15,6 +15,7 @@ import {
   useEstadisticasFacturacion,
   useEmitirFacturasMasivo
 } from '@/hooks/useFacturas'
+import { useExportarFacturas } from '@/features/facturacion/hooks/useExportarFacturas'
 
 export default function Facturas() {
   const navigate = useNavigate()
@@ -40,6 +41,7 @@ export default function Facturas() {
   const deleteFactura = useDeleteFactura()
   const marcarPagada = useMarcarPagada()
   const emitirMasivo = useEmitirFacturasMasivo()
+  const { exportarCompleto, exportarResumen } = useExportarFacturas()
 
   // Contar borradores para mostrar botón de emisión rápida
   const borradoresCount = facturas?.filter(f => f.estado === 'borrador').length || 0
@@ -159,6 +161,22 @@ export default function Facturas() {
     setSelectedIds(borradoresIds)
   }
 
+  // Handler exportar a Excel
+  const handleExportarExcel = async () => {
+    if (!facturas || facturas.length === 0) {
+      toast.error('No hay facturas para exportar')
+      return
+    }
+
+    try {
+      await exportarCompleto.mutateAsync({ facturas })
+      toast.success(`${facturas.length} factura${facturas.length > 1 ? 's' : ''} exportada${facturas.length > 1 ? 's' : ''} a Excel`)
+    } catch (error) {
+      console.error('Error exportando facturas:', error)
+      toast.error('Error al exportar facturas: ' + error.message)
+    }
+  }
+
   // Handler descarga masiva de PDFs
   const handleDescargarPDFsMasivo = async () => {
     if (selectedIds.length === 0) return
@@ -255,6 +273,15 @@ export default function Facturas() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportarExcel}
+            disabled={!facturas || facturas.length === 0 || exportarCompleto.isPending}
+            title="Exportar facturas a Excel"
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            {exportarCompleto.isPending ? 'Exportando...' : 'Excel'}
+          </Button>
           <Button onClick={() => navigate('/facturacion/generar')}>
             <Plus className="w-4 h-4 mr-2" />
             Generar Facturas
