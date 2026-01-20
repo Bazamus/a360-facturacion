@@ -250,176 +250,64 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
     tableWidth: contentWidth
   })
 
-  y = doc.lastAutoTable.finalY + 12
-
-  // =========================================
-  // GRÁFICO DE HISTÓRICO - Más grande
-  // =========================================
-  
-  // Generar datos
-  let chartData = historico && historico.length > 0 ? [...historico] : []
-  
-  if (chartData.length === 0) {
-    const now = new Date()
-    const consumoActual = lineas.find(l => !l.es_termino_fijo)?.consumo || 
-                          lineas.find(l => !l.es_termino_fijo)?.cantidad || 10
-    
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const periodo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const variacion = 0.6 + Math.random() * 0.8
-      const consumo = i === 0 ? Number(consumoActual) : Number(consumoActual) * variacion
-      chartData.push({ periodo, consumo })
-    }
-  }
-  chartData = chartData.slice(-6)
-
-  // Calcular altura disponible para el gráfico
-  const espacioRestante = pageHeight - y - 80 // 80mm para totales + footer
-  const chartHeight = Math.min(Math.max(espacioRestante, 50), 70) // Entre 50 y 70mm
-  const chartWidth = contentWidth
-
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.primary)
-  doc.text('HISTÓRICO DE CONSUMO (últimos 6 meses)', margin, y)
-  y += 5
-
-  // Fondo del gráfico
-  doc.setFillColor(250, 250, 252)
-  doc.roundedRect(margin, y, chartWidth, chartHeight, 3, 3, 'F')
-  doc.setDrawColor(220, 220, 225)
-  doc.setLineWidth(0.3)
-  doc.roundedRect(margin, y, chartWidth, chartHeight, 3, 3, 'S')
-
-  // Dibujar barras
-  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-  const maxConsumo = Math.max(...chartData.map(d => Number(d.consumo) || 0), 1)
-  const barCount = chartData.length
-  const barAreaWidth = chartWidth - 30
-  const barWidth = Math.min((barAreaWidth / barCount) - 10, 25)
-  const totalBarsWidth = barCount * (barWidth + 10)
-  const startX = margin + 15 + (barAreaWidth - totalBarsWidth) / 2
-
-  chartData.forEach((item, index) => {
-    const consumo = Number(item.consumo) || 0
-    const maxBarHeight = chartHeight - 25
-    const barHeight = Math.max((consumo / maxConsumo) * maxBarHeight, 3)
-    const barX = startX + index * (barWidth + 10)
-    const barY = y + chartHeight - 15 - barHeight
-
-    // Barra con gradiente simulado
-    doc.setFillColor(...COLORS.secondary)
-    doc.roundedRect(barX, barY, barWidth, barHeight, 2, 2, 'F')
-
-    // Valor encima
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...COLORS.text)
-    doc.text(consumo.toFixed(1), barX + barWidth / 2, barY - 2, { align: 'center' })
-
-    // Mes debajo
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...COLORS.gray)
-    const mes = item.periodo?.substring(5, 7) || ''
-    const mesLabel = meses[parseInt(mes) - 1] || `M${index + 1}`
-    doc.text(mesLabel, barX + barWidth / 2, y + chartHeight - 5, { align: 'center' })
-  })
-
-  // Unidad en esquina
-  const unidad = lineas.find(l => !l.es_termino_fijo)?.unidad_medida || 'm³'
-  doc.setFontSize(8)
-  doc.setTextColor(...COLORS.gray)
-  doc.text(unidad, margin + chartWidth - 5, y + 8, { align: 'right' })
-
-  y += chartHeight + 12
+  y = doc.lastAutoTable.finalY + 20
 
   // =========================================
   // RESUMEN: CONDICIONES + TOTALES
   // =========================================
   
-  const resumenBoxHeight = 45
-  const condicionesWidth = contentWidth * 0.48
-  const totalesWidth = contentWidth * 0.48
+  const resumenBoxHeight = 35
+  const condicionesWidth = contentWidth * 0.45
+  const totalesWidth = contentWidth * 0.50
 
-  // Caja Condiciones de pago
+  // Caja Condiciones de pago - Diseño simplificado
   doc.setFillColor(...COLORS.lightGray)
   doc.roundedRect(margin, y, condicionesWidth, resumenBoxHeight, 3, 3, 'F')
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('CONDICIONES DE PAGO', margin + 5, y + 8)
+  doc.text('CONDICIONES DE PAGO', margin + 5, y + 10)
   
   doc.setFontSize(9)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'normal')
-  doc.text(getMetodoPagoLabel(factura.metodo_pago), margin + 5, y + 16)
-  
-  if (factura.cliente_iban) {
-    doc.setFontSize(8)
-    doc.text('IBAN:', margin + 5, y + 24)
-    doc.setFont('helvetica', 'bold')
-    doc.text(formatIBAN(factura.cliente_iban), margin + 5, y + 30)
-  }
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(`Vencimiento: ${formatDate(factura.fecha_vencimiento)}`, margin + 5, y + 38)
+  doc.text(getMetodoPagoLabel(factura.metodo_pago), margin + 5, y + 22)
 
-  // Estado de pago (badge pequeño)
-  const estadoTexto = factura.estado === 'pagada' ? 'PAGADA' : 'PENDIENTE'
-  const estadoColor = factura.estado === 'pagada' ? COLORS.success : COLORS.danger
-  const badgeWidth = 28
-  const badgeHeight = 7
-  const badgeX = margin + condicionesWidth - badgeWidth - 5
-  const badgeY = y + 32
-  
-  // Fondo del badge
-  doc.setFillColor(...estadoColor)
-  doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 2, 2, 'F')
-  
-  // Texto del badge
-  doc.setFontSize(7)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(255, 255, 255)
-  doc.text(estadoTexto, badgeX + badgeWidth / 2, badgeY + 5, { align: 'center' })
-
-  // Caja Totales
+  // Caja Totales - Diseño mejorado y más grande
   const totalesX = pageWidth - margin - totalesWidth
   doc.setFillColor(...COLORS.lightGray)
   doc.roundedRect(totalesX, y, totalesWidth, resumenBoxHeight, 3, 3, 'F')
   doc.setDrawColor(...COLORS.primary)
-  doc.setLineWidth(1)
+  doc.setLineWidth(1.2)
   doc.roundedRect(totalesX, y, totalesWidth, resumenBoxHeight, 3, 3, 'S')
 
-  const col1 = totalesX + 8
-  const col2 = totalesX + totalesWidth - 8
+  const col1 = totalesX + 10
+  const col2 = totalesX + totalesWidth - 10
 
-  doc.setFontSize(9)
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.text)
   
-  doc.text('Base imponible:', col1, y + 12)
-  doc.text(formatImporte(factura.base_imponible), col2, y + 12, { align: 'right' })
+  doc.text('Base imponible:', col1, y + 10)
+  doc.text(formatImporte(factura.base_imponible), col2, y + 10, { align: 'right' })
   
-  doc.text(`IVA (${factura.porcentaje_iva || 21}%):`, col1, y + 20)
-  doc.text(formatImporte(factura.importe_iva), col2, y + 20, { align: 'right' })
+  doc.text(`IVA (${factura.porcentaje_iva || 21}%):`, col1, y + 18)
+  doc.text(formatImporte(factura.importe_iva), col2, y + 18, { align: 'right' })
   
-  // Línea separadora
-  doc.setDrawColor(...COLORS.secondary)
-  doc.setLineWidth(0.5)
-  doc.line(col1, y + 25, col2, y + 25)
+  // Línea separadora más destacada
+  doc.setDrawColor(...COLORS.primary)
+  doc.setLineWidth(0.6)
+  doc.line(col1, y + 22, col2, y + 22)
   
-  // Total
-  doc.setFontSize(14)
+  // Total - Más grande y destacado
+  doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('TOTAL:', col1, y + 38)
-  doc.text(formatImporte(factura.total), col2, y + 38, { align: 'right' })
+  doc.text('TOTAL:', col1, y + 32)
+  doc.text(formatImporte(factura.total), col2, y + 32, { align: 'right' })
 
-  y += resumenBoxHeight + 10
+  y += resumenBoxHeight + 15
 
   // =========================================
   // FOOTER
