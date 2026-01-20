@@ -127,7 +127,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   
   const clienteWidth = contentWidth * 0.62
   const periodoWidth = contentWidth * 0.35
-  const boxHeight = 38
+  const boxHeight = 42
 
   // Caja cliente
   doc.setFillColor(...COLORS.lightGray)
@@ -152,10 +152,13 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFontSize(9)
   doc.text(`NIF: ${factura.cliente_nif || '-'}`, margin + 5, y + 21)
 
-  // Dirección
-  const direccionCompleta = `${factura.cliente_direccion || ''} - ${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`
+  // Dirección del cliente
   doc.setFontSize(8)
+  doc.setTextColor(...COLORS.text)
+  const direccionCompleta = `${factura.cliente_direccion || ''}`
+  const ciudadCompleta = `${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`
   doc.text(direccionCompleta, margin + 5, y + 28)
+  doc.text(ciudadCompleta, margin + 5, y + 34)
 
   // Caja periodo
   const periodoX = margin + clienteWidth + 6
@@ -170,13 +173,13 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFontSize(10)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Desde: ${formatDate(factura.periodo_inicio)}`, periodoX + 5, y + 17)
-  doc.text(`Hasta: ${formatDate(factura.periodo_fin)}`, periodoX + 5, y + 24)
+  doc.text(`Desde: ${formatDate(factura.periodo_inicio)}`, periodoX + 5, y + 18)
+  doc.text(`Hasta: ${formatDate(factura.periodo_fin)}`, periodoX + 5, y + 26)
   
   if (factura.es_periodo_parcial) {
     doc.setFontSize(8)
     doc.setTextColor(...COLORS.danger)
-    doc.text('(Periodo parcial)', periodoX + 5, y + 30)
+    doc.text('(Periodo parcial)', periodoX + 5, y + 34)
   }
 
   y += boxHeight + 10
