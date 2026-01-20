@@ -4,10 +4,12 @@ import { usePrecios, usePreciosVigentes, useCreatePrecio, useConceptos } from '@
 import { Button, Modal, Input, Select, FormField, LoadingSpinner, EmptyState, Badge, DataTable } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { validarDecimalesPrecio, formatPrecio, getDecimalesPrecio } from '@/utils/precision'
 
 export function PreciosTab({ comunidad }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [showHistorico, setShowHistorico] = useState(false)
+  const [conceptoSeleccionado, setConceptoSeleccionado] = useState(null)
 
   const { data: preciosVigentes, isLoading: loadingVigentes } = usePreciosVigentes(comunidad.id)
   const { data: todosPrecios, isLoading: loadingTodos } = usePrecios(comunidad.id)
@@ -18,11 +20,30 @@ export function PreciosTab({ comunidad }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const formData = new FormData(e.target)
-    
+
+    const conceptoId = formData.get('concepto_id')
+    const precio = parseFloat(formData.get('precio_unitario'))
+
+    // Obtener código del concepto seleccionado
+    const concepto = conceptos?.find(c => c.id === conceptoId)
+
+    if (!concepto) {
+      toast.error('Concepto no encontrado')
+      return
+    }
+
+    // Validar decimales según concepto
+    const validacion = validarDecimalesPrecio(precio, concepto.codigo)
+
+    if (!validacion.valid) {
+      toast.error(validacion.error)
+      return
+    }
+
     const data = {
       comunidad_id: comunidad.id,
-      concepto_id: formData.get('concepto_id'),
-      precio_unitario: parseFloat(formData.get('precio_unitario')),
+      concepto_id: conceptoId,
+      precio_unitario: precio,
       fecha_inicio: formData.get('fecha_inicio'),
       activo: true
     }
@@ -31,9 +52,16 @@ export function PreciosTab({ comunidad }) {
       await createMutation.mutateAsync(data)
       toast.success('Precio guardado correctamente')
       setModalOpen(false)
+      setConceptoSeleccionado(null)
     } catch (error) {
       toast.error(error.message)
     }
+  }
+
+  const handleConceptoChange = (e) => {
+    const conceptoId = e.target.value
+    const concepto = conceptos?.find(c => c.id === conceptoId)
+    setConceptoSeleccionado(concepto || null)
   }
 
   const columns = [
@@ -52,7 +80,7 @@ export function PreciosTab({ comunidad }) {
       header: 'Precio Unitario',
       render: (value, row) => (
         <span className="font-medium">
-          {formatCurrency(value)} / {row.concepto?.unidad_medida}
+          {formatPrecio(value, row.concepto?.codigo)} / {row.concepto?.unidad_medida}
         </span>
       )
     },
@@ -126,7 +154,7 @@ export function PreciosTab({ comunidad }) {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <FormField label="Concepto" required>
-            <Select name="concepto_id" required>
+            <Select name="concepto_id" required onChange={handleConceptoChange}>
               <option value="">Seleccionar concepto...</option>
               {conceptos?.map(c => (
                 <option key={c.id} value={c.id}>
@@ -136,17 +164,21 @@ export function PreciosTab({ comunidad }) {
             </Select>
           </FormField>
 
-          <FormField 
-            label="Precio Unitario (€)" 
+          <FormField
+            label="Precio Unitario (€)"
             required
-            description="Precio por unidad de medida del concepto"
+            description={
+              conceptoSeleccionado
+                ? `Precio por ${conceptoSeleccionado.unidad_medida}. Máximo ${getDecimalesPrecio(conceptoSeleccionado.codigo)} decimales.`
+                : "Precio por unidad de medida del concepto"
+            }
           >
             <Input
               name="precio_unitario"
               type="number"
-              step="0.0001"
+              step="0.00001"
               min="0"
-              placeholder="0.0000"
+              placeholder="0.00000"
               required
             />
           </FormField>

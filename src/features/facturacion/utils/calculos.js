@@ -2,18 +2,13 @@
  * Utilidades de cálculo para facturación
  */
 
-/**
- * Redondea un valor a 2 decimales
- */
-export function round2(value) {
-  return Math.round(value * 100) / 100
-}
+import { redondear, PRECISION_IMPORTES } from '@/utils/precision'
 
 /**
- * Redondea un valor a 4 decimales (para cantidades)
+ * Redondea un valor a 2 decimales (para importes finales)
  */
-export function round4(value) {
-  return Math.round(value * 10000) / 10000
+export function round2(value) {
+  return redondear(value, PRECISION_IMPORTES)
 }
 
 /**
@@ -53,10 +48,15 @@ export function calcularProrrateoTerminoFijo(precioMensual, diasPeriodo, diasMes
 
 /**
  * Calcula el subtotal de una línea
+ * IMPORTANTE: NO redondear cantidad ni precio (usar precisión completa)
+ * Solo redondear el resultado final a 2 decimales
  */
 export function calcularSubtotal(cantidad, precioUnitario, descuentoPorcentaje = 0) {
-  const bruto = round4(cantidad) * round4(precioUnitario)
+  // NO redondear cantidad ni precio - usar todos los decimales disponibles
+  const bruto = cantidad * precioUnitario
   const descuento = bruto * (descuentoPorcentaje / 100)
+
+  // Solo redondear el resultado final a 2 decimales
   return round2(bruto - descuento)
 }
 
@@ -210,7 +210,7 @@ export function generarDatosFactura(params) {
   const precioTF = conceptoTF ? precios.find(p => p.concepto_id === conceptoTF.id) : null
 
   if (conceptoTF && precioTF) {
-    const cantidadTF = esParcial ? round4(diasPeriodo / diasMes) : 1
+    const cantidadTF = esParcial ? (diasPeriodo / diasMes) : 1  // No redondear, usar precisión completa
     const subtotalTF = calcularProrrateoTerminoFijo(precioTF.precio_unitario, diasPeriodo, diasMes)
 
     lineas.push({

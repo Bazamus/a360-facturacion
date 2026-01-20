@@ -123,7 +123,7 @@ export async function processRow({
       vivienda,
       concepto_codigo: conceptoInfo.concepto_codigo,
       concepto_id: conceptoInfo.concepto_id,
-      lectura_valor: parseNumber(row[parseInt(idx)]),
+      lectura_valor: parseNumber(row[parseInt(idx)], true),
       alertas: [{ 
         tipo: 'contador_no_encontrado', 
         mensaje: `Contador ${numeroContador} no encontrado en el sistema`,
@@ -163,8 +163,8 @@ export async function processRow({
   // 7. Procesar cada columna de concepto que tenga valor
   for (const [colIndex, conceptoInfo] of Object.entries(conceptColumns)) {
     const rawValue = row[parseInt(colIndex)]
-    const lecturaValor = parseNumber(rawValue)
-    
+    const lecturaValor = parseNumber(rawValue, true)  // true = es lectura, truncar a 3 decimales
+
     // Ignorar celdas vacías (el contador no mide este concepto)
     if (lecturaValor === null) continue
     

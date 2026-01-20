@@ -15,6 +15,7 @@ import {
   buscarConceptoPorCodigo,
   limpiarCache
 } from './fieldResolvers'
+import { validarDecimalesPrecio, truncarDecimales, getDecimalesPrecio } from '@/utils/precision'
 
 // Expresiones regulares para validación
 const REGEX_NIF = /^[0-9]{8}[A-Z]$/i
@@ -845,14 +846,27 @@ export async function procesarPrecios(filas, comunidadId = null, onProgress = ()
       // Validar campos obligatorios
       const codigoComunidad = toStr(fila.comunidad_codigo)
       const codigoConcepto = toStr(fila.concepto_codigo).toUpperCase()
-      const precioUnitario = parseFloat(String(fila.precio_unitario).replace(',', '.'))
+      let precioUnitario = parseFloat(String(fila.precio_unitario).replace(',', '.'))
       const fechaInicio = parseFecha(fila.fecha_inicio)
-      
+
       if (!codigoComunidad) erroresRow.push('Código Comunidad es obligatorio')
       if (!codigoConcepto) erroresRow.push('Código Concepto es obligatorio')
       if (isNaN(precioUnitario) || precioUnitario < 0) erroresRow.push('Precio Unitario debe ser un número positivo')
       if (!fechaInicio) erroresRow.push('Fecha Inicio es obligatoria (formato DD/MM/YYYY)')
-      
+
+      // Validar y truncar decimales según concepto
+      if (!isNaN(precioUnitario) && precioUnitario >= 0) {
+        const validacion = validarDecimalesPrecio(precioUnitario, codigoConcepto)
+        if (!validacion.valid) {
+          // Truncar automáticamente en lugar de error
+          const decimalesPermitidos = getDecimalesPrecio(codigoConcepto)
+          const precioOriginal = precioUnitario
+          precioUnitario = truncarDecimales(precioUnitario, decimalesPermitidos)
+
+          console.warn(`⚠️ Fila ${rowNum}: Precio ${precioOriginal} truncado a ${precioUnitario} (máx ${decimalesPermitidos} decimales para ${codigoConcepto})`)
+        }
+      }
+
       if (erroresRow.length > 0) {
         result.errors.push({ fila: rowNum, errores: erroresRow })
         continue

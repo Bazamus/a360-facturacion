@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
 import { supabase } from '../../../lib/supabase'
+import { formatPrecio, formatLectura, formatConsumo, formatImporte } from '@/utils/precision'
 
 /**
  * Hook para exportar facturas a Excel
@@ -250,14 +251,14 @@ async function generarCompleto(facturas, lineas, opciones) {
     'CONCEPTO': l.concepto_codigo || '-',
     'DESCRIPCIÓN': l.concepto_nombre || '-',
     'UNIDAD': l.unidad_medida || '-',
-    'CANTIDAD': l.cantidad,
-    'PRECIO UNITARIO': l.precio_unitario,
-    'SUBTOTAL': l.subtotal,
-    'IVA (€)': Math.round(l.subtotal * 0.21 * 100) / 100,
-    'TOTAL': Math.round((l.subtotal * 1.21) * 100) / 100,
-    'LECTURA ANTERIOR': l.es_termino_fijo ? '-' : (l.lectura_anterior || '-'),
-    'LECTURA ACTUAL': l.es_termino_fijo ? '-' : (l.lectura_actual || '-'),
-    'CONSUMO': l.es_termino_fijo ? '-' : (l.consumo || '-'),
+    'CANTIDAD': formatConsumo(l.cantidad, ''),  // 3 decimales sin unidad
+    'PRECIO UNITARIO': formatPrecio(l.precio_unitario, l.concepto_codigo, false),  // Precisión variable sin símbolo
+    'SUBTOTAL': formatImporte(l.subtotal, false),  // 2 decimales sin símbolo
+    'IVA (€)': formatImporte(l.subtotal * 0.21, false),  // 2 decimales sin símbolo
+    'TOTAL': formatImporte(l.subtotal * 1.21, false),  // 2 decimales sin símbolo
+    'LECTURA ANTERIOR': l.es_termino_fijo ? '-' : formatLectura(l.lectura_anterior || 0),  // 3 decimales
+    'LECTURA ACTUAL': l.es_termino_fijo ? '-' : formatLectura(l.lectura_actual || 0),  // 3 decimales
+    'CONSUMO': l.es_termino_fijo ? '-' : formatConsumo(l.consumo || 0, ''),  // 3 decimales sin unidad
     'FECHA LECTURA': l.es_termino_fijo ? '-' : formatDate(l.fecha_lectura_actual)
   }))
 
@@ -310,14 +311,14 @@ async function generarDetallado(facturas, lineas, opciones) {
       'ESTADO': formatEstado(factura.estado),
       'CONCEPTO': l.concepto_codigo || '-',
       'DESCRIPCIÓN': l.concepto_nombre || '-',
-      'CANTIDAD': l.cantidad,
-      'PRECIO UNITARIO': l.precio_unitario,
-      'SUBTOTAL': l.subtotal,
-      'IVA LÍNEA (€)': Math.round(l.subtotal * 0.21 * 100) / 100,
-      'TOTAL LÍNEA (€)': Math.round((l.subtotal * 1.21) * 100) / 100,
-      'BASE IMPONIBLE': factura.base_imponible,
-      'IVA FACTURA (€)': factura.importe_iva,
-      'TOTAL FACTURA (€)': factura.total
+      'CANTIDAD': formatConsumo(l.cantidad, ''),  // 3 decimales sin unidad
+      'PRECIO UNITARIO': formatPrecio(l.precio_unitario, l.concepto_codigo, false),  // Precisión variable sin símbolo
+      'SUBTOTAL': formatImporte(l.subtotal, false),  // 2 decimales sin símbolo
+      'IVA LÍNEA (€)': formatImporte(l.subtotal * 0.21, false),  // 2 decimales sin símbolo
+      'TOTAL LÍNEA (€)': formatImporte(l.subtotal * 1.21, false),  // 2 decimales sin símbolo
+      'BASE IMPONIBLE': formatImporte(factura.base_imponible, false),  // 2 decimales sin símbolo
+      'IVA FACTURA (€)': formatImporte(factura.importe_iva, false),  // 2 decimales sin símbolo
+      'TOTAL FACTURA (€)': formatImporte(factura.total, false)  // 2 decimales sin símbolo
     }
   }).filter(Boolean)
 

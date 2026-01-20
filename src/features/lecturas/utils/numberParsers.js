@@ -3,12 +3,15 @@
  * Sistema de Facturación A360
  */
 
+import { truncarDecimales, PRECISION_LECTURAS } from '@/utils/precision'
+
 /**
  * Parsea un número desde string con soporte para formatos español e internacional
  * @param {string|number} value - Valor a parsear
+ * @param {boolean} esLectura - Si es una lectura, truncar a 3 decimales
  * @returns {number|null} - Número parseado o null si no es válido/está vacío
  */
-export function parseNumber(value) {
+export function parseNumber(value, esLectura = false) {
   // Si ya es un número válido
   if (typeof value === 'number' && !isNaN(value)) {
     return value
@@ -45,11 +48,16 @@ export function parseNumber(value) {
   // Caso 4: Ya está en formato válido o es un número simple
   
   const parsed = parseFloat(normalized)
-  
+
   if (isNaN(parsed)) {
     return null
   }
-  
+
+  // Si es una lectura, truncar a 3 decimales
+  if (esLectura) {
+    return truncarDecimales(parsed, PRECISION_LECTURAS)
+  }
+
   return parsed
 }
 

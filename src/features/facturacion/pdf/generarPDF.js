@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { LOGO_A360_BASE64 } from './logoA360'
+import { formatPrecio, formatLectura, formatConsumo, formatImporte } from '@/utils/precision'
 
 // Colores corporativos
 const COLORS = {
@@ -197,23 +198,26 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
       concepto += `\nContador: ${linea.contador_numero_serie}`
     }
     
-    // Lecturas (usar caracteres ASCII compatibles)
+    // Lecturas (usar caracteres ASCII compatibles) - 3 decimales
     let lecturas = '-'
     if (!linea.es_termino_fijo && linea.lectura_anterior != null) {
-      lecturas = `${Number(linea.lectura_anterior).toFixed(2)} / ${Number(linea.lectura_actual).toFixed(2)}`
+      lecturas = `${formatLectura(linea.lectura_anterior)} / ${formatLectura(linea.lectura_actual)}`
     }
 
-    // Consumo
-    const consumo = linea.es_termino_fijo 
-      ? `${Number(linea.cantidad).toFixed(2)} ud`
-      : `${Number(linea.consumo || linea.cantidad).toFixed(2)} ${linea.unidad_medida || 'm³'}`
+    // Consumo - 3 decimales
+    const consumo = linea.es_termino_fijo
+      ? `${formatConsumo(linea.cantidad)} ud`
+      : formatConsumo(linea.consumo || linea.cantidad, linea.unidad_medida || 'm³')
+
+    // Precio con precisión variable según concepto
+    const precioFormateado = formatPrecio(linea.precio_unitario, linea.concepto_codigo)
 
     return [
       concepto,
       lecturas,
       consumo,
-      formatCurrency(linea.precio_unitario),
-      formatCurrency(linea.subtotal)
+      precioFormateado,
+      formatImporte(linea.subtotal)  // Subtotal siempre 2 decimales
     ]
   })
 
@@ -398,10 +402,10 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setTextColor(...COLORS.text)
   
   doc.text('Base imponible:', col1, y + 12)
-  doc.text(formatCurrency(factura.base_imponible), col2, y + 12, { align: 'right' })
+  doc.text(formatImporte(factura.base_imponible), col2, y + 12, { align: 'right' })
   
   doc.text(`IVA (${factura.porcentaje_iva || 21}%):`, col1, y + 20)
-  doc.text(formatCurrency(factura.importe_iva), col2, y + 20, { align: 'right' })
+  doc.text(formatImporte(factura.importe_iva), col2, y + 20, { align: 'right' })
   
   // Línea separadora
   doc.setDrawColor(...COLORS.secondary)
@@ -413,7 +417,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
   doc.text('TOTAL:', col1, y + 38)
-  doc.text(formatCurrency(factura.total), col2, y + 38, { align: 'right' })
+  doc.text(formatImporte(factura.total), col2, y + 38, { align: 'right' })
 
   y += resumenBoxHeight + 10
 
