@@ -143,9 +143,9 @@ function ConfigConceptos() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const formData = new FormData(e.target)
-    
+
     const data = {
-      codigo: formData.get('codigo').toUpperCase(),
+      codigo: editingConcepto ? editingConcepto.codigo : formData.get('codigo')?.toUpperCase(),
       nombre: formData.get('nombre'),
       descripcion: formData.get('descripcion') || null,
       unidad_medida: formData.get('unidad_medida'),
