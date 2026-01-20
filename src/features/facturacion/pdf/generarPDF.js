@@ -153,12 +153,29 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.text(`NIF: ${factura.cliente_nif || '-'}`, margin + 5, y + 21)
 
   // Dirección del cliente
+  // Debug: verificar datos disponibles
+  console.log('=== DEBUG DIRECCIÓN PDF ===')
+  console.log('cliente_direccion:', factura.cliente_direccion)
+  console.log('cliente_cp:', factura.cliente_cp)
+  console.log('cliente_ciudad:', factura.cliente_ciudad)
+  console.log('cliente_provincia:', factura.cliente_provincia)
+  
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.text)
-  const direccionCompleta = `${factura.cliente_direccion || ''}`
-  const ciudadCompleta = `${factura.cliente_cp || ''} ${factura.cliente_ciudad || ''}`
-  doc.text(direccionCompleta, margin + 5, y + 28)
-  doc.text(ciudadCompleta, margin + 5, y + 34)
+  doc.setFont('helvetica', 'normal')
+  
+  // Primera línea: dirección completa
+  if (factura.cliente_direccion) {
+    doc.text(factura.cliente_direccion, margin + 5, y + 28)
+  }
+  
+  // Segunda línea: CP y ciudad  
+  const ciudadParts = []
+  if (factura.cliente_cp) ciudadParts.push(factura.cliente_cp)
+  if (factura.cliente_ciudad) ciudadParts.push(factura.cliente_ciudad)
+  if (ciudadParts.length > 0) {
+    doc.text(ciudadParts.join(' '), margin + 5, y + 34)
+  }
 
   // Caja periodo
   const periodoX = margin + clienteWidth + 6
