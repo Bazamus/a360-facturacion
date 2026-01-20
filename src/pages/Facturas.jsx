@@ -83,6 +83,18 @@ export default function Facturas() {
     try {
       setDescargandoPDF(factura.id)
 
+      // Obtener factura completa con todos los campos (incluyendo dirección)
+      const { data: facturaCompleta, error: facturaError } = await supabase
+        .from('facturas')
+        .select('*')
+        .eq('id', factura.id)
+        .single()
+
+      if (facturaError) {
+        console.error('Error al obtener factura completa:', facturaError)
+        throw facturaError
+      }
+
       // Obtener líneas de la factura
       const { data: lineas, error: lineasError } = await supabase
         .from('facturas_lineas')
@@ -105,8 +117,8 @@ export default function Facturas() {
         console.error('Error al obtener histórico:', historicoError)
       }
 
-      // Descargar PDF directamente (aunque falten datos, el PDF se genera)
-      descargarFacturaPDF(factura, lineas || [], historico || [])
+      // Descargar PDF con la factura completa que incluye todos los campos
+      descargarFacturaPDF(facturaCompleta, lineas || [], historico || [])
 
       toast.success('PDF descargado correctamente')
     } catch (error) {
@@ -235,6 +247,13 @@ export default function Facturas() {
         const factura = facturasSeleccionadas[i]
         setProgresoDescarga({ actual: i + 1, total: selectedIds.length })
 
+        // Obtener factura completa con todos los campos (incluyendo dirección)
+        const { data: facturaCompleta } = await supabase
+          .from('facturas')
+          .select('*')
+          .eq('id', factura.id)
+          .single()
+
         // Fetch líneas de la factura
         const { data: lineas } = await supabase
           .from('facturas_lineas')
@@ -249,9 +268,9 @@ export default function Facturas() {
           .eq('factura_id', factura.id)
           .order('fecha_lectura')
 
-        // Generar PDF como blob
+        // Generar PDF como blob usando la factura completa
         const { getFacturaPDFBlob } = await import('@/features/facturacion/pdf')
-        const pdfBlob = await getFacturaPDFBlob(factura, lineas || [], historico || [])
+        const pdfBlob = await getFacturaPDFBlob(facturaCompleta || factura, lineas || [], historico || [])
 
         // Nombre de archivo sanitizado
         const nombreArchivo = `${factura.numero_completo}_${factura.cliente_nombre}.pdf`
