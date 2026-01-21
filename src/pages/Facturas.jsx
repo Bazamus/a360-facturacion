@@ -427,7 +427,7 @@ export default function Facturas() {
 
       {/* Modal eliminar */}
       <Modal
-        isOpen={deleteModal.open}
+        open={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, factura: null })}
         title="Eliminar factura"
       >
@@ -461,7 +461,7 @@ export default function Facturas() {
 
       {/* Modal marcar pagada */}
       <Modal
-        isOpen={pagarModal.open}
+        open={pagarModal.open}
         onClose={() => setPagarModal({ open: false, factura: null })}
         title="Marcar como pagada"
       >
