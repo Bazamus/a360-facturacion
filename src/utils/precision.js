@@ -32,7 +32,7 @@ export function getDecimalesPrecio(conceptoCodigo) {
  * @returns {string} Precio formateado
  */
 export function formatPrecio(precio, conceptoCodigo, incluirSimbolo = true) {
-  if (precio == null || isNaN(precio)) return incluirSimbolo ? '0,00 €' : '0,00'
+  if (precio == null || isNaN(precio)) return incluirSimbolo ? '0,00\u00A0€' : '0,00'
 
   const decimales = getDecimalesPrecio(conceptoCodigo)
 
@@ -41,7 +41,7 @@ export function formatPrecio(precio, conceptoCodigo, incluirSimbolo = true) {
     maximumFractionDigits: decimales
   }).format(precio)
 
-  return incluirSimbolo ? `${formatted} €` : formatted
+  return incluirSimbolo ? `${formatted}\u00A0€` : formatted
 }
 
 /**
@@ -65,14 +65,14 @@ export function formatLectura(lectura) {
  * @returns {string} Consumo formateado
  */
 export function formatConsumo(consumo, unidadMedida = '') {
-  if (consumo == null || isNaN(consumo)) return unidadMedida ? `0,000 ${unidadMedida}` : '0,000'
+  if (consumo == null || isNaN(consumo)) return unidadMedida ? `0,000\u00A0${unidadMedida}` : '0,000'
 
   const formatted = new Intl.NumberFormat('es-ES', {
     minimumFractionDigits: PRECISION_LECTURAS,
     maximumFractionDigits: PRECISION_LECTURAS
   }).format(consumo)
 
-  return unidadMedida ? `${formatted} ${unidadMedida}` : formatted
+  return unidadMedida ? `${formatted}\u00A0${unidadMedida}` : formatted
 }
 
 /**
@@ -82,14 +82,15 @@ export function formatConsumo(consumo, unidadMedida = '') {
  * @returns {string} Importe formateado
  */
 export function formatImporte(importe, incluirSimbolo = true) {
-  if (importe == null || isNaN(importe)) return incluirSimbolo ? '0,00 €' : '0,00'
+  if (importe == null || isNaN(importe)) return incluirSimbolo ? '0,00\u00A0€' : '0,00'
 
-  return new Intl.NumberFormat('es-ES', {
-    style: incluirSimbolo ? 'currency' : 'decimal',
-    currency: 'EUR',
+  const formatted = new Intl.NumberFormat('es-ES', {
+    style: 'decimal',
     minimumFractionDigits: PRECISION_IMPORTES,
     maximumFractionDigits: PRECISION_IMPORTES
   }).format(importe)
+
+  return incluirSimbolo ? `${formatted}\u00A0€` : formatted
 }
 
 /**

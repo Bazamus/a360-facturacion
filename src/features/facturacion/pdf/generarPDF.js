@@ -257,14 +257,16 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
       fontSize: 10,
       textColor: COLORS.text,
       cellPadding: 5,
-      valign: 'middle'
+      valign: 'middle',
+      overflow: 'linebreak',
+      cellWidth: 'wrap'
     },
     columnStyles: {
-      0: { cellWidth: 55 },
-      1: { cellWidth: 40, halign: 'center', fontSize: 9 },
-      2: { cellWidth: 30, halign: 'right' },
-      3: { cellWidth: 25, halign: 'right' },
-      4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 50 }, // Concepto - reducido ligeramente
+      1: { cellWidth: 38, halign: 'center', fontSize: 9 }, // Lecturas
+      2: { cellWidth: 35, halign: 'right', overflow: 'visible' }, // Consumo - más ancho para unidades
+      3: { cellWidth: 30, halign: 'right', overflow: 'visible' }, // Precio - más ancho para € 
+      4: { cellWidth: 27, halign: 'right', fontStyle: 'bold', overflow: 'visible' } // Importe
     },
     margin: { left: margin, right: margin },
     tableWidth: contentWidth
