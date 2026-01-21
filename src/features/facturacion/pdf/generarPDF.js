@@ -221,7 +221,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
     // Lecturas (usar caracteres ASCII compatibles) - 3 decimales
     let lecturas = '-'
     if (!linea.es_termino_fijo && linea.lectura_anterior != null) {
-      lecturas = `${formatLectura(linea.lectura_anterior)} / ${formatLectura(linea.lectura_actual)}`
+      lecturas = `${formatLectura(linea.lectura_anterior)}\u00A0/\u00A0${formatLectura(linea.lectura_actual)}`
     }
 
     // Consumo - 3 decimales
@@ -243,7 +243,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
 
   autoTable(doc, {
     startY: y,
-    head: [['Concepto', 'Lecturas (ant/act)', 'Consumo', 'Precio', 'Importe']],
+    head: [['Concepto', 'Lecturas\u00A0(ant/act)', 'Consumo', 'Precio', 'Importe']],
     body: tableBody,
     theme: 'striped',
     headStyles: {
@@ -262,10 +262,10 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
       cellWidth: 'wrap'
     },
     columnStyles: {
-      0: { cellWidth: 50 }, // Concepto - reducido ligeramente
-      1: { cellWidth: 38, halign: 'center', fontSize: 9 }, // Lecturas
-      2: { cellWidth: 35, halign: 'right', overflow: 'visible' }, // Consumo - más ancho para unidades
-      3: { cellWidth: 30, halign: 'right', overflow: 'visible' }, // Precio - más ancho para € 
+      0: { cellWidth: 46 }, // Concepto - reducido para dar espacio a Lecturas
+      1: { cellWidth: 44, halign: 'center', fontSize: 8.5, overflow: 'visible' }, // Lecturas - ampliado y fuente ajustada
+      2: { cellWidth: 33, halign: 'right', overflow: 'visible' }, // Consumo
+      3: { cellWidth: 30, halign: 'right', overflow: 'visible' }, // Precio
       4: { cellWidth: 27, halign: 'right', fontStyle: 'bold', overflow: 'visible' } // Importe
     },
     margin: { left: margin, right: margin },
