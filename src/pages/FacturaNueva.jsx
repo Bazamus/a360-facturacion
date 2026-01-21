@@ -150,12 +150,16 @@ export default function FacturaNueva() {
       toast.error('Selecciona un cliente')
       return false
     }
-    if (!periodoInicio || !periodoFin) {
-      toast.error('Define el periodo de facturación')
-      return false
+    // Validar periodo solo si se proporcionaron ambas fechas
+    if (periodoInicio && periodoFin) {
+      if (new Date(periodoFin) < new Date(periodoInicio)) {
+        toast.error('La fecha de fin debe ser posterior a la de inicio')
+        return false
+      }
     }
-    if (new Date(periodoFin) < new Date(periodoInicio)) {
-      toast.error('La fecha de fin debe ser posterior a la de inicio')
+    // Validar que si hay una fecha, debe haber ambas
+    if ((periodoInicio && !periodoFin) || (!periodoInicio && periodoFin)) {
+      toast.error('Si defines un periodo, debes especificar ambas fechas')
       return false
     }
     if (lineas.length === 0) {
@@ -171,10 +175,13 @@ export default function FacturaNueva() {
 
     setGuardando(true)
     try {
-      // Calcular días del periodo
-      const inicio = new Date(periodoInicio)
-      const fin = new Date(periodoFin)
-      const diasPeriodo = Math.floor((fin - inicio) / (1000 * 60 * 60 * 24)) + 1
+      // Calcular días del periodo solo si hay fechas
+      let diasPeriodo = null
+      if (periodoInicio && periodoFin) {
+        const inicio = new Date(periodoInicio)
+        const fin = new Date(periodoFin)
+        diasPeriodo = Math.floor((fin - inicio) / (1000 * 60 * 60 * 24)) + 1
+      }
 
       // Obtener ubicación del cliente (primera ubicación activa)
       const ubicacionCliente = clienteSeleccionado?.ubicaciones_clientes?.find(uc => uc.es_actual)
@@ -186,10 +193,10 @@ export default function FacturaNueva() {
         cliente_id: clienteId,
         ubicacion_id: ubicacionId || null,
         contador_id: null, // Factura manual sin contador
-        periodo_inicio: periodoInicio,
-        periodo_fin: periodoFin,
+        periodo_inicio: periodoInicio || null,
+        periodo_fin: periodoFin || null,
         dias_periodo: diasPeriodo,
-        es_periodo_parcial: diasPeriodo < 28,
+        es_periodo_parcial: diasPeriodo ? diasPeriodo < 28 : false,
         fecha_factura: new Date().toISOString().split('T')[0],
         fecha_vencimiento: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         estado: 'borrador',
@@ -247,10 +254,13 @@ export default function FacturaNueva() {
 
     setGuardando(true)
     try {
-      // Calcular días del periodo
-      const inicio = new Date(periodoInicio)
-      const fin = new Date(periodoFin)
-      const diasPeriodo = Math.floor((fin - inicio) / (1000 * 60 * 60 * 24)) + 1
+      // Calcular días del periodo solo si hay fechas
+      let diasPeriodo = null
+      if (periodoInicio && periodoFin) {
+        const inicio = new Date(periodoInicio)
+        const fin = new Date(periodoFin)
+        diasPeriodo = Math.floor((fin - inicio) / (1000 * 60 * 60 * 24)) + 1
+      }
 
       // Obtener ubicación del cliente
       const ubicacionCliente = clienteSeleccionado?.ubicaciones_clientes?.find(uc => uc.es_actual)
@@ -262,10 +272,10 @@ export default function FacturaNueva() {
         cliente_id: clienteId,
         ubicacion_id: ubicacionId || null,
         contador_id: null,
-        periodo_inicio: periodoInicio,
-        periodo_fin: periodoFin,
+        periodo_inicio: periodoInicio || null,
+        periodo_fin: periodoFin || null,
         dias_periodo: diasPeriodo,
-        es_periodo_parcial: diasPeriodo < 28,
+        es_periodo_parcial: diasPeriodo ? diasPeriodo < 28 : false,
         fecha_factura: new Date().toISOString().split('T')[0],
         fecha_vencimiento: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         estado: 'borrador',
@@ -415,19 +425,27 @@ export default function FacturaNueva() {
           <h3 className="font-semibold text-gray-900 mb-4">Periodo y Configuración</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Fecha inicio" required>
+              <FormField label="Fecha inicio">
                 <Input
                   type="date"
                   value={periodoInicio}
                   onChange={(e) => setPeriodoInicio(e.target.value)}
+                  placeholder="dd/mm/aaaa"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Opcional. Dejar vacío para servicios puntuales
+                </p>
               </FormField>
-              <FormField label="Fecha fin" required>
+              <FormField label="Fecha fin">
                 <Input
                   type="date"
                   value={periodoFin}
                   onChange={(e) => setPeriodoFin(e.target.value)}
+                  placeholder="dd/mm/aaaa"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Opcional. Dejar vacío para servicios puntuales
+                </p>
               </FormField>
             </div>
 
