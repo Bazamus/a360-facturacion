@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet } from 'lucide-react'
+import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge, ModalExportarFacturas, ProgressoExportacion } from '@/features/facturacion/components'
@@ -328,6 +328,14 @@ export default function Facturas() {
           <Button onClick={() => navigate('/facturacion/generar')}>
             <Plus className="w-4 h-4 mr-2" />
             Generar Facturas
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/facturacion/facturas/nueva')}
+            title="Crear factura manual sin lecturas"
+          >
+            <FilePlus className="w-4 h-4 mr-2" />
+            Factura Manual
           </Button>
           {borradoresCount > 0 && (
             <Button

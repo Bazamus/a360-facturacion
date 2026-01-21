@@ -3,6 +3,7 @@ import Facturas from './Facturas'
 import GenerarFacturas from './GenerarFacturas'
 import FacturaDetalle from './FacturaDetalle'
 import FacturaEditar from './FacturaEditar'
+import FacturaNueva from './FacturaNueva'
 import EnviarFacturas from './EnviarFacturas'
 import EnviosDashboard from './EnviosDashboard'
 import HistorialEnvios from './HistorialEnvios'
@@ -12,6 +13,7 @@ export function FacturacionPage() {
     <Routes>
       <Route index element={<Navigate to="facturas" replace />} />
       <Route path="facturas" element={<Facturas />} />
+      <Route path="facturas/nueva" element={<FacturaNueva />} />
       <Route path="facturas/:id" element={<FacturaDetalle />} />
       <Route path="facturas/:id/pdf" element={<FacturaDetalle showPdf />} />
       <Route path="facturas/:id/editar" element={<FacturaEditar />} />

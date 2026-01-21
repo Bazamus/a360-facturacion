@@ -47,12 +47,6 @@ function formatCurrency(value) {
   }).format(value)
 }
 
-// Formatear IBAN
-function formatIBAN(iban) {
-  if (!iban) return ''
-  return iban.replace(/(.{4})/g, '$1 ').trim()
-}
-
 // Obtener etiqueta método de pago
 function getMetodoPagoLabel(metodo) {
   const metodos = {
@@ -153,13 +147,6 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.text(`NIF: ${factura.cliente_nif || '-'}`, margin + 5, y + 21)
 
   // Dirección del cliente
-  // Debug: verificar datos disponibles
-  console.log('=== DEBUG DIRECCIÓN PDF ===')
-  console.log('cliente_direccion:', factura.cliente_direccion)
-  console.log('cliente_cp:', factura.cliente_cp)
-  console.log('cliente_ciudad:', factura.cliente_ciudad)
-  console.log('cliente_provincia:', factura.cliente_provincia)
-  
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'normal')
