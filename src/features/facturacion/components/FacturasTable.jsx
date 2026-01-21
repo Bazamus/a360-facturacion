@@ -196,15 +196,40 @@ export function FacturasTable({
                       </Button>
                     )}
 
-                    {/* Email - solo para emitidas con email */}
-                    {factura.estado === 'emitida' && factura.cliente_email && (
+                    {/* Email - para emitidas y pagadas */}
+                    {factura.estado === 'emitida' && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEmail?.(factura)}
-                        title="Enviar por email"
+                        disabled={!factura.cliente_email}
+                        title={
+                          !factura.cliente_email
+                            ? 'Cliente sin email configurado'
+                            : factura.email_enviado
+                              ? `Enviada el ${formatDate(factura.fecha_email_enviado)}`
+                              : 'Enviar por email'
+                        }
                       >
-                        <Mail className="w-4 h-4" />
+                        <Mail className={`w-4 h-4 ${
+                          !factura.cliente_email
+                            ? 'text-amber-500'
+                            : factura.email_enviado
+                              ? 'text-green-500'
+                              : 'text-gray-400'
+                        }`} />
+                      </Button>
+                    )}
+
+                    {/* Indicador de email enviado para facturas pagadas */}
+                    {factura.estado === 'pagada' && factura.email_enviado && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled
+                        title={`Enviada el ${formatDate(factura.fecha_email_enviado)}`}
+                      >
+                        <Mail className="w-4 h-4 text-green-500" />
                       </Button>
                     )}
 

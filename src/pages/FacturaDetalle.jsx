@@ -1,38 +1,41 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
-  ArrowLeft, 
-  FileText, 
-  Mail, 
-  CreditCard, 
-  XCircle, 
+import {
+  ArrowLeft,
+  FileText,
+  Mail,
+  CreditCard,
+  XCircle,
   Download,
   Calendar,
   Building2,
   User,
   Gauge,
   AlertTriangle,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  Clock
 } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { EstadoBadge } from '@/features/facturacion/components'
 import { descargarFacturaPDF } from '@/features/facturacion/pdf'
-import { 
-  formatCurrency, 
-  formatDate, 
+import {
+  formatCurrency,
+  formatDate,
   formatCantidad,
   formatIBAN,
-  getMetodoPagoLabel 
+  getMetodoPagoLabel
 } from '@/features/facturacion/utils/calculos'
-import { 
-  useFactura, 
+import {
+  useFactura,
   useFacturaLineas,
   useFacturaHistoricoConsumo,
   useEmitirFactura,
   useAnularFactura,
-  useMarcarPagada 
+  useMarcarPagada
 } from '@/hooks/useFacturas'
+import { useEnviarFactura } from '@/hooks/useEnvios'
 
 export default function FacturaDetalle({ showPdf = false }) {
   const { id } = useParams()
@@ -42,14 +45,17 @@ export default function FacturaDetalle({ showPdf = false }) {
   const [anularModal, setAnularModal] = useState(false)
   const [motivoAnulacion, setMotivoAnulacion] = useState('')
   const [generandoPDF, setGenerandoPDF] = useState(false)
+  const [emailModalOpen, setEmailModalOpen] = useState(false)
+  const [modoTestEmail, setModoTestEmail] = useState(false)
 
-  const { data: factura, isLoading } = useFactura(id)
+  const { data: factura, isLoading, refetch } = useFactura(id)
   const { data: lineas } = useFacturaLineas(id)
   const { data: historico } = useFacturaHistoricoConsumo(id)
 
   const emitirFactura = useEmitirFactura()
   const anularFactura = useAnularFactura()
   const marcarPagada = useMarcarPagada()
+  const enviarFactura = useEnviarFactura()
 
   const handleDescargarPDF = async () => {
     if (!factura) return
@@ -144,6 +150,12 @@ export default function FacturaDetalle({ showPdf = false }) {
                 {factura.numero_completo || 'Factura en borrador'}
               </h1>
               <EstadoBadge estado={factura.estado} />
+              {factura.email_enviado && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                  <Mail size={12} />
+                  Enviada
+                </span>
+              )}
             </div>
             <p className="text-gray-500 mt-1">
               {formatDate(factura.fecha_factura)} · {factura.comunidad?.nombre}
@@ -162,11 +174,16 @@ export default function FacturaDetalle({ showPdf = false }) {
 
           {factura.estado === 'emitida' && (
             <>
-              <Button variant="outline" onClick={() => toast.info('Disponible en Fase 4')}>
-                <Mail className="w-4 h-4 mr-2" />
-                Enviar por email
+              <Button
+                variant={factura.email_enviado ? "ghost" : "outline"}
+                onClick={() => setEmailModalOpen(true)}
+                disabled={!factura.cliente_email}
+                title={!factura.cliente_email ? 'Cliente sin email configurado' : ''}
+              >
+                <Mail className={`w-4 h-4 mr-2 ${factura.email_enviado ? 'text-green-500' : ''}`} />
+                {factura.email_enviado ? 'Reenviar' : 'Enviar por email'}
               </Button>
-              <Button 
+              <Button
                 className="bg-green-600 hover:bg-green-700"
                 onClick={handleMarcarPagada}
                 disabled={marcarPagada.isPending}
@@ -174,8 +191,8 @@ export default function FacturaDetalle({ showPdf = false }) {
                 <CreditCard className="w-4 h-4 mr-2" />
                 Marcar pagada
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="text-red-600 border-red-300 hover:bg-red-50"
                 onClick={() => setAnularModal(true)}
               >
@@ -284,6 +301,36 @@ export default function FacturaDetalle({ showPdf = false }) {
                 <dd className="text-blue-600">{factura.cliente_email}</dd>
               </div>
             )}
+
+            {/* Estado de envío por email */}
+            {factura.estado !== 'borrador' && (
+              <div className="mt-4 pt-4 border-t">
+                <dt className="text-gray-500 text-sm mb-2">Estado de envío</dt>
+                <dd>
+                  {factura.email_enviado ? (
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle2 size={18} />
+                      <div>
+                        <p className="font-medium">Enviada por email</p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(factura.fecha_email_enviado)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : factura.cliente_email ? (
+                    <div className="flex items-center gap-2 text-amber-600">
+                      <Clock size={18} />
+                      <p className="font-medium">Pendiente de envío</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Mail size={18} />
+                      <p className="text-sm">Sin email configurado</p>
+                    </div>
+                  )}
+                </dd>
+              </div>
+            )}
           </dl>
         </Card>
       </div>
@@ -386,7 +433,7 @@ export default function FacturaDetalle({ showPdf = false }) {
 
       {/* Modal anular */}
       <Modal
-        isOpen={anularModal}
+        open={anularModal}
         onClose={() => setAnularModal(false)}
         title="Anular factura"
       >
@@ -395,7 +442,7 @@ export default function FacturaDetalle({ showPdf = false }) {
             Esta acción anulará la factura y liberará las lecturas para poder refacturarlas.
             Esta acción no se puede deshacer.
           </p>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Motivo de anulación *
@@ -419,6 +466,67 @@ export default function FacturaDetalle({ showPdf = false }) {
               disabled={anularFactura.isPending || !motivoAnulacion.trim()}
             >
               {anularFactura.isPending ? 'Anulando...' : 'Anular factura'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal enviar email */}
+      <Modal
+        open={emailModalOpen}
+        onClose={() => { setEmailModalOpen(false); setModoTestEmail(false) }}
+        title={factura?.email_enviado ? "Reenviar Factura" : "Enviar Factura por Email"}
+      >
+        <div className="space-y-4">
+          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <p><strong>Factura:</strong> {factura?.numero_completo}</p>
+            <p><strong>Destinatario:</strong> {factura?.cliente_email}</p>
+            <p><strong>Total:</strong> {formatCurrency(factura?.total)}</p>
+          </div>
+
+          {factura?.email_enviado && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              Esta factura ya fue enviada el {formatDate(factura.fecha_email_enviado)}.
+              ¿Deseas enviarla nuevamente?
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="modo-test-detail"
+              checked={modoTestEmail}
+              onChange={(e) => setModoTestEmail(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="modo-test-detail" className="text-sm text-yellow-800">
+              Modo test (envía a dirección de prueba, no al cliente real)
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" onClick={() => { setEmailModalOpen(false); setModoTestEmail(false) }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  await enviarFactura.mutateAsync({
+                    facturaId: factura.id,
+                    modoTest: modoTestEmail
+                  })
+                  toast.success('Factura enviada correctamente')
+                  setEmailModalOpen(false)
+                  setModoTestEmail(false)
+                  refetch()
+                } catch (error) {
+                  toast.error(`Error: ${error.message}`)
+                }
+              }}
+              isLoading={enviarFactura.isPending}
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              {factura?.email_enviado ? 'Reenviar' : 'Enviar'}
             </Button>
           </div>
         </div>

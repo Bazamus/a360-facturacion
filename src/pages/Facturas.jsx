@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus } from 'lucide-react'
+import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus, Mail } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge, ModalExportarFacturas, ProgressoExportacion } from '@/features/facturacion/components'
@@ -15,6 +15,7 @@ import {
   useEstadisticasFacturacion,
   useEmitirFacturasMasivo
 } from '@/hooks/useFacturas'
+import { useEnviarFactura } from '@/hooks/useEnvios'
 import { useExportarFacturas } from '@/features/facturacion/hooks/useExportarFacturas'
 
 export default function Facturas() {
@@ -36,16 +37,21 @@ export default function Facturas() {
   const [progresoDescarga, setProgresoDescarga] = useState({ actual: 0, total: 0 })
 
   const { data: comunidades } = useComunidades()
-  const { data: facturas, isLoading } = useFacturas(filters)
+  const { data: facturas, isLoading, refetch } = useFacturas(filters)
   const { data: stats } = useEstadisticasFacturacion(filters)
   const deleteFactura = useDeleteFactura()
   const marcarPagada = useMarcarPagada()
   const emitirMasivo = useEmitirFacturasMasivo()
+  const enviarFactura = useEnviarFactura()
   const { exportar } = useExportarFacturas()
 
   // Estados para exportación
   const [modalExport, setModalExport] = useState(false)
   const [progresoExportacion, setProgresoExportacion] = useState(null)
+
+  // Estados para envío de email
+  const [emailModal, setEmailModal] = useState({ open: false, factura: null, esReenvio: false })
+  const [modoTestEmail, setModoTestEmail] = useState(false)
 
   // Contar borradores para mostrar botón de emisión rápida
   const borradoresCount = facturas?.filter(f => f.estado === 'borrador').length || 0
@@ -130,7 +136,34 @@ export default function Facturas() {
   }
 
   const handleEmail = (factura) => {
-    toast.info('Funcionalidad de envío por email disponible en Fase 4')
+    if (!factura.cliente_email) {
+      toast.warning('Este cliente no tiene email configurado')
+      return
+    }
+
+    if (factura.email_enviado) {
+      // Mostrar modal de información/reenvío
+      setEmailModal({ open: true, factura, esReenvio: true })
+    } else {
+      // Mostrar modal de confirmación de envío
+      setEmailModal({ open: true, factura, esReenvio: false })
+    }
+  }
+
+  const handleConfirmarEnvioEmail = async () => {
+    const { factura } = emailModal
+    try {
+      await enviarFactura.mutateAsync({
+        facturaId: factura.id,
+        modoTest: modoTestEmail
+      })
+      toast.success(`Factura ${factura.numero_completo} enviada correctamente`)
+      setEmailModal({ open: false, factura: null, esReenvio: false })
+      setModoTestEmail(false)
+      refetch()
+    } catch (error) {
+      toast.error(`Error al enviar: ${error.message}`)
+    }
   }
 
   const clearFilters = () => {
@@ -491,6 +524,65 @@ export default function Facturas() {
               {marcarPagada.isPending ? 'Procesando...' : 'Confirmar pago'}
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal enviar email */}
+      <Modal
+        open={emailModal.open}
+        onClose={() => { setEmailModal({ open: false, factura: null, esReenvio: false }); setModoTestEmail(false) }}
+        title={emailModal.esReenvio ? "Reenviar Factura" : "Enviar Factura por Email"}
+      >
+        <div className="space-y-4">
+          {emailModal.factura && (
+            <>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <p><strong>Factura:</strong> {emailModal.factura.numero_completo}</p>
+                <p><strong>Cliente:</strong> {emailModal.factura.cliente_nombre}</p>
+                <p><strong>Email:</strong> {emailModal.factura.cliente_email}</p>
+                <p><strong>Total:</strong> {formatCurrency(emailModal.factura.total)}</p>
+              </div>
+
+              {emailModal.esReenvio && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-amber-800 text-sm">
+                    Esta factura ya fue enviada el {formatDate(emailModal.factura.fecha_email_enviado)}.
+                    ¿Deseas enviarla nuevamente?
+                  </p>
+                </div>
+              )}
+
+              {/* Toggle modo test */}
+              <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="modo-test-single"
+                  checked={modoTestEmail}
+                  onChange={(e) => setModoTestEmail(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="modo-test-single" className="text-sm text-yellow-800">
+                  Modo test (envía a dirección de prueba, no al cliente real)
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => { setEmailModal({ open: false, factura: null, esReenvio: false }); setModoTestEmail(false) }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleConfirmarEnvioEmail}
+                  isLoading={enviarFactura.isPending}
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {emailModal.esReenvio ? 'Reenviar' : 'Enviar'}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 
