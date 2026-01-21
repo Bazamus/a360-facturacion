@@ -319,13 +319,13 @@ export default function FacturaDetalle({ showPdf = false }) {
                 <tr key={linea.id}>
                   <td className="px-6 py-4">
                     <div className="font-medium">{linea.concepto_nombre}</div>
-                    {!linea.es_termino_fijo && (
+                    {!linea.es_termino_fijo && linea.contador_numero_serie && (
                       <div className="text-sm text-gray-500 mt-1">
                         <span className="font-mono">{linea.contador_numero_serie}</span>
                         <span className="mx-2">·</span>
-                        Lect. ant: {Number(linea.lectura_anterior).toFixed(2)} ({formatDate(linea.fecha_lectura_anterior)})
+                        Lect. ant: {Number(linea.lectura_anterior || 0).toFixed(2)} ({formatDate(linea.fecha_lectura_anterior)})
                         <span className="mx-1">→</span>
-                        Actual: {Number(linea.lectura_actual).toFixed(2)} ({formatDate(linea.fecha_lectura_actual)})
+                        Actual: {Number(linea.lectura_actual || 0).toFixed(2)} ({formatDate(linea.fecha_lectura_actual)})
                       </div>
                     )}
                   </td>
