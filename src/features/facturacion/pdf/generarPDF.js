@@ -205,7 +205,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // DETALLE DE CONSUMOS
   // =========================================
   
-  doc.setFontSize(11)
+  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
   doc.text('DETALLE DE CONSUMOS', margin, y)
@@ -249,19 +249,19 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
     headStyles: {
       fillColor: COLORS.primary,
       textColor: COLORS.white,
-      fontSize: 9,
+      fontSize: 10,
       fontStyle: 'bold',
-      cellPadding: 4
+      cellPadding: 5
     },
     bodyStyles: {
-      fontSize: 9,
+      fontSize: 10,
       textColor: COLORS.text,
-      cellPadding: 4,
+      cellPadding: 5,
       valign: 'middle'
     },
     columnStyles: {
       0: { cellWidth: 55 },
-      1: { cellWidth: 40, halign: 'center', fontSize: 8 },
+      1: { cellWidth: 40, halign: 'center', fontSize: 9 },
       2: { cellWidth: 30, halign: 'right' },
       3: { cellWidth: 25, halign: 'right' },
       4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' }
