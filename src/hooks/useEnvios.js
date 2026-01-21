@@ -9,10 +9,10 @@ import { supabase } from '../lib/supabase'
  * Hook para obtener facturas pendientes de envío
  */
 export function useFacturasPendientesEnvio(filtros = {}) {
-  const { comunidadId, estado } = filtros
+  const { comunidadId, estado, fechaDesde, fechaHasta } = filtros
 
   return useQuery({
-    queryKey: ['facturas-pendientes-envio', comunidadId, estado],
+    queryKey: ['facturas-pendientes-envio', comunidadId, estado, fechaDesde, fechaHasta],
     queryFn: async () => {
       let query = supabase
         .from('v_facturas_pendientes_envio')
@@ -20,14 +20,7 @@ export function useFacturasPendientesEnvio(filtros = {}) {
         .order('fecha_factura', { ascending: false })
 
       if (comunidadId) {
-        // Necesitamos hacer join con facturas para filtrar por comunidad
-        const { data: facturas } = await supabase
-          .from('facturas')
-          .select('id')
-          .eq('comunidad_id', comunidadId)
-        
-        const facturaIds = facturas?.map(f => f.id) || []
-        query = query.in('id', facturaIds)
+        query = query.eq('comunidad_id', comunidadId)
       }
 
       if (estado === 'pendiente') {
@@ -36,6 +29,14 @@ export function useFacturasPendientesEnvio(filtros = {}) {
         query = query.eq('estado_envio', 'sin_email')
       } else if (estado === 'enviado') {
         query = query.eq('estado_envio', 'enviado')
+      }
+
+      if (fechaDesde) {
+        query = query.gte('fecha_factura', fechaDesde)
+      }
+
+      if (fechaHasta) {
+        query = query.lte('fecha_factura', fechaHasta)
       }
 
       const { data, error } = await query

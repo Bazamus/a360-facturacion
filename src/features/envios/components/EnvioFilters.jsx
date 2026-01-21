@@ -1,6 +1,6 @@
-import { Select } from '../../../components/ui'
+import { Select, Input } from '../../../components/ui'
 import { useComunidades } from '../../../hooks'
-import { Filter } from 'lucide-react'
+import { Filter, Calendar } from 'lucide-react'
 
 export function EnvioFilters({ filtros, onFiltrosChange }) {
   const { data: comunidades = [] } = useComunidades()
@@ -20,9 +20,9 @@ export function EnvioFilters({ filtros, onFiltrosChange }) {
   ]
 
   return (
-    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+    <div className="flex flex-wrap items-center gap-4 p-4 bg-gray-50 rounded-lg">
       <Filter size={18} className="text-gray-400" />
-      
+
       <Select
         value={filtros.comunidadId || ''}
         onChange={(e) => handleChange('comunidadId', e.target.value || null)}
@@ -47,6 +47,27 @@ export function EnvioFilters({ filtros, onFiltrosChange }) {
           </option>
         ))}
       </Select>
+
+      <div className="flex items-center gap-2">
+        <Calendar size={16} className="text-gray-400" />
+        <span className="text-sm text-gray-500">Desde:</span>
+        <Input
+          type="date"
+          value={filtros.fechaDesde || ''}
+          onChange={(e) => handleChange('fechaDesde', e.target.value || null)}
+          className="w-40"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-500">Hasta:</span>
+        <Input
+          type="date"
+          value={filtros.fechaHasta || ''}
+          onChange={(e) => handleChange('fechaHasta', e.target.value || null)}
+          className="w-40"
+        />
+      </div>
     </div>
   )
 }

@@ -19,7 +19,9 @@ export default function EnviarFacturas() {
   
   const [filtros, setFiltros] = useState({
     comunidadId: null,
-    estado: 'pendiente'
+    estado: 'pendiente',
+    fechaDesde: null,
+    fechaHasta: null
   })
   const [selectedIds, setSelectedIds] = useState([])
   const [subirOneDrive, setSubirOneDrive] = useState(true)
