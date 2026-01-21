@@ -578,7 +578,7 @@ export default function FacturaNueva() {
 
       {/* Modal agregar línea */}
       <Modal
-        isOpen={addLineaModal.open}
+        open={addLineaModal.open}
         onClose={() => {
           setAddLineaModal({ open: false })
           setConceptoSeleccionado(null)

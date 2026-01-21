@@ -459,7 +459,7 @@ export default function FacturaEditar() {
 
       {/* Modal eliminar línea */}
       <Modal
-        isOpen={deleteModal.open}
+        open={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, linea: null })}
         title="Eliminar línea"
       >
@@ -494,7 +494,7 @@ export default function FacturaEditar() {
 
       {/* Modal agregar línea */}
       <Modal
-        isOpen={addLineaModal.open}
+        open={addLineaModal.open}
         onClose={() => { setAddLineaModal({ open: false }); setConceptoSeleccionado(null) }}
         title="Agregar Línea"
       >
