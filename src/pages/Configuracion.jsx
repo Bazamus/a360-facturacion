@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle } from 'lucide-react'
-import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas } from '@/hooks'
+import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw } from 'lucide-react'
+import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
@@ -751,17 +751,303 @@ function ConfigSEPA() {
 }
 
 function ConfigUsuarios() {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [formData, setFormData] = useState({
+    email: '',
+    nombreCompleto: '',
+    password: '',
+    activo: true
+  })
+
+  const { data: usuarios, isLoading } = useUsuarios()
+  const crearMutation = useCrearUsuario()
+  const actualizarMutation = useActualizarUsuario()
+  const resetPasswordMutation = useResetearPassword()
+  const toast = useToast()
+
+  // Generador de contraseñas simple (5 caracteres)
+  const generarPassword = () => {
+    // Excluye caracteres confusos: 0/O, 1/I/l
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+    let password = ''
+    for (let i = 0; i < 5; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
+
+  const handleGenerarPassword = () => {
+    const newPassword = generarPassword()
+    setFormData(prev => ({ ...prev, password: newPassword }))
+  }
+
+  const handleOpenModal = (user = null) => {
+    if (user) {
+      // Editar usuario existente
+      setEditingUser(user)
+      setFormData({
+        email: user.email,
+        nombreCompleto: user.nombre_completo,
+        password: '',
+        activo: user.activo
+      })
+    } else {
+      // Nuevo usuario
+      setEditingUser(null)
+      setFormData({
+        email: '',
+        nombreCompleto: '',
+        password: generarPassword(),
+        activo: true
+      })
+    }
+    setModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setModalOpen(false)
+    setEditingUser(null)
+    setFormData({
+      email: '',
+      nombreCompleto: '',
+      password: '',
+      activo: true
+    })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    try {
+      if (editingUser) {
+        // Actualizar usuario existente
+        await actualizarMutation.mutateAsync({
+          userId: editingUser.id,
+          nombreCompleto: formData.nombreCompleto,
+          activo: formData.activo
+        })
+        toast.success('Usuario actualizado correctamente')
+      } else {
+        // Crear nuevo usuario
+        await crearMutation.mutateAsync({
+          email: formData.email,
+          password: formData.password,
+          nombreCompleto: formData.nombreCompleto
+        })
+        toast.success(`Usuario creado. Contraseña: ${formData.password}`, { duration: 10000 })
+      }
+      handleCloseModal()
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const handleResetPassword = async (email) => {
+    try {
+      await resetPasswordMutation.mutateAsync({ email })
+      toast.success('Email de recuperación enviado')
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const columns = [
+    {
+      key: 'email',
+      header: 'Email',
+      render: (value) => (
+        <span className="font-medium text-gray-900">{value}</span>
+      )
+    },
+    {
+      key: 'nombre_completo',
+      header: 'Nombre Completo'
+    },
+    {
+      key: 'rol',
+      header: 'Rol',
+      render: (value) => (
+        <Badge variant={value === 'admin' ? 'warning' : 'default'}>
+          {value === 'admin' ? 'Administrador' : 'Usuario'}
+        </Badge>
+      )
+    },
+    {
+      key: 'activo',
+      header: 'Estado',
+      render: (value) => (
+        <Badge variant={value ? 'success' : 'default'}>
+          {value ? 'Activo' : 'Inactivo'}
+        </Badge>
+      )
+    },
+    {
+      key: 'last_sign_in_at',
+      header: 'Último Acceso',
+      render: (value) => value 
+        ? new Date(value).toLocaleDateString('es-ES', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : 'Nunca'
+    },
+    {
+      key: 'acciones',
+      header: 'Acciones',
+      sortable: false,
+      render: (_, row) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleOpenModal(row)}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            title="Editar usuario"
+          >
+            <Edit2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleResetPassword(row.email)}
+            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+            title="Enviar email de recuperación"
+            disabled={resetPasswordMutation.isPending}
+          >
+            <Lock className="h-4 w-4" />
+          </button>
+        </div>
+      )
+    }
+  ]
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Gestión de Usuarios</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-gray-500">
-          Administración de usuarios del sistema. 
-          Los usuarios se gestionan a través de Supabase Auth.
-        </p>
-      </CardContent>
-    </Card>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Gestión de Usuarios</CardTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              Administración de usuarios del sistema
+            </p>
+          </div>
+          <Button size="sm" onClick={() => handleOpenModal()}>
+            <UserPlus className="h-4 w-4 mr-1" />
+            Nuevo Usuario
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="py-12 flex justify-center">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <DataTable
+              data={usuarios || []}
+              columns={columns}
+              pageSize={10}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal Crear/Editar Usuario */}
+      <Modal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        title={editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <FormField label="Email" required={!editingUser}>
+            <Input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="usuario@ejemplo.com"
+              required={!editingUser}
+              disabled={editingUser}
+            />
+            {editingUser && (
+              <p className="mt-1 text-xs text-gray-500">
+                El email no se puede modificar
+              </p>
+            )}
+          </FormField>
+
+          <FormField label="Nombre Completo" required>
+            <Input
+              value={formData.nombreCompleto}
+              onChange={(e) => setFormData(prev => ({ ...prev, nombreCompleto: e.target.value }))}
+              placeholder="Nombre y apellidos"
+              required
+            />
+          </FormField>
+
+          {!editingUser && (
+            <FormField label="Contraseña" required>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Contraseña"
+                  required
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGenerarPassword}
+                  title="Generar contraseña aleatoria"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Usa el botón para generar una contraseña aleatoria de 5 caracteres
+              </p>
+            </FormField>
+          )}
+
+          {editingUser && (
+            <div className="flex items-center pt-2">
+              <Checkbox
+                checked={formData.activo}
+                onChange={(e) => setFormData(prev => ({ ...prev, activo: e.target.checked }))}
+                label="Usuario activo"
+              />
+            </div>
+          )}
+
+          {!editingUser && formData.password && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                <strong>Importante:</strong> Guarda esta contraseña. Se mostrará una sola vez.
+              </p>
+              <p className="text-sm font-mono font-bold text-blue-900 mt-1">
+                {formData.password}
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleCloseModal}
+              disabled={crearMutation.isPending || actualizarMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              loading={crearMutation.isPending || actualizarMutation.isPending}
+            >
+              {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </>
   )
 }

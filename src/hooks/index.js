@@ -57,6 +57,14 @@ export {
   useActualizarSecuenciaFacturas
 } from './useConfiguracion'
 
+// Usuarios
+export {
+  useUsuarios,
+  useCrearUsuario,
+  useActualizarUsuario,
+  useResetearPassword
+} from './useUsuarios'
+
 // Lecturas e Importaciones
 export {
   useImportaciones,
