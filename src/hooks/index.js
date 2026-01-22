@@ -62,7 +62,8 @@ export {
   useUsuarios,
   useCrearUsuario,
   useActualizarUsuario,
-  useResetearPassword
+  useResetearPassword,
+  useEliminarUsuario
 } from './useUsuarios'
 
 // Lecturas e Importaciones

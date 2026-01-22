@@ -107,3 +107,26 @@ export function useResetearPassword() {
     }
   })
 }
+
+/**
+ * Hook para eliminar usuario
+ * Solo admins pueden eliminar usuarios (excepto otros admins y a sí mismos)
+ */
+export function useEliminarUsuario() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ userId }) => {
+      const { error } = await supabase
+        .rpc('eliminar_usuario', {
+          p_user_id: userId
+        })
+      
+      if (error) throw error
+      return { success: true }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+    }
+  })
+}

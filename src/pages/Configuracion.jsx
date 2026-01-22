@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw } from 'lucide-react'
-import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword } from '@/hooks'
+import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw, Trash2 } from 'lucide-react'
+import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword, useEliminarUsuario } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
@@ -752,6 +752,7 @@ function ConfigSEPA() {
 
 function ConfigUsuarios() {
   const [modalOpen, setModalOpen] = useState(false)
+  const [deleteModal, setDeleteModal] = useState({ open: false, user: null })
   const [editingUser, setEditingUser] = useState(null)
   const [formData, setFormData] = useState({
     email: '',
@@ -764,6 +765,7 @@ function ConfigUsuarios() {
   const crearMutation = useCrearUsuario()
   const actualizarMutation = useActualizarUsuario()
   const resetPasswordMutation = useResetearPassword()
+  const eliminarMutation = useEliminarUsuario()
   const toast = useToast()
 
   // Generador de contraseñas simple (5 caracteres)
@@ -852,6 +854,28 @@ function ConfigUsuarios() {
     }
   }
 
+  const handleOpenDeleteModal = (user) => {
+    setDeleteModal({ open: true, user })
+  }
+
+  const handleCloseDeleteModal = () => {
+    setDeleteModal({ open: false, user: null })
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.user) return
+
+    try {
+      await eliminarMutation.mutateAsync({
+        userId: deleteModal.user.id
+      })
+      toast.success('Usuario eliminado correctamente')
+      handleCloseDeleteModal()
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
   const columns = [
     {
       key: 'email',
@@ -916,6 +940,16 @@ function ConfigUsuarios() {
           >
             <Lock className="h-4 w-4" />
           </button>
+          {row.rol !== 'admin' && (
+            <button
+              onClick={() => handleOpenDeleteModal(row)}
+              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+              title="Eliminar usuario"
+              disabled={eliminarMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )
     }
@@ -1047,6 +1081,60 @@ function ConfigUsuarios() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Eliminar Usuario */}
+      <Modal
+        open={deleteModal.open}
+        onClose={handleCloseDeleteModal}
+        title="Eliminar Usuario"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
+            <div className="flex gap-3">
+              <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <h4 className="font-semibold text-red-900">
+                  ⚠️ Advertencia: Esta acción no se puede deshacer
+                </h4>
+                <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
+                  <li>Se eliminará permanentemente el usuario del sistema</li>
+                  <li>El usuario perderá acceso inmediatamente</li>
+                  <li>Esta acción es irreversible</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {deleteModal.user && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h5 className="text-sm font-medium text-gray-700 mb-2">Usuario a eliminar:</h5>
+              <div className="space-y-1">
+                <p className="text-sm"><strong>Email:</strong> {deleteModal.user.email}</p>
+                <p className="text-sm"><strong>Nombre:</strong> {deleteModal.user.nombre_completo}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleCloseDeleteModal}
+              disabled={eliminarMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleConfirmDelete}
+              loading={eliminarMutation.isPending}
+            >
+              Eliminar Usuario
+            </Button>
+          </div>
+        </div>
       </Modal>
     </>
   )

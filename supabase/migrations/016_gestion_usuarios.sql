@@ -76,6 +76,53 @@ COMMENT ON FUNCTION actualizar_usuario IS
   'Actualiza nombre y estado activo de un usuario (solo admins)';
 
 -- =====================================================
+-- Función: eliminar_usuario
+-- Permite a admins eliminar usuarios del sistema
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION eliminar_usuario(
+  p_user_id UUID
+)
+RETURNS void AS $$
+BEGIN
+  -- Validar que solo admins puedan ejecutar
+  IF NOT EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() 
+    AND rol = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Solo administradores pueden eliminar usuarios';
+  END IF;
+  
+  -- Validar que el usuario existe
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = p_user_id) THEN
+    RAISE EXCEPTION 'Usuario no encontrado';
+  END IF;
+  
+  -- No permitir eliminarse a sí mismo
+  IF p_user_id = auth.uid() THEN
+    RAISE EXCEPTION 'No puedes eliminar tu propia cuenta';
+  END IF;
+  
+  -- No permitir eliminar admins (solo el propio admin puede desactivarse)
+  IF EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = p_user_id 
+    AND rol = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'No se pueden eliminar cuentas de administrador';
+  END IF;
+  
+  -- Eliminar el perfil (el CASCADE eliminará el usuario de auth.users)
+  DELETE FROM profiles WHERE id = p_user_id;
+  
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION eliminar_usuario IS 
+  'Elimina un usuario del sistema (solo admins, no puede eliminar admins ni a sí mismo)';
+
+-- =====================================================
 -- Políticas RLS para la vista v_usuarios
 -- Solo usuarios autenticados pueden ver usuarios
 -- =====================================================
