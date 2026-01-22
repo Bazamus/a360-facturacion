@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
+import { Logo } from '@/components/brand/Logo'
 import { Menu, Bell, LogOut, User } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
@@ -31,18 +32,21 @@ export function Header({ onMenuClick }) {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-      {/* Botón menú móvil */}
-      <button
-        type="button"
-        className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
-        onClick={onMenuClick}
-      >
-        <Menu className="h-6 w-6" />
-      </button>
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-primary-100 bg-white/95 backdrop-blur-sm px-4 shadow-soft sm:gap-x-6 sm:px-6 lg:px-8">
+      {/* Botón menú móvil + Logo */}
+      <div className="flex items-center gap-3 lg:hidden">
+        <button
+          type="button"
+          className="-m-2.5 p-2.5 text-gray-700 hover:text-primary-600 transition-colors"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+        <Logo variant="icon" size="sm" className="w-8 h-8" />
+      </div>
 
       {/* Separador */}
-      <div className="h-6 w-px bg-gray-200 lg:hidden" />
+      <div className="h-6 w-px bg-primary-100 lg:hidden" />
 
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         {/* Espacio flexible */}
@@ -65,10 +69,10 @@ export function Header({ onMenuClick }) {
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"
-              className="-m-1.5 flex items-center p-1.5"
+              className="-m-1.5 flex items-center p-1.5 hover:opacity-80 transition-opacity"
               onClick={() => setDropdownOpen(!dropdownOpen)}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 ring-2 ring-primary-500/20">
                 <User className="h-5 w-5 text-primary-600" />
               </div>
               <span className="hidden lg:flex lg:items-center">
@@ -80,18 +84,18 @@ export function Header({ onMenuClick }) {
 
             {/* Dropdown */}
             {dropdownOpen && (
-              <div className="absolute right-0 z-10 mt-2.5 w-48 origin-top-right rounded-lg bg-white py-2 shadow-lg ring-1 ring-gray-900/5">
-                <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">
+              <div className="absolute right-0 z-10 mt-2.5 w-56 origin-top-right rounded-xl bg-white py-2 shadow-primary ring-1 ring-primary-100/50 animate-in">
+                <div className="px-4 py-3 border-b border-primary-50">
+                  <p className="text-sm font-semibold text-gray-900">
                     {profile?.nombre_completo || 'Usuario'}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs text-gray-500 truncate mt-0.5">
                     {user?.email}
                   </p>
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
                   Cerrar sesión

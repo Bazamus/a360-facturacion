@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { 
-  LayoutDashboard, 
-  Building2, 
-  Users, 
-  Gauge, 
-  FileInput, 
-  Receipt, 
-  BarChart3, 
+import { Logo } from '@/components/brand/Logo'
+import {
+  LayoutDashboard,
+  Building2,
+  Users,
+  Gauge,
+  FileInput,
+  Receipt,
+  BarChart3,
   Settings,
   X,
-  Zap,
   ChevronDown,
   Upload,
   History,
@@ -88,15 +88,7 @@ export function Sidebar({ open, onClose, mobile }) {
     <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-primary-700 px-6 pb-4">
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500">
-            <Zap className="h-6 w-6 text-white" />
-          </div>
-          <div className="text-white">
-            <span className="text-xl font-bold">A360</span>
-            <span className="text-sm block text-primary-200 -mt-1">Facturación</span>
-          </div>
-        </div>
+        <Logo variant="sidebar" size="md" theme="dark" />
         {mobile && (
           <button
             type="button"

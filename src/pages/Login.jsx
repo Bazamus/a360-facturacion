@@ -4,8 +4,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '@/features/auth/AuthContext'
-import { Button, Input, FormField, Card, CardContent } from '@/components/ui'
-import { Zap, AlertCircle } from 'lucide-react'
+import { Button, Input, FormField } from '@/components/ui'
+import { Logo } from '@/components/brand/Logo'
+import { AlertCircle, Mail, Lock, User, Building2, Users as UsersIcon, Zap } from 'lucide-react'
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -24,7 +25,7 @@ export function LoginPage() {
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  
+
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -47,8 +48,7 @@ export function LoginPage() {
     try {
       if (isRegister) {
         await signUp(data.email, data.password, data.nombreCompleto)
-        setError('') 
-        // Mostrar mensaje de verificación si es necesario
+        setError('')
         alert('Cuenta creada. Por favor, verifica tu email si es requerido.')
       } else {
         await signIn(data.email, data.password)
@@ -75,117 +75,208 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 px-4">
-      {/* Patrón de fondo */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-      
-      <div className="relative w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm mb-4">
-            <Zap className="h-9 w-9 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white">A360 Facturación</h1>
-          <p className="mt-2 text-primary-200">Sistema de Gestión Energética</p>
+    <div className="min-h-screen flex overflow-hidden bg-white">
+      {/* Hero Visual - Lado Izquierdo */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600">
+        {/* Patrón de círculos concéntricos */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border-2 border-white animate-pulse-glow" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-2 border-white animate-pulse-glow" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-2 border-white animate-pulse-glow" style={{ animationDelay: '1s' }} />
         </div>
 
-        {/* Card de login */}
-        <Card className="shadow-2xl">
-          <CardContent className="p-8">
-            <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
-              {isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
-            </h2>
+        {/* Orbe de gradiente decorativo */}
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-accent-400/20 rounded-full blur-3xl animate-float" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-500/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
 
+        {/* Contenido del hero */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 text-white">
+          {/* Logo prominente */}
+          <div className="mb-8 animate-float">
+            <Logo variant="full" size="xl" theme="dark" />
+          </div>
+
+          {/* Título y descripción */}
+          <h1 className="text-4xl font-bold font-display text-center mb-4">
+            Sistema de Gestión Energética
+          </h1>
+          <p className="text-xl text-primary-100 text-center mb-12 max-w-md">
+            Gestiona la facturación energética de comunidades con precisión y eficiencia
+          </p>
+
+          {/* Estadísticas */}
+          <div className="flex gap-12 text-center">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm mb-3">
+                <Building2 className="h-8 w-8 text-accent-300" />
+              </div>
+              <p className="text-3xl font-bold font-display">35</p>
+              <p className="text-sm text-primary-200">Comunidades</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm mb-3">
+                <UsersIcon className="h-8 w-8 text-accent-300" />
+              </div>
+              <p className="text-3xl font-bold font-display">4.000</p>
+              <p className="text-sm text-primary-200">Clientes</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm mb-3">
+                <Zap className="h-8 w-8 text-accent-300" />
+              </div>
+              <p className="text-3xl font-bold font-display">100%</p>
+              <p className="text-sm text-primary-200">Digital</p>
+            </div>
+          </div>
+
+          {/* Elementos decorativos flotantes */}
+          <div className="absolute top-20 right-20 w-2 h-2 bg-accent-300 rounded-full animate-float" />
+          <div className="absolute bottom-32 left-20 w-3 h-3 bg-accent-400 rounded-full animate-float" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute top-1/3 left-32 w-2 h-2 bg-primary-300 rounded-full animate-float" style={{ animationDelay: '1.5s' }} />
+        </div>
+      </div>
+
+      {/* Formulario - Lado Derecho */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12 lg:px-12 bg-gray-50">
+        <div className="w-full max-w-md">
+          {/* Logo móvil */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="inline-block mb-4">
+              <Logo variant="full" size="lg" theme="light" />
+            </div>
+            <h1 className="text-2xl font-bold font-display text-gray-900">
+              Sistema de Gestión Energética
+            </h1>
+          </div>
+
+          {/* Card del formulario */}
+          <div className="bg-white rounded-2xl shadow-primary p-8 border border-gray-100">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="inline-block mb-4">
+                <Logo variant="icon" size="sm" theme="light" />
+              </div>
+              <h2 className="text-2xl font-bold font-display text-gray-900 mb-2">
+                {isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {isRegister
+                  ? 'Completa tus datos para comenzar'
+                  : 'Accede a tu panel de facturación'}
+              </p>
+            </div>
+
+            {/* Error message */}
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2 text-red-700 text-sm">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {error}
+              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-700 text-sm animate-in">
+                <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                <p>{error}</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Formulario */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               {isRegister && (
-                <FormField 
-                  label="Nombre completo" 
+                <FormField
+                  label="Nombre completo"
                   error={errors.nombreCompleto?.message}
                   required
                 >
-                  <Input
-                    {...register('nombreCompleto')}
-                    placeholder="Tu nombre completo"
-                    error={errors.nombreCompleto}
-                  />
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary-400" />
+                    <Input
+                      {...register('nombreCompleto')}
+                      placeholder="Tu nombre completo"
+                      error={errors.nombreCompleto}
+                      className="pl-10"
+                    />
+                  </div>
                 </FormField>
               )}
 
-              <FormField 
-                label="Email" 
+              <FormField
+                label="Email"
                 error={errors.email?.message}
                 required
               >
-                <Input
-                  {...register('email')}
-                  type="email"
-                  placeholder="tu@email.com"
-                  error={errors.email}
-                />
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary-400" />
+                  <Input
+                    {...register('email')}
+                    type="email"
+                    placeholder="davidrey@a360se.com"
+                    error={errors.email}
+                    className="pl-10"
+                  />
+                </div>
               </FormField>
 
-              <FormField 
-                label="Contraseña" 
+              <FormField
+                label="Contraseña"
                 error={errors.password?.message}
                 required
               >
-                <Input
-                  {...register('password')}
-                  type="password"
-                  placeholder="••••••••"
-                  error={errors.password}
-                />
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary-400" />
+                  <Input
+                    {...register('password')}
+                    type="password"
+                    placeholder="••••••••"
+                    error={errors.password}
+                    className="pl-10"
+                  />
+                </div>
               </FormField>
 
               {isRegister && (
-                <FormField 
-                  label="Confirmar contraseña" 
+                <FormField
+                  label="Confirmar contraseña"
                   error={errors.confirmPassword?.message}
                   required
                 >
-                  <Input
-                    {...register('confirmPassword')}
-                    type="password"
-                    placeholder="••••••••"
-                    error={errors.confirmPassword}
-                  />
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary-400" />
+                    <Input
+                      {...register('confirmPassword')}
+                      type="password"
+                      placeholder="••••••••"
+                      error={errors.confirmPassword}
+                      className="pl-10"
+                    />
+                  </div>
                 </FormField>
               )}
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full bg-gradient-primary hover:shadow-primary transition-all duration-300"
                 loading={loading}
+                size="lg"
               >
                 {isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
               </Button>
             </form>
 
+            {/* Toggle mode */}
             <div className="mt-6 text-center">
               <button
                 type="button"
                 onClick={toggleMode}
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
               >
-                {isRegister 
-                  ? '¿Ya tienes cuenta? Inicia sesión' 
+                {isRegister
+                  ? '¿Ya tienes cuenta? Inicia sesión'
                   : '¿No tienes cuenta? Regístrate'}
               </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Footer */}
-        <p className="mt-6 text-center text-sm text-primary-200">
-          © 2025 A360 Servicios Energéticos S.L.
-        </p>
+          {/* Footer */}
+          <p className="mt-8 text-center text-sm text-gray-500 flex items-center justify-center gap-2">
+            <Logo variant="icon" size="sm" className="w-5 h-5" />
+            © 2025 A360 Servicios Energéticos S.L.
+          </p>
+        </div>
       </div>
     </div>
   )

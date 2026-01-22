@@ -99,24 +99,24 @@ export function DashboardPage() {
       {/* Estadísticas */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
-          <Card key={stat.name}>
+          <Card key={stat.name} accent hover>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-50">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 shadow-soft">
                   <stat.icon className="h-6 w-6 text-primary-600" />
                 </div>
                 <div className={`flex items-center text-sm font-medium ${
                   stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {stat.change}
-                  {stat.changeType === 'positive' 
+                  {stat.changeType === 'positive'
                     ? <ArrowUpRight className="h-4 w-4 ml-1" />
                     : <ArrowDownRight className="h-4 w-4 ml-1" />
                   }
                 </div>
               </div>
               <div className="mt-4">
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-2xl font-bold font-display text-gray-900">{stat.value}</p>
                 <p className="text-sm text-gray-500">{stat.name}</p>
               </div>
             </CardContent>
@@ -213,10 +213,10 @@ function QuickActionButton({ icon: Icon, label, href }) {
   return (
     <a
       href={href}
-      className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-dashed border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors group"
+      className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-all duration-300 group hover:scale-105 hover:shadow-soft"
     >
-      <Icon className="h-8 w-8 text-gray-400 group-hover:text-primary-600 transition-colors" />
-      <span className="mt-2 text-sm font-medium text-gray-600 group-hover:text-primary-700 text-center">
+      <Icon className="h-8 w-8 text-gray-400 group-hover:text-primary-600 transition-all duration-300 group-hover:scale-110" />
+      <span className="mt-2 text-sm font-medium text-gray-600 group-hover:text-primary-700 text-center transition-colors">
         {label}
       </span>
     </a>
