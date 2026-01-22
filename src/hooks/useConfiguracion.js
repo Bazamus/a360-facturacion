@@ -4,11 +4,13 @@ import { supabase } from '../lib/supabase'
 /**
  * Hook para obtener configuración general del sistema
  * Obtiene configuraciones clave como serie_facturacion e iva_porcentaje
+ * También obtiene el número máximo real de facturas emitidas
  */
 export function useConfiguracion() {
   return useQuery({
     queryKey: ['configuracion'],
     queryFn: async () => {
+      // Obtener configuración
       const { data, error } = await supabase
         .from('configuracion')
         .select('*')
@@ -23,6 +25,22 @@ export function useConfiguracion() {
           ? JSON.parse(item.valor) 
           : item.valor
       })
+      
+      // Obtener el número máximo REAL de facturas emitidas
+      const { data: maxFactura, error: maxError } = await supabase
+        .from('facturas')
+        .select('numero')
+        .not('numero', 'is', null)
+        .order('numero', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (maxError && maxError.code !== 'PGRST116') throw maxError
+      
+      // Actualizar el último número con el valor REAL de la BD
+      if (config.serie_facturacion && maxFactura?.numero) {
+        config.serie_facturacion.ultimo_numero = maxFactura.numero
+      }
       
       return config
     }
