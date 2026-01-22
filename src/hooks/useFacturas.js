@@ -7,10 +7,10 @@ import { useAuth } from '@/features/auth/AuthContext'
 // =====================================================
 
 export function useFacturas(options = {}) {
-  const { comunidadId, estado, clienteId, search, limit = 50 } = options
+  const { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit = 50 } = options
 
   return useQuery({
-    queryKey: ['facturas', { comunidadId, estado, clienteId, search, limit }],
+    queryKey: ['facturas', { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit }],
     queryFn: async () => {
       // Primero obtener las facturas
       let query = supabase
@@ -34,6 +34,15 @@ export function useFacturas(options = {}) {
 
       if (search) {
         query = query.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
+      }
+
+      // Filtros de fecha
+      if (fechaDesde) {
+        query = query.gte('fecha_factura', fechaDesde)
+      }
+
+      if (fechaHasta) {
+        query = query.lte('fecha_factura', fechaHasta)
       }
 
       const { data: facturas, error } = await query

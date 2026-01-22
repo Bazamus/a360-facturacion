@@ -26,7 +26,10 @@ export default function Facturas() {
   const [filters, setFilters] = useState({
     comunidadId: '',
     estado: '',
-    search: ''
+    search: '',
+    rangoFecha: '',
+    fechaDesde: null,
+    fechaHasta: null
   })
   const [deleteModal, setDeleteModal] = useState({ open: false, factura: null })
   const [pagarModal, setPagarModal] = useState({ open: false, factura: null })
@@ -170,7 +173,14 @@ export default function Facturas() {
   }
 
   const clearFilters = () => {
-    setFilters({ comunidadId: '', estado: '', search: '' })
+    setFilters({ 
+      comunidadId: '', 
+      estado: '', 
+      search: '',
+      rangoFecha: '',
+      fechaDesde: null,
+      fechaHasta: null
+    })
   }
 
   // Handler emisión masiva
