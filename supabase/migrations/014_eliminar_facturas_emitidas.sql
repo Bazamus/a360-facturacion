@@ -26,13 +26,18 @@ BEGIN
     RAISE EXCEPTION 'Debe proporcionar al menos una factura';
   END IF;
   
-  -- Obtener números de las facturas (bloquear para evitar race conditions)
+  -- Bloquear facturas para evitar race conditions y obtener números
+  -- Primero bloqueamos las filas
+  PERFORM 1 FROM facturas 
+  WHERE id = ANY(p_factura_ids) 
+  FOR UPDATE;
+  
+  -- Luego obtenemos los números
   SELECT array_agg(numero ORDER BY numero DESC)
   INTO v_numeros
   FROM facturas
   WHERE id = ANY(p_factura_ids)
-  AND numero IS NOT NULL
-  FOR UPDATE;
+  AND numero IS NOT NULL;
   
   -- Validar que todas tienen número (no son borradores)
   IF array_length(v_numeros, 1) != array_length(p_factura_ids, 1) THEN
