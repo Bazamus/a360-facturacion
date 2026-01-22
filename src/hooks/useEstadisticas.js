@@ -16,7 +16,17 @@ export function useEstadisticas() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    obtenerEstadisticas()
+    // Verificar sesión antes de obtener estadísticas
+    const verificarYObtener = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        obtenerEstadisticas()
+      } else {
+        setLoading(false)
+      }
+    }
+
+    verificarYObtener()
   }, [])
 
   const obtenerEstadisticas = async () => {

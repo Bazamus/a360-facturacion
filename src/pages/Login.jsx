@@ -6,7 +6,6 @@ import { z } from 'zod'
 import { useAuth } from '@/features/auth/AuthContext'
 import { Button, Input, FormField } from '@/components/ui'
 import { Logo } from '@/components/brand/Logo'
-import { useEstadisticas } from '@/hooks/useEstadisticas'
 import { AlertCircle, Mail, Lock, User, Building2, Users as UsersIcon, Zap } from 'lucide-react'
 
 const loginSchema = z.object({
@@ -30,7 +29,6 @@ export function LoginPage() {
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const { estadisticas } = useEstadisticas()
 
   const from = location.state?.from?.pathname || '/dashboard'
 
@@ -112,28 +110,22 @@ export function LoginPage() {
               <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm mb-3">
                 <Building2 className="h-8 w-8 text-accent-300" />
               </div>
-              <p className="text-3xl font-bold font-display">
-                {estadisticas.comunidades.total || '...'}
-              </p>
+              <p className="text-3xl font-bold font-display">35+</p>
               <p className="text-sm text-primary-200">Comunidades</p>
             </div>
             <div className="flex flex-col items-center">
               <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm mb-3">
                 <UsersIcon className="h-8 w-8 text-accent-300" />
               </div>
-              <p className="text-3xl font-bold font-display">
-                {estadisticas.clientes.total.toLocaleString('es-ES') || '...'}
-              </p>
+              <p className="text-3xl font-bold font-display">4.000+</p>
               <p className="text-sm text-primary-200">Clientes</p>
             </div>
             <div className="flex flex-col items-center">
               <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm mb-3">
                 <Zap className="h-8 w-8 text-accent-300" />
               </div>
-              <p className="text-3xl font-bold font-display">
-                {estadisticas.contadores.total.toLocaleString('es-ES') || '...'}
-              </p>
-              <p className="text-sm text-primary-200">Contadores</p>
+              <p className="text-3xl font-bold font-display">100%</p>
+              <p className="text-sm text-primary-200">Digital</p>
             </div>
           </div>
 
