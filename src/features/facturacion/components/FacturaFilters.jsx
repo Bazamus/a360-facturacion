@@ -90,11 +90,11 @@ export function FacturaFilters({
 
   return (
     <Card className="p-4">
-      <div className="space-y-4">
-        {/* Primera fila: Comunidad, Estado, Búsqueda */}
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="space-y-3">
+        {/* Primera fila: Comunidad, Estado, Período */}
+        <div className="flex flex-wrap items-end gap-3">
           {/* Comunidad */}
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-[220px]">
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Comunidad
             </label>
@@ -113,7 +113,7 @@ export function FacturaFilters({
           </div>
 
           {/* Estado */}
-          <div className="w-48">
+          <div className="w-44">
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Estado
             </label>
@@ -130,30 +130,8 @@ export function FacturaFilters({
             </select>
           </div>
 
-          {/* Búsqueda */}
-          <div className="flex-1 min-w-[250px]">
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Buscar
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={filters.search || ''}
-                onChange={(e) => onChange({ ...filters, search: e.target.value })}
-                placeholder="Nº factura, cliente, NIF..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Segunda fila: Filtros de fecha */}
-        <div className="flex flex-wrap items-end gap-4 pt-2 border-t">
-          <Calendar className="w-5 h-5 text-gray-400 mb-2" />
-          
-          {/* Rango predefinido */}
-          <div className="w-56">
+          {/* Rango de fecha */}
+          <div className="w-52">
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Período
             </label>
@@ -170,34 +148,6 @@ export function FacturaFilters({
             </select>
           </div>
 
-          {/* Campos de fecha personalizada */}
-          {filters.rangoFecha === 'personalizado' && (
-            <>
-              <div className="w-48">
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Desde
-                </label>
-                <input
-                  type="date"
-                  value={filters.fechaDesde || ''}
-                  onChange={(e) => onChange({ ...filters, fechaDesde: e.target.value })}
-                  className="w-full rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-              <div className="w-48">
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Hasta
-                </label>
-                <input
-                  type="date"
-                  value={filters.fechaHasta || ''}
-                  onChange={(e) => onChange({ ...filters, fechaHasta: e.target.value })}
-                  className="w-full rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            </>
-          )}
-
           {/* Limpiar filtros */}
           {hasFilters && (
             <div className="ml-auto">
@@ -213,6 +163,52 @@ export function FacturaFilters({
             </div>
           )}
         </div>
+
+        {/* Segunda fila: Búsqueda (ancho completo) */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Buscar
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={filters.search || ''}
+              onChange={(e) => onChange({ ...filters, search: e.target.value })}
+              placeholder="Nº factura, cliente, NIF..."
+              className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Tercera fila: Campos de fecha personalizada (solo si Personalizado) */}
+        {filters.rangoFecha === 'personalizado' && (
+          <div className="flex items-end gap-3 pt-2 border-t">
+            <Calendar className="w-5 h-5 text-gray-400 mb-2" />
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Desde
+              </label>
+              <input
+                type="date"
+                value={filters.fechaDesde || ''}
+                onChange={(e) => onChange({ ...filters, fechaDesde: e.target.value })}
+                className="w-full rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Hasta
+              </label>
+              <input
+                type="date"
+                value={filters.fechaHasta || ''}
+                onChange={(e) => onChange({ ...filters, fechaHasta: e.target.value })}
+                className="w-full rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   )
