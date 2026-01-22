@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus, Mail } from 'lucide-react'
+import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus, Mail, Trash2, AlertTriangle } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge, ModalExportarFacturas, ProgressoExportacion } from '@/features/facturacion/components'
@@ -13,7 +13,8 @@ import {
   useDeleteFactura,
   useMarcarPagada,
   useEstadisticasFacturacion,
-  useEmitirFacturasMasivo
+  useEmitirFacturasMasivo,
+  useEliminarFacturas
 } from '@/hooks/useFacturas'
 import { useEnviarFactura } from '@/hooks/useEnvios'
 import { useExportarFacturas } from '@/features/facturacion/hooks/useExportarFacturas'
@@ -29,10 +30,11 @@ export default function Facturas() {
   })
   const [deleteModal, setDeleteModal] = useState({ open: false, factura: null })
   const [pagarModal, setPagarModal] = useState({ open: false, factura: null })
+  const [eliminarModal, setEliminarModal] = useState({ open: false, facturas: [] })
   const [selectedIds, setSelectedIds] = useState([])
   const [emitiendo, setEmitiendo] = useState(false)
   const [descargandoPDF, setDescargandoPDF] = useState(null) // ID de la factura siendo descargada
-  const [modo, setModo] = useState('emision') // 'emision' | 'descarga'
+  const [modo, setModo] = useState('emision') // 'emision' | 'descarga' | 'eliminar'
   const [descargandoPDFs, setDescargandoPDFs] = useState(false)
   const [progresoDescarga, setProgresoDescarga] = useState({ actual: 0, total: 0 })
 
@@ -43,6 +45,7 @@ export default function Facturas() {
   const marcarPagada = useMarcarPagada()
   const emitirMasivo = useEmitirFacturasMasivo()
   const enviarFactura = useEnviarFactura()
+  const eliminarFacturas = useEliminarFacturas()
   const { exportar } = useExportarFacturas()
 
   // Estados para exportación
@@ -338,6 +341,20 @@ export default function Facturas() {
     }
   }
 
+  // Handler eliminar masivo
+  const handleEliminarMasivo = async () => {
+    if (selectedIds.length === 0) return
+
+    try {
+      const result = await eliminarFacturas.mutateAsync(selectedIds)
+      toast.success(`${result.eliminadas} factura(s) eliminada(s). Nueva secuencia: ${result.nuevo_numero_secuencia}`)
+      setSelectedIds([])
+      setEliminarModal({ open: false, facturas: [] })
+    } catch (error) {
+      toast.error(`Error: ${error.message}`)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -435,11 +452,21 @@ export default function Facturas() {
           >
             Descarga masiva
           </Button>
+          <Button
+            variant={modo === 'eliminar' ? 'danger' : 'outline'}
+            size="sm"
+            onClick={() => { setModo('eliminar'); setSelectedIds([]) }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Eliminar permanente
+          </Button>
         </div>
         <span className="text-xs text-gray-500">
           {modo === 'emision'
             ? 'Selecciona borradores para emitir'
-            : 'Selecciona facturas emitidas para descargar PDFs'}
+            : modo === 'descarga'
+              ? 'Selecciona facturas emitidas para descargar PDFs'
+              : 'Selecciona facturas para eliminar (solo últimas de la serie)'}
         </span>
       </div>
 
@@ -527,6 +554,54 @@ export default function Facturas() {
         </div>
       </Modal>
 
+      {/* Modal eliminar permanentemente (múltiple) */}
+      <Modal
+        open={eliminarModal.open}
+        onClose={() => setEliminarModal({ open: false, facturas: [] })}
+        title="⚠️ Eliminar Facturas Permanentemente"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <AlertTriangle className="w-6 h-6 text-red-600 mb-2" />
+            <h3 className="font-bold text-red-900 mb-2">ADVERTENCIA: Esta acción es IRREVERSIBLE</h3>
+            <ul className="text-sm text-red-800 space-y-1">
+              <li>• Las facturas se eliminarán completamente de la base de datos</li>
+              <li>• Las lecturas asociadas quedarán disponibles para refacturar</li>
+              <li>• Los números de factura se eliminarán de la serie</li>
+              <li>• Solo se pueden eliminar si son las últimas facturas emitidas (consecutivas)</li>
+              <li>• No se podrá recuperar esta información</li>
+            </ul>
+          </div>
+          
+          {eliminarModal.facturas.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+              <p className="font-medium mb-2">Facturas a eliminar ({eliminarModal.facturas.length}):</p>
+              <ul className="space-y-1 text-sm">
+                {eliminarModal.facturas.map(f => (
+                  <li key={f.id}>
+                    <strong>{f.numero_completo}</strong> - {f.cliente_nombre} - {formatCurrency(f.total)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setEliminarModal({ open: false, facturas: [] })}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleEliminarMasivo}
+              disabled={eliminarFacturas.isPending}
+            >
+              {eliminarFacturas.isPending ? 'Eliminando...' : `Confirmar Eliminación de ${eliminarModal.facturas.length} factura(s)`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal enviar email */}
       <Modal
         open={emailModal.open}
@@ -605,7 +680,7 @@ export default function Facturas() {
                   <FileText className="w-4 h-4 mr-2" />
                   {emitiendo ? 'Emitiendo...' : 'Emitir facturas'}
                 </Button>
-              ) : (
+              ) : modo === 'descarga' ? (
                 <Button
                   onClick={handleDescargarPDFsMasivo}
                   disabled={descargandoPDFs}
@@ -615,6 +690,18 @@ export default function Facturas() {
                   {descargandoPDFs
                     ? `Descargando ${progresoDescarga.actual}/${progresoDescarga.total}...`
                     : 'Descargar PDFs (ZIP)'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    const facturasAEliminar = facturas.filter(f => selectedIds.includes(f.id))
+                    setEliminarModal({ open: true, facturas: facturasAEliminar })
+                  }}
+                  disabled={selectedIds.length === 0}
+                  variant="danger"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar {selectedIds.length} factura(s)
                 </Button>
               )}
 

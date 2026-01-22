@@ -80,6 +80,7 @@ export {
   useCreateFactura,
   useUpdateFactura,
   useDeleteFactura,
+  useEliminarFacturas,
   useCreateFacturaLineas,
   useCreateFacturaHistorico,
   useEmitirFactura,

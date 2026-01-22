@@ -29,7 +29,11 @@ export function FacturasTable({
   const facturasSeleccionables = facturas.filter(f =>
     modo === 'emision'
       ? f.estado === 'borrador'
-      : ['emitida', 'pagada', 'anulada'].includes(f.estado)
+      : modo === 'descarga'
+        ? ['emitida', 'pagada', 'anulada'].includes(f.estado)
+        : modo === 'eliminar'
+          ? ['emitida', 'pagada', 'anulada'].includes(f.estado)
+          : false
   )
   const facturaIds = facturasSeleccionables.map(f => f.id)
 
@@ -120,11 +124,12 @@ export function FacturasTable({
           <tbody className="divide-y divide-gray-200">
             {facturas.map(factura => (
               <tr key={factura.id} className="hover:bg-gray-50">
-                {/* Checkbox de selección - solo para borradores */}
+                {/* Checkbox de selección */}
                 {facturasSeleccionables.length > 0 && (
                   <td className="px-3 py-3 w-10">
                     {(modo === 'emision' && factura.estado === 'borrador') ||
-                     (modo === 'descarga' && ['emitida', 'pagada', 'anulada'].includes(factura.estado)) ? (
+                     (modo === 'descarga' && ['emitida', 'pagada', 'anulada'].includes(factura.estado)) ||
+                     (modo === 'eliminar' && ['emitida', 'pagada', 'anulada'].includes(factura.estado)) ? (
                       <Checkbox
                         checked={localSelectedIds.includes(factura.id)}
                         onChange={handleSelectRow(factura.id)}

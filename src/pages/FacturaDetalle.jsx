@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   Loader2,
   CheckCircle2,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react'
 import { Button, Card, Modal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -33,7 +34,8 @@ import {
   useFacturaHistoricoConsumo,
   useEmitirFactura,
   useAnularFactura,
-  useMarcarPagada
+  useMarcarPagada,
+  useEliminarFacturas
 } from '@/hooks/useFacturas'
 import { useEnviarFactura } from '@/hooks/useEnvios'
 
@@ -44,6 +46,7 @@ export default function FacturaDetalle({ showPdf = false }) {
 
   const [anularModal, setAnularModal] = useState(false)
   const [motivoAnulacion, setMotivoAnulacion] = useState('')
+  const [eliminarModal, setEliminarModal] = useState(false)
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const [emailModalOpen, setEmailModalOpen] = useState(false)
   const [modoTestEmail, setModoTestEmail] = useState(false)
@@ -56,6 +59,7 @@ export default function FacturaDetalle({ showPdf = false }) {
   const anularFactura = useAnularFactura()
   const marcarPagada = useMarcarPagada()
   const enviarFactura = useEnviarFactura()
+  const eliminarFacturas = useEliminarFacturas()
 
   const handleDescargarPDF = async () => {
     if (!factura) return
@@ -101,6 +105,16 @@ export default function FacturaDetalle({ showPdf = false }) {
       toast.success('Factura anulada')
       setAnularModal(false)
       setMotivoAnulacion('')
+    } catch (error) {
+      toast.error(`Error: ${error.message}`)
+    }
+  }
+
+  const handleEliminar = async () => {
+    try {
+      const result = await eliminarFacturas.mutateAsync([id])
+      toast.success(`Factura eliminada. Nueva secuencia: ${result.nuevo_numero_secuencia}`)
+      navigate('/facturacion/facturas')
     } catch (error) {
       toast.error(`Error: ${error.message}`)
     }
@@ -200,6 +214,18 @@ export default function FacturaDetalle({ showPdf = false }) {
                 Anular
               </Button>
             </>
+          )}
+
+          {/* Eliminar - solo emitidas/pagadas/anuladas */}
+          {['emitida', 'pagada', 'anulada'].includes(factura.estado) && (
+            <Button
+              variant="danger"
+              onClick={() => setEliminarModal(true)}
+              title="Eliminar factura completamente"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Eliminar Permanentemente
+            </Button>
           )}
 
           {['emitida', 'pagada'].includes(factura.estado) && (
@@ -466,6 +492,47 @@ export default function FacturaDetalle({ showPdf = false }) {
               disabled={anularFactura.isPending || !motivoAnulacion.trim()}
             >
               {anularFactura.isPending ? 'Anulando...' : 'Anular factura'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal eliminar permanentemente */}
+      <Modal
+        open={eliminarModal}
+        onClose={() => setEliminarModal(false)}
+        title="⚠️ Eliminar Factura Permanentemente"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <AlertTriangle className="w-6 h-6 text-red-600 mb-2" />
+            <h3 className="font-bold text-red-900 mb-2">ADVERTENCIA: Esta acción es IRREVERSIBLE</h3>
+            <ul className="text-sm text-red-800 space-y-1">
+              <li>• La factura se eliminará completamente de la base de datos</li>
+              <li>• Las lecturas asociadas quedarán disponibles para refacturar</li>
+              <li>• El número de factura se eliminará de la serie</li>
+              <li>• Solo se puede eliminar si es la última factura emitida</li>
+              <li>• No se podrá recuperar esta información</li>
+            </ul>
+          </div>
+          
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p><strong>Factura:</strong> {factura.numero_completo}</p>
+            <p><strong>Cliente:</strong> {factura.cliente_nombre}</p>
+            <p><strong>Total:</strong> {formatCurrency(factura.total)}</p>
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setEliminarModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleEliminar}
+              disabled={eliminarFacturas.isPending}
+            >
+              {eliminarFacturas.isPending ? 'Eliminando...' : 'Confirmar Eliminación'}
             </Button>
           </div>
         </div>

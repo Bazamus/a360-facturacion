@@ -207,6 +207,41 @@ export function useDeleteFactura() {
   })
 }
 
+export function useEliminarFacturas() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (facturaIds) => {
+      // Normalizar a array
+      const ids = Array.isArray(facturaIds) ? facturaIds : [facturaIds]
+      
+      // Validación cliente: verificar que no sean borradores
+      const { data: facturas } = await supabase
+        .from('facturas')
+        .select('id, numero, estado')
+        .in('id', ids)
+
+      const borradores = facturas?.filter(f => f.estado === 'borrador') || []
+      if (borradores.length > 0) {
+        throw new Error('No se pueden eliminar facturas en borrador con esta función. Use el botón de eliminar normal.')
+      }
+
+      // Llamar a función SQL
+      const { data, error } = await supabase
+        .rpc('eliminar_facturas_emitidas', {
+          p_factura_ids: ids
+        })
+
+      if (error) throw error
+      return data[0]
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['facturas'] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas'] })
+    }
+  })
+}
+
 // =====================================================
 // Hooks para Líneas de Factura
 // =====================================================
