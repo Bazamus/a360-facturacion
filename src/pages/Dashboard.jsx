@@ -1,51 +1,17 @@
-import { 
-  Building2, 
-  Users, 
-  Gauge, 
-  Receipt, 
+import {
+  Building2,
+  Users,
+  Gauge,
+  Receipt,
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
   Calendar
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
+import { LoadingSpinner } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
-
-// Datos de ejemplo para el dashboard
-const stats = [
-  { 
-    name: 'Comunidades', 
-    value: '35', 
-    icon: Building2,
-    change: '+2',
-    changeType: 'positive',
-    description: 'activas'
-  },
-  { 
-    name: 'Clientes', 
-    value: '4.000', 
-    icon: Users,
-    change: '+120',
-    changeType: 'positive',
-    description: 'registrados'
-  },
-  { 
-    name: 'Contadores', 
-    value: '4.250', 
-    icon: Gauge,
-    change: '+85',
-    changeType: 'positive',
-    description: 'instalados'
-  },
-  { 
-    name: 'Facturado (mes)', 
-    value: formatCurrency(45230),
-    icon: Receipt,
-    change: '+12%',
-    changeType: 'positive',
-    description: 'vs. mes anterior'
-  },
-]
+import { useEstadisticas } from '@/hooks/useEstadisticas'
 
 const recentActivity = [
   { 
@@ -86,6 +52,44 @@ const statusColors = {
 }
 
 export function DashboardPage() {
+  const { estadisticas, loading, error } = useEstadisticas()
+
+  // Generar stats dinámicamente desde las estadísticas
+  const stats = [
+    {
+      name: 'Comunidades',
+      value: loading ? '...' : estadisticas.comunidades.total.toString(),
+      icon: Building2,
+      change: estadisticas.comunidades.cambio > 0 ? `+${estadisticas.comunidades.cambio}` : estadisticas.comunidades.cambio.toString(),
+      changeType: estadisticas.comunidades.cambio >= 0 ? 'positive' : 'negative',
+      description: 'activas'
+    },
+    {
+      name: 'Clientes',
+      value: loading ? '...' : estadisticas.clientes.total.toLocaleString('es-ES'),
+      icon: Users,
+      change: estadisticas.clientes.cambio > 0 ? `+${estadisticas.clientes.cambio}` : estadisticas.clientes.cambio.toString(),
+      changeType: estadisticas.clientes.cambio >= 0 ? 'positive' : 'negative',
+      description: 'registrados'
+    },
+    {
+      name: 'Contadores',
+      value: loading ? '...' : estadisticas.contadores.total.toLocaleString('es-ES'),
+      icon: Gauge,
+      change: estadisticas.contadores.cambio > 0 ? `+${estadisticas.contadores.cambio}` : estadisticas.contadores.cambio.toString(),
+      changeType: estadisticas.contadores.cambio >= 0 ? 'positive' : 'negative',
+      description: 'instalados'
+    },
+    {
+      name: 'Facturado (mes)',
+      value: loading ? '...' : formatCurrency(estadisticas.facturado.total),
+      icon: Receipt,
+      change: estadisticas.facturado.cambio > 0 ? `+${estadisticas.facturado.cambio}%` : `${estadisticas.facturado.cambio}%`,
+      changeType: estadisticas.facturado.cambio >= 0 ? 'positive' : 'negative',
+      description: 'vs. mes anterior'
+    },
+  ]
+
   return (
     <div>
       {/* Cabecera */}
@@ -95,6 +99,13 @@ export function DashboardPage() {
           Bienvenido al sistema de facturación de gestión energética
         </p>
       </div>
+
+      {/* Mostrar error si existe */}
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+          Error al cargar estadísticas: {error.message}
+        </div>
+      )}
 
       {/* Estadísticas */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
