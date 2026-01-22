@@ -113,8 +113,9 @@ BEGIN
     RAISE EXCEPTION 'No se pueden eliminar cuentas de administrador';
   END IF;
   
-  -- Eliminar el perfil (el CASCADE eliminará el usuario de auth.users)
-  DELETE FROM profiles WHERE id = p_user_id;
+  -- Eliminar el usuario de auth.users (el CASCADE eliminará automáticamente el perfil)
+  -- SECURITY DEFINER permite acceder a auth.users
+  DELETE FROM auth.users WHERE id = p_user_id;
   
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
