@@ -23,12 +23,9 @@ export function Header({ onMenuClick }) {
   }, [])
 
   const handleSignOut = async () => {
-    try {
-      await signOut()
-      navigate('/login')
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error)
-    }
+    // signOut ahora maneja errores internamente, siempre limpia el estado
+    await signOut()
+    navigate('/login')
   }
 
   return (

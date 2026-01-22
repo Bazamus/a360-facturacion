@@ -137,10 +137,22 @@ export function AuthProvider({ children }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-    setUser(null)
-    setProfile(null)
+    try {
+      // Intentar cerrar sesión en el servidor
+      const { error } = await supabase.auth.signOut()
+
+      // Si hay error pero es por sesión faltante, ignorarlo y limpiar estado local
+      if (error && !error.message?.includes('session')) {
+        console.error('Error al cerrar sesión:', error)
+      }
+    } catch (error) {
+      // Capturar cualquier error y solo registrarlo
+      console.error('Error en signOut:', error)
+    } finally {
+      // SIEMPRE limpiar el estado local, independientemente de si hubo error
+      setUser(null)
+      setProfile(null)
+    }
   }
 
   const value = {
