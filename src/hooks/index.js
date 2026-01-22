@@ -51,6 +51,12 @@ export {
   useUpdateConcepto
 } from './useConceptos'
 
+// Configuración General
+export {
+  useConfiguracion,
+  useActualizarSecuenciaFacturas
+} from './useConfiguracion'
+
 // Lecturas e Importaciones
 export {
   useImportaciones,

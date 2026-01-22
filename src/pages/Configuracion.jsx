@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database } from 'lucide-react'
-import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig } from '@/hooks'
+import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle } from 'lucide-react'
+import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
@@ -71,63 +71,250 @@ export function ConfiguracionPage() {
 }
 
 function ConfigGeneral() {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [nuevoNumero, setNuevoNumero] = useState('')
+  const [confirmaRiesgos, setConfirmaRiesgos] = useState(false)
+
+  const { data: config, isLoading } = useConfiguracion()
+  const actualizarMutation = useActualizarSecuenciaFacturas()
+  const toast = useToast()
+
+  const ultimoNumero = config?.serie_facturacion?.ultimo_numero || 0
+  const serie = config?.serie_facturacion?.serie || 2
+  const ivaAplicable = config?.iva_porcentaje || '21'
+
+  const handleOpenModal = () => {
+    setNuevoNumero(ultimoNumero.toString())
+    setConfirmaRiesgos(false)
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    if (!confirmaRiesgos) {
+      toast.error('Debe confirmar que entiende las consecuencias')
+      return
+    }
+
+    const numeroInt = parseInt(nuevoNumero)
+    if (isNaN(numeroInt) || numeroInt < 1) {
+      toast.error('El número debe ser mayor a 0')
+      return
+    }
+
+    try {
+      const result = await actualizarMutation.mutateAsync({
+        nuevoNumero: numeroInt
+      })
+      toast.success(`Contador actualizado correctamente. La próxima factura será: ${result.numero_nuevo + 1}`)
+      setModalOpen(false)
+      setNuevoNumero('')
+      setConfirmaRiesgos(false)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const proximaFactura = nuevoNumero && !isNaN(parseInt(nuevoNumero)) 
+    ? parseInt(nuevoNumero) + 1 
+    : ultimoNumero + 1
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Configuración General</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-3">Datos de la Empresa</h4>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Nombre:</dt>
-                <dd className="text-gray-900 font-medium">A360 Servicios Energéticos S.L.</dd>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuración General</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-3">Datos de la Empresa</h4>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Nombre:</dt>
+                    <dd className="text-gray-900 font-medium">A360 Servicios Energéticos S.L.</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">CIF:</dt>
+                    <dd className="text-gray-900 font-medium">B88313473</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Dirección:</dt>
+                    <dd className="text-gray-900">C/ Polvoranca Nº 138, 28923 Alcorcón</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Teléfono:</dt>
+                    <dd className="text-gray-900">91 159 11 70</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Email:</dt>
+                    <dd className="text-gray-900">clientes@a360se.com</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Web:</dt>
+                    <dd className="text-gray-900">www.a360se.com</dd>
+                  </div>
+                </dl>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">CIF:</dt>
-                <dd className="text-gray-900 font-medium">B88313473</dd>
+
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-gray-900">Serie de Facturación</h4>
+                  <Button 
+                    size="sm" 
+                    variant="secondary"
+                    onClick={handleOpenModal}
+                  >
+                    <Edit2 className="h-4 w-4 mr-1" />
+                    Editar Contador
+                  </Button>
+                </div>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Serie:</dt>
+                    <dd className="text-gray-900 font-medium">{serie}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Último número:</dt>
+                    <dd className="text-gray-900 font-mono">{ultimoNumero.toLocaleString('es-ES')}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Próxima factura:</dt>
+                    <dd className="text-gray-900 font-mono text-primary-600 font-medium">
+                      {(ultimoNumero + 1).toLocaleString('es-ES')}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">IVA aplicable:</dt>
+                    <dd className="text-gray-900 font-medium">{ivaAplicable}%</dd>
+                  </div>
+                </dl>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Dirección:</dt>
-                <dd className="text-gray-900">C/ Polvoranca Nº 138, 28923 Alcorcón</dd>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal de Configuración del Contador */}
+      <Modal
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false)
+          setNuevoNumero('')
+          setConfirmaRiesgos(false)
+        }}
+        title="Configurar Contador de Facturas"
+        size="md"
+      >
+        <div className="space-y-4">
+          {/* Advertencia prominente */}
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+            <div className="flex gap-3">
+              <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <h4 className="font-semibold text-amber-900">
+                  ⚠️ Advertencia: Esta acción modificará el contador de facturas
+                </h4>
+                <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                  <li>La próxima factura emitida tendrá el número que configure aquí + 1</li>
+                  <li>Asegúrese de que el número es correcto antes de confirmar</li>
+                  <li>Si el número es menor al último emitido, se crearán duplicados</li>
+                  <li>Esta acción no se puede deshacer automáticamente</li>
+                </ul>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Teléfono:</dt>
-                <dd className="text-gray-900">91 159 11 70</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Email:</dt>
-                <dd className="text-gray-900">clientes@a360se.com</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Web:</dt>
-                <dd className="text-gray-900">www.a360se.com</dd>
-              </div>
-            </dl>
+            </div>
           </div>
 
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-3">Serie de Facturación</h4>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Serie:</dt>
-                <dd className="text-gray-900 font-medium">2</dd>
+          {/* Información actual */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h5 className="text-sm font-medium text-gray-700 mb-2">Estado Actual</h5>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Último número de factura:</span>
+              <span className="font-mono font-bold text-gray-900 text-lg">
+                {ultimoNumero.toLocaleString('es-ES')}
+              </span>
+            </div>
+          </div>
+
+          {/* Campo de nuevo número */}
+          <FormField label="Nuevo último número de factura" required>
+            <Input
+              type="number"
+              value={nuevoNumero}
+              onChange={(e) => setNuevoNumero(e.target.value)}
+              placeholder="Ej: 30000000"
+              min="1"
+              className="font-mono text-lg"
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Este será el último número registrado. La próxima factura será: <span className="font-semibold">{proximaFactura.toLocaleString('es-ES')}</span>
+            </p>
+          </FormField>
+
+          {/* Previsualización del cambio */}
+          {nuevoNumero && !isNaN(parseInt(nuevoNumero)) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center justify-center gap-3 text-sm">
+                <div className="text-center">
+                  <div className="text-gray-600">Actual</div>
+                  <div className="font-mono font-bold text-gray-900">
+                    {ultimoNumero.toLocaleString('es-ES')}
+                  </div>
+                </div>
+                <div className="text-2xl text-blue-600">→</div>
+                <div className="text-center">
+                  <div className="text-gray-600">Nuevo</div>
+                  <div className="font-mono font-bold text-blue-600">
+                    {parseInt(nuevoNumero).toLocaleString('es-ES')}
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Último número:</dt>
-                <dd className="text-gray-900 font-mono">230371944</dd>
+              <div className="mt-2 text-center text-xs text-gray-600">
+                Próxima factura: <span className="font-semibold">{proximaFactura.toLocaleString('es-ES')}</span>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">IVA aplicable:</dt>
-                <dd className="text-gray-900 font-medium">21%</dd>
-              </div>
-            </dl>
+            </div>
+          )}
+
+          {/* Checkbox de confirmación */}
+          <div className="pt-2">
+            <Checkbox
+              checked={confirmaRiesgos}
+              onChange={(e) => setConfirmaRiesgos(e.target.checked)}
+              label="Entiendo las consecuencias y confirmo que el número es correcto"
+            />
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setModalOpen(false)
+                setNuevoNumero('')
+                setConfirmaRiesgos(false)
+              }}
+              disabled={actualizarMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              loading={actualizarMutation.isPending}
+              disabled={!confirmaRiesgos || !nuevoNumero}
+            >
+              Confirmar Cambio
+            </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </Modal>
+    </>
   )
 }
 
