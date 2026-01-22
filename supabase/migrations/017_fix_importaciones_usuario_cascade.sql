@@ -50,25 +50,25 @@ COMMENT ON CONSTRAINT facturas_created_by_fkey ON facturas IS
   'Al eliminar un usuario, sus facturas se mantienen con created_by = NULL';
 
 -- =====================================================
--- 3. Tabla: envios (created_by)
+-- 3. Tabla: envios_email (created_by)
 -- =====================================================
 
 -- Hacer que el campo created_by acepte NULL
-ALTER TABLE envios 
+ALTER TABLE envios_email 
   ALTER COLUMN created_by DROP NOT NULL;
 
 -- Eliminar el constraint actual
-ALTER TABLE envios 
-  DROP CONSTRAINT IF EXISTS envios_created_by_fkey;
+ALTER TABLE envios_email 
+  DROP CONSTRAINT IF EXISTS envios_email_created_by_fkey;
 
 -- Recrear el constraint con ON DELETE SET NULL
-ALTER TABLE envios 
-  ADD CONSTRAINT envios_created_by_fkey 
+ALTER TABLE envios_email 
+  ADD CONSTRAINT envios_email_created_by_fkey 
   FOREIGN KEY (created_by) 
   REFERENCES auth.users(id) 
   ON DELETE SET NULL;
 
-COMMENT ON CONSTRAINT envios_created_by_fkey ON envios IS 
+COMMENT ON CONSTRAINT envios_email_created_by_fkey ON envios_email IS 
   'Al eliminar un usuario, sus envíos se mantienen con created_by = NULL';
 
 -- =====================================================
