@@ -33,8 +33,8 @@ export function useCrearUsuario() {
         throw new Error('Todos los campos son requeridos')
       }
       
-      if (password.length < 3) {
-        throw new Error('La contraseña debe tener al menos 3 caracteres')
+      if (password.length < 6) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres')
       }
       
       // Crear usuario usando signUp

@@ -768,12 +768,12 @@ function ConfigUsuarios() {
   const eliminarMutation = useEliminarUsuario()
   const toast = useToast()
 
-  // Generador de contraseñas simple (5 caracteres)
+  // Generador de contraseñas simple (6 caracteres - mínimo requerido por Supabase)
   const generarPassword = () => {
     // Excluye caracteres confusos: 0/O, 1/I/l
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
     let password = ''
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length))
     }
     return password
@@ -1038,7 +1038,7 @@ function ConfigUsuarios() {
                 </Button>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Usa el botón para generar una contraseña aleatoria de 5 caracteres
+                Usa el botón para generar una contraseña aleatoria de 6 caracteres
               </p>
             </FormField>
           )}
