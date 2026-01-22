@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw, Trash2 } from 'lucide-react'
-import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword, useEliminarUsuario } from '@/hooks'
+import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw, Trash2, Wrench } from 'lucide-react'
+import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword, useEliminarUsuario, useResetSistema } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ const configSections = [
   { name: 'SEPA', href: '/configuracion/sepa', icon: CreditCard },
   { name: 'Importar/Exportar', href: '/configuracion/importar-exportar', icon: Database },
   { name: 'Usuarios', href: '/configuracion/usuarios', icon: Users },
+  { name: 'Mantenimiento', href: '/configuracion/mantenimiento', icon: Wrench },
 ]
 
 export function ConfiguracionPage() {
@@ -63,6 +64,7 @@ export function ConfiguracionPage() {
             <Route path="sepa" element={<ConfigSEPA />} />
             <Route path="importar-exportar" element={<ImportarExportarPage />} />
             <Route path="usuarios" element={<ConfigUsuarios />} />
+            <Route path="mantenimiento" element={<ConfigMantenimiento />} />
           </Routes>
         </div>
       </div>
@@ -1133,6 +1135,334 @@ function ConfigUsuarios() {
             >
               Eliminar Usuario
             </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  )
+}
+
+// =====================================================
+// Componente: Mantenimiento
+// =====================================================
+function ConfigMantenimiento() {
+  const toast = useToast()
+  const resetMutation = useResetSistema()
+  
+  const [resetModal, setResetModal] = useState({
+    open: false,
+    step: 1,
+    confirmText: '',
+    confirmed: false
+  })
+
+  const handleOpenResetModal = () => {
+    setResetModal({
+      open: true,
+      step: 1,
+      confirmText: '',
+      confirmed: false
+    })
+  }
+
+  const handleCloseResetModal = () => {
+    setResetModal({
+      open: false,
+      step: 1,
+      confirmText: '',
+      confirmed: false
+    })
+  }
+
+  const handleNextStep = () => {
+    setResetModal(prev => ({ ...prev, step: prev.step + 1 }))
+  }
+
+  const handlePrevStep = () => {
+    setResetModal(prev => ({ ...prev, step: prev.step - 1 }))
+  }
+
+  const handleConfirmReset = async () => {
+    try {
+      const result = await resetMutation.mutateAsync()
+      
+      toast.success(
+        `Reset completado: ${result.total_deleted} registros eliminados`,
+        { duration: 5000 }
+      )
+      
+      handleCloseResetModal()
+      
+      // Recargar la página después de 2 segundos
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
+    } catch (error) {
+      toast.error(`Error: ${error.message}`)
+    }
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Mantenimiento del Sistema</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Zona de peligro */}
+          <div className="border-2 border-red-200 rounded-lg p-6 bg-red-50">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="w-8 h-8 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-red-900 mb-2">
+                  Zona de Peligro
+                </h3>
+                <p className="text-sm text-red-800 mb-4">
+                  Las operaciones en esta sección son destructivas y no se pueden deshacer.
+                  Solo realiza estas acciones si estás completamente seguro.
+                </p>
+
+                <div className="space-y-4">
+                  {/* Reset completo */}
+                  <div className="bg-white rounded-lg p-4 border border-red-200">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 mb-1">
+                          Reset Completo de Datos
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Elimina todos los datos del sistema excepto configuración y usuarios.
+                        </p>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <p><strong>Se eliminará:</strong></p>
+                          <ul className="list-disc list-inside ml-2 space-y-0.5">
+                            <li>Todas las comunidades, portales y ubicaciones</li>
+                            <li>Todos los clientes</li>
+                            <li>Todos los contadores y lecturas</li>
+                            <li>Todas las facturas y líneas de factura</li>
+                            <li>Todas las importaciones</li>
+                            <li>Todos los envíos de email</li>
+                            <li>Todas las remesas SEPA</li>
+                          </ul>
+                          <p className="mt-2"><strong>Se conservará:</strong></p>
+                          <ul className="list-disc list-inside ml-2 space-y-0.5">
+                            <li>Usuarios del sistema</li>
+                            <li>Configuración general (IVA, contador de facturas, etc.)</li>
+                            <li>Conceptos de facturación</li>
+                          </ul>
+                        </div>
+                      </div>
+                      <Button
+                        variant="danger"
+                        onClick={handleOpenResetModal}
+                        className="flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Resetear Sistema
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Información adicional */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex gap-3">
+              <Settings className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 mb-1">
+                  Recomendaciones
+                </h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Realiza un backup antes de ejecutar el reset</li>
+                  <li>• Asegúrate de que ningún usuario esté trabajando en el sistema</li>
+                  <li>• El reset puede tardar varios minutos si hay muchos datos</li>
+                  <li>• Después del reset, se recargará automáticamente la página</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal de confirmación de reset (3 pasos) */}
+      <Modal
+        open={resetModal.open}
+        onClose={handleCloseResetModal}
+        size="lg"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Reset Completo del Sistema
+              </h3>
+              <p className="text-sm text-gray-500">
+                Paso {resetModal.step} de 3
+              </p>
+            </div>
+          </div>
+
+          {/* Paso 1: Advertencia */}
+          {resetModal.step === 1 && (
+            <div className="space-y-4">
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-red-900 mb-3 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  ⚠️ ADVERTENCIA CRÍTICA
+                </h4>
+                <ul className="text-sm text-red-800 space-y-2 list-disc list-inside">
+                  <li><strong>Esta acción NO se puede deshacer</strong></li>
+                  <li>Se eliminarán permanentemente TODOS los datos del sistema</li>
+                  <li>El proceso puede tardar varios minutos</li>
+                  <li>La aplicación se recargará automáticamente al finalizar</li>
+                </ul>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-yellow-900 mb-2">
+                  Antes de continuar:
+                </h4>
+                <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+                  <li>¿Has realizado un backup de la base de datos?</li>
+                  <li>¿Estás seguro de que NO hay usuarios trabajando?</li>
+                  <li>¿Comprendes que TODOS los datos se perderán?</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Paso 2: Lista de lo que se eliminará */}
+          {resetModal.step === 2 && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Se eliminarán los siguientes datos:
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-red-50 border border-red-200 rounded p-3">
+                  <h5 className="text-xs font-semibold text-red-900 mb-2">Estructura</h5>
+                  <ul className="text-xs text-red-800 space-y-1">
+                    <li>✗ Comunidades</li>
+                    <li>✗ Portales</li>
+                    <li>✗ Ubicaciones</li>
+                  </ul>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded p-3">
+                  <h5 className="text-xs font-semibold text-red-900 mb-2">Clientes</h5>
+                  <ul className="text-xs text-red-800 space-y-1">
+                    <li>✗ Todos los clientes</li>
+                    <li>✗ Datos de contacto</li>
+                    <li>✗ Mandatos SEPA</li>
+                  </ul>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded p-3">
+                  <h5 className="text-xs font-semibold text-red-900 mb-2">Contadores</h5>
+                  <ul className="text-xs text-red-800 space-y-1">
+                    <li>✗ Todos los contadores</li>
+                    <li>✗ Todas las lecturas</li>
+                    <li>✗ Importaciones</li>
+                  </ul>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded p-3">
+                  <h5 className="text-xs font-semibold text-red-900 mb-2">Facturación</h5>
+                  <ul className="text-xs text-red-800 space-y-1">
+                    <li>✗ Todas las facturas</li>
+                    <li>✗ Envíos de email</li>
+                    <li>✗ Remesas SEPA</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h5 className="text-xs font-semibold text-green-900 mb-2">
+                  ✓ Se conservarán:
+                </h5>
+                <ul className="text-xs text-green-800 space-y-1">
+                  <li>✓ Usuarios y permisos</li>
+                  <li>✓ Configuración general (IVA, etc.)</li>
+                  <li>✓ Conceptos de facturación</li>
+                  <li>✓ Contador de facturas (en su valor actual)</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Paso 3: Confirmación final con texto */}
+          {resetModal.step === 3 && (
+            <div className="space-y-4">
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-900 font-medium mb-3">
+                  Para confirmar el reset, escribe exactamente:
+                </p>
+                <p className="text-center text-lg font-mono font-bold text-red-600 bg-white py-2 rounded border-2 border-red-300">
+                  ELIMINAR TODO
+                </p>
+              </div>
+
+              <FormField label="Confirmación">
+                <Input
+                  type="text"
+                  value={resetModal.confirmText}
+                  onChange={(e) => setResetModal(prev => ({
+                    ...prev,
+                    confirmText: e.target.value,
+                    confirmed: e.target.value === 'ELIMINAR TODO'
+                  }))}
+                  placeholder="Escribe: ELIMINAR TODO"
+                  className={cn(
+                    resetModal.confirmText && resetModal.confirmText !== 'ELIMINAR TODO' && 'border-red-500'
+                  )}
+                />
+              </FormField>
+
+              {resetModal.confirmText && !resetModal.confirmed && (
+                <p className="text-sm text-red-600">
+                  El texto no coincide. Debe ser exactamente: ELIMINAR TODO
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Botones de navegación */}
+          <div className="flex justify-between gap-3 pt-6 border-t mt-6">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={resetModal.step === 1 ? handleCloseResetModal : handlePrevStep}
+              disabled={resetMutation.isPending}
+            >
+              {resetModal.step === 1 ? 'Cancelar' : 'Atrás'}
+            </Button>
+
+            {resetModal.step < 3 && (
+              <Button
+                type="button"
+                onClick={handleNextStep}
+              >
+                Continuar
+              </Button>
+            )}
+
+            {resetModal.step === 3 && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleConfirmReset}
+                disabled={!resetModal.confirmed || resetMutation.isPending}
+                loading={resetMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Ejecutar Reset Completo
+              </Button>
+            )}
           </div>
         </div>
       </Modal>
