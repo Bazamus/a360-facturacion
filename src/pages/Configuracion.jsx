@@ -1,24 +1,30 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw, Trash2, Wrench } from 'lucide-react'
+import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw, Trash2, Wrench, ShieldAlert } from 'lucide-react'
 import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword, useEliminarUsuario, useResetSistema } from '@/hooks'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
+import { useAuth } from '@/features/auth/AuthContext'
 import { cn } from '@/lib/utils'
 import ConfiguracionSEPA from './ConfiguracionSEPA'
 import ImportarExportarPage from './ImportarExportar'
 
-const configSections = [
-  { name: 'General', href: '/configuracion', icon: Settings },
-  { name: 'Conceptos', href: '/configuracion/conceptos', icon: FileText },
-  { name: 'Email', href: '/configuracion/email', icon: Mail },
-  { name: 'SEPA', href: '/configuracion/sepa', icon: CreditCard },
-  { name: 'Importar/Exportar', href: '/configuracion/importar-exportar', icon: Database },
-  { name: 'Usuarios', href: '/configuracion/usuarios', icon: Users },
-  { name: 'Mantenimiento', href: '/configuracion/mantenimiento', icon: Wrench },
-]
-
 export function ConfiguracionPage() {
+  const { profile } = useAuth()
+  const isAdmin = profile?.rol === 'admin'
+
+  // Filtrar secciones basado en rol del usuario
+  const configSections = [
+    { name: 'General', href: '/configuracion', icon: Settings },
+    { name: 'Conceptos', href: '/configuracion/conceptos', icon: FileText },
+    { name: 'Email', href: '/configuracion/email', icon: Mail },
+    { name: 'SEPA', href: '/configuracion/sepa', icon: CreditCard },
+    { name: 'Importar/Exportar', href: '/configuracion/importar-exportar', icon: Database },
+    { name: 'Usuarios', href: '/configuracion/usuarios', icon: Users },
+    // Solo mostrar Mantenimiento a administradores
+    ...(isAdmin ? [{ name: 'Mantenimiento', href: '/configuracion/mantenimiento', icon: Wrench }] : []),
+  ]
+
   return (
     <div>
       <div className="page-header">
@@ -1146,15 +1152,44 @@ function ConfigUsuarios() {
 // Componente: Mantenimiento
 // =====================================================
 function ConfigMantenimiento() {
+  const { profile } = useAuth()
   const toast = useToast()
   const resetMutation = useResetSistema()
   
+  const isAdmin = profile?.rol === 'admin'
+
   const [resetModal, setResetModal] = useState({
     open: false,
     step: 1,
     confirmText: '',
     confirmed: false
   })
+
+  // Mostrar acceso denegado si no es administrador
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+              <ShieldAlert className="w-8 h-8 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Acceso Denegado
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                No tienes permisos para acceder a esta sección.
+              </p>
+              <p className="text-xs text-gray-500">
+                Solo los administradores del sistema pueden acceder a las herramientas de mantenimiento.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   const handleOpenResetModal = () => {
     setResetModal({
