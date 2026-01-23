@@ -7,7 +7,8 @@ import {
   Section,
   Text,
   Button,
-  Hr
+  Hr,
+  Img
 } from '@react-email/components'
 
 export function FacturaEmailTemplate({ factura, empresa }) {
@@ -21,14 +22,18 @@ export function FacturaEmailTemplate({ factura, empresa }) {
           <Section style={styles.header}>
             <table width="100%" cellPadding="0" cellSpacing="0">
               <tr>
-                <td width="80">
-                  <div style={styles.logoBox}>
-                    <Text style={styles.logoText}>A360</Text>
-                    <Text style={styles.logoSubtext}>ENERGÍA</Text>
-                  </div>
+                <td width="100">
+                  <Img
+                    src={empresa.logoUrl}
+                    alt="A360 Servicios Energéticos"
+                    width="100"
+                    height="100"
+                    style={styles.logo}
+                  />
                 </td>
-                <td align="right">
+                <td align="right" style={{ verticalAlign: 'middle' }}>
                   <Text style={styles.headerText}>{empresa.nombre}</Text>
+                  <Text style={styles.headerSubtext}>A360 SERVICIOS ENERGÉTICOS S.L.</Text>
                 </td>
               </tr>
             </table>
@@ -163,38 +168,29 @@ const styles = {
   },
   header: {
     padding: '20px 0',
-    borderBottom: '3px solid #1B4F72',
+    borderBottom: '3px solid #2E86AB',
     marginBottom: '20px',
   },
-  logoBox: {
-    backgroundColor: '#1B4F72',
+  logo: {
     borderRadius: '8px',
-    padding: '12px',
-    width: '70px',
-    textAlign: 'center',
-  },
-  logoText: {
-    color: '#ffffff',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    margin: 0,
-    lineHeight: '1',
-  },
-  logoSubtext: {
-    color: '#ffffff',
-    fontSize: '9px',
-    fontWeight: 'normal',
-    margin: 0,
-    marginTop: '2px',
-    lineHeight: '1',
-    letterSpacing: '1px',
+    display: 'block',
+    boxShadow: '0 2px 8px rgba(46, 134, 171, 0.15)',
   },
   headerText: {
-    fontSize: '11px',
-    color: '#1B4F72',
+    fontSize: '12px',
+    color: '#2E86AB',
     fontWeight: 'bold',
     margin: 0,
     lineHeight: '1.4',
+  },
+  headerSubtext: {
+    fontSize: '10px',
+    color: '#64748b',
+    fontWeight: '600',
+    margin: 0,
+    marginTop: '4px',
+    lineHeight: '1.2',
+    letterSpacing: '0.5px',
   },
   content: {
     padding: '20px 0',
@@ -221,7 +217,7 @@ const styles = {
   invoiceTitle: {
     fontSize: '18px',
     fontWeight: 'bold',
-    color: '#1B4F72',
+    color: '#2E86AB',
     marginBottom: '15px',
   },
   label: {
@@ -251,7 +247,7 @@ const styles = {
   totalValue: {
     fontSize: '28px',
     fontWeight: 'bold',
-    color: '#1B4F72',
+    color: '#2E86AB',
     margin: 0,
   },
   buttonSection: {
@@ -259,7 +255,7 @@ const styles = {
     padding: '20px 0',
   },
   button: {
-    backgroundColor: '#1B4F72',
+    backgroundColor: '#2E86AB',
     color: '#ffffff',
     padding: '14px 32px',
     borderRadius: '6px',
@@ -271,7 +267,7 @@ const styles = {
   },
   contact: {
     fontSize: '14px',
-    color: '#1B4F72',
+    color: '#2E86AB',
     lineHeight: '1.8',
     marginTop: '10px',
   },
