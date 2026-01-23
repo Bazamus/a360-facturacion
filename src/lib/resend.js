@@ -21,7 +21,11 @@ export const EMPRESA_CONFIG = {
   cif: 'B88313473',
   from_email: 'facturacion@a360se.com',
   from_name: 'A360 Servicios Energéticos',
-  logoUrl: `${import.meta.env.VITE_APP_URL || 'https://ener-factu.vercel.app'}/logo.jpg`
+  // Logo URL - usa variable de entorno en desarrollo, URL de producción por defecto
+  get logoUrl() {
+    const baseUrl = import.meta.env.VITE_APP_URL || 'https://facturas.a360se.com'
+    return `${baseUrl}/logo.jpg`
+  }
 }
 
 /**
