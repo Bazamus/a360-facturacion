@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
-      reply_to: reply_to || 'clientes@a360se.com',
+      reply_to: reply_to || 'facturacion@a360se.com',
       tags: tags || []
     }
 

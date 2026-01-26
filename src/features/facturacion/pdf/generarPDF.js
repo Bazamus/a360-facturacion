@@ -23,7 +23,7 @@ const EMPRESA = {
   ciudad: 'Alcorcón',
   provincia: 'Madrid',
   telefono: '91 159 11 70',
-  email: 'clientes@a360se.com',
+  email: 'facturacion@a360se.com',
   cif: 'B88313473'
 }
 

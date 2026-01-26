@@ -160,7 +160,7 @@ function ConfigGeneral() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-500">Email:</dt>
-                    <dd className="text-gray-900">clientes@a360se.com</dd>
+                    <dd className="text-gray-900">facturacion@a360se.com</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-gray-500">Web:</dt>
@@ -564,9 +564,9 @@ function ConfigEmailForm() {
   const toast = useToast()
   
   const [formData, setFormData] = useState({
-    from_email: 'facturas@a360se.com',
+    from_email: 'facturacion@a360se.com',
     from_name: 'A360 Servicios Energéticos',
-    reply_to: 'clientes@a360se.com',
+    reply_to: 'facturacion@a360se.com',
     asunto_template: 'Factura {numero_factura} - {periodo}',
     envio_automatico: false,
     hora_envio_preferida: '09:00',
