@@ -396,12 +396,22 @@ export function useUpdateEmailConfig() {
 
   return useMutation({
     mutationFn: async (config) => {
+      // Primero obtener el ID de la configuración existente
+      const { data: existingConfig, error: fetchError } = await supabase
+        .from('configuracion_email')
+        .select('id')
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Actualizar usando el ID
       const { data, error } = await supabase
         .from('configuracion_email')
         .update({
           ...config,
           updated_at: new Date().toISOString()
         })
+        .eq('id', existingConfig.id)
         .select()
         .single()
 
