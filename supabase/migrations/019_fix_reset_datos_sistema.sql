@@ -72,28 +72,25 @@ BEGIN
   RAISE NOTICE 'Eliminadas % facturas', v_count_facturas;
 
   -- =====================================================
-  -- FASE 2: Eliminar lecturas y contadores
-  -- (lecturas tiene FK a importaciones_detalle, debe borrarse primero)
+  -- FASE 2: Eliminar lecturas e importaciones
+  -- Orden: lecturas -> importaciones_detalle -> contadores -> importaciones
+  -- (lecturas FK-> importaciones_detalle FK-> contadores)
   -- =====================================================
 
-  -- 7. Lecturas (ANTES de importaciones_detalle por FK)
+  -- 7. Lecturas (depende de importaciones_detalle)
   SELECT COUNT(*) INTO v_count_lecturas FROM lecturas;
   DELETE FROM lecturas WHERE true;
   RAISE NOTICE 'Eliminadas % lecturas', v_count_lecturas;
 
-  -- 8. Contadores
-  SELECT COUNT(*) INTO v_count_contadores FROM contadores;
-  DELETE FROM contadores WHERE true;
-  RAISE NOTICE 'Eliminados % contadores', v_count_contadores;
-
-  -- =====================================================
-  -- FASE 3: Eliminar datos de importaciones
-  -- =====================================================
-
-  -- 9. Importaciones detalle
+  -- 8. Importaciones detalle (depende de contadores e importaciones)
   SELECT COUNT(*) INTO v_count_importaciones_detalle FROM importaciones_detalle;
   DELETE FROM importaciones_detalle WHERE true;
   RAISE NOTICE 'Eliminados % detalles de importaciones', v_count_importaciones_detalle;
+
+  -- 9. Contadores (ahora libre de referencias)
+  SELECT COUNT(*) INTO v_count_contadores FROM contadores;
+  DELETE FROM contadores WHERE true;
+  RAISE NOTICE 'Eliminados % contadores', v_count_contadores;
 
   -- 10. Importaciones
   SELECT COUNT(*) INTO v_count_importaciones FROM importaciones;
