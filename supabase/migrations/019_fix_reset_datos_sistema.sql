@@ -72,32 +72,33 @@ BEGIN
   RAISE NOTICE 'Eliminadas % facturas', v_count_facturas;
 
   -- =====================================================
-  -- FASE 2: Eliminar datos de importaciones
+  -- FASE 2: Eliminar lecturas y contadores
+  -- (lecturas tiene FK a importaciones_detalle, debe borrarse primero)
   -- =====================================================
 
-  -- 7. Importaciones detalle
-  SELECT COUNT(*) INTO v_count_importaciones_detalle FROM importaciones_detalle;
-  DELETE FROM importaciones_detalle WHERE true;
-  RAISE NOTICE 'Eliminados % detalles de importaciones', v_count_importaciones_detalle;
-
-  -- 8. Importaciones
-  SELECT COUNT(*) INTO v_count_importaciones FROM importaciones;
-  DELETE FROM importaciones WHERE true;
-  RAISE NOTICE 'Eliminadas % importaciones', v_count_importaciones;
-
-  -- =====================================================
-  -- FASE 3: Eliminar lecturas y contadores
-  -- =====================================================
-
-  -- 9. Lecturas
+  -- 7. Lecturas (ANTES de importaciones_detalle por FK)
   SELECT COUNT(*) INTO v_count_lecturas FROM lecturas;
   DELETE FROM lecturas WHERE true;
   RAISE NOTICE 'Eliminadas % lecturas', v_count_lecturas;
 
-  -- 10. Contadores
+  -- 8. Contadores
   SELECT COUNT(*) INTO v_count_contadores FROM contadores;
   DELETE FROM contadores WHERE true;
   RAISE NOTICE 'Eliminados % contadores', v_count_contadores;
+
+  -- =====================================================
+  -- FASE 3: Eliminar datos de importaciones
+  -- =====================================================
+
+  -- 9. Importaciones detalle
+  SELECT COUNT(*) INTO v_count_importaciones_detalle FROM importaciones_detalle;
+  DELETE FROM importaciones_detalle WHERE true;
+  RAISE NOTICE 'Eliminados % detalles de importaciones', v_count_importaciones_detalle;
+
+  -- 10. Importaciones
+  SELECT COUNT(*) INTO v_count_importaciones FROM importaciones;
+  DELETE FROM importaciones WHERE true;
+  RAISE NOTICE 'Eliminadas % importaciones', v_count_importaciones;
 
   -- =====================================================
   -- FASE 4: Eliminar clientes y estructura
