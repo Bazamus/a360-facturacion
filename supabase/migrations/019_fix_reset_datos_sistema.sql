@@ -1,7 +1,6 @@
 -- =====================================================
 -- Migración 019: Fix para reset_datos_sistema
--- Agrega WHERE true a los DELETE para evitar error de Supabase
--- "DELETE requires a WHERE clause"
+-- Corregido con tablas reales y orden correcto de FK
 -- Fecha: Enero 2026
 -- =====================================================
 
@@ -10,164 +9,183 @@ RETURNS jsonb AS $$
 DECLARE
   v_result jsonb;
   v_deleted_counts jsonb;
-  v_count_remesas_recibos INTEGER;
-  v_count_remesas INTEGER;
-  v_count_almacenamiento INTEGER;
-  v_count_envios INTEGER;
-  v_count_facturas_lineas INTEGER;
-  v_count_facturas INTEGER;
-  v_count_importaciones_detalle INTEGER;
-  v_count_importaciones INTEGER;
-  v_count_lecturas INTEGER;
-  v_count_contadores INTEGER;
-  v_count_clientes INTEGER;
-  v_count_ubicaciones INTEGER;
-  v_count_portales INTEGER;
-  v_count_comunidades INTEGER;
+  v_count INTEGER;
+  v_total INTEGER := 0;
 BEGIN
   -- Validar que solo admins pueden ejecutar
   IF NOT EXISTS (
-    SELECT 1 FROM profiles
-    WHERE id = auth.uid()
-    AND rol = 'admin'
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND rol = 'admin'
   ) THEN
     RAISE EXCEPTION 'Solo administradores pueden resetear el sistema';
   END IF;
 
-  -- Registrar mensaje de inicio
   RAISE NOTICE 'Iniciando reset completo del sistema...';
 
+  -- Inicializar objeto de conteos
+  v_deleted_counts := '{}'::jsonb;
+
   -- =====================================================
-  -- FASE 1: Eliminar datos relacionados con facturas
+  -- FASE 1: Eliminar datos de remesas y envíos
   -- =====================================================
 
-  -- 1. Remesas recibos (depende de remesas y facturas)
-  SELECT COUNT(*) INTO v_count_remesas_recibos FROM remesas_recibos;
+  -- remesas_recibos
+  SELECT COUNT(*) INTO v_count FROM remesas_recibos;
   DELETE FROM remesas_recibos WHERE true;
-  RAISE NOTICE 'Eliminados % registros de remesas_recibos', v_count_remesas_recibos;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('remesas_recibos', v_count);
+  v_total := v_total + v_count;
 
-  -- 2. Remesas
-  SELECT COUNT(*) INTO v_count_remesas FROM remesas;
+  -- remesas
+  SELECT COUNT(*) INTO v_count FROM remesas;
   DELETE FROM remesas WHERE true;
-  RAISE NOTICE 'Eliminadas % remesas', v_count_remesas;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('remesas', v_count);
+  v_total := v_total + v_count;
 
-  -- 3. Almacenamiento de documentos
-  SELECT COUNT(*) INTO v_count_almacenamiento FROM almacenamiento_documentos;
+  -- mandatos_sepa
+  SELECT COUNT(*) INTO v_count FROM mandatos_sepa;
+  DELETE FROM mandatos_sepa WHERE true;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('mandatos_sepa', v_count);
+  v_total := v_total + v_count;
+
+  -- almacenamiento_documentos
+  SELECT COUNT(*) INTO v_count FROM almacenamiento_documentos;
   DELETE FROM almacenamiento_documentos WHERE true;
-  RAISE NOTICE 'Eliminados % documentos almacenados', v_count_almacenamiento;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('almacenamiento_documentos', v_count);
+  v_total := v_total + v_count;
 
-  -- 4. Envíos de email
-  SELECT COUNT(*) INTO v_count_envios FROM envios_email;
+  -- envios_email
+  SELECT COUNT(*) INTO v_count FROM envios_email;
   DELETE FROM envios_email WHERE true;
-  RAISE NOTICE 'Eliminados % envíos de email', v_count_envios;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('envios_email', v_count);
+  v_total := v_total + v_count;
 
-  -- 5. Líneas de facturas
-  SELECT COUNT(*) INTO v_count_facturas_lineas FROM facturas_lineas;
+  -- =====================================================
+  -- FASE 2: Eliminar facturas y relacionados
+  -- =====================================================
+
+  -- facturas_consumo_historico (si existe)
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'facturas_consumo_historico') THEN
+    SELECT COUNT(*) INTO v_count FROM facturas_consumo_historico;
+    DELETE FROM facturas_consumo_historico WHERE true;
+    v_deleted_counts := v_deleted_counts || jsonb_build_object('facturas_consumo_historico', v_count);
+    v_total := v_total + v_count;
+  END IF;
+
+  -- facturas_lineas
+  SELECT COUNT(*) INTO v_count FROM facturas_lineas;
   DELETE FROM facturas_lineas WHERE true;
-  RAISE NOTICE 'Eliminadas % líneas de facturas', v_count_facturas_lineas;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('facturas_lineas', v_count);
+  v_total := v_total + v_count;
 
-  -- 6. Facturas
-  SELECT COUNT(*) INTO v_count_facturas FROM facturas;
+  -- facturas
+  SELECT COUNT(*) INTO v_count FROM facturas;
   DELETE FROM facturas WHERE true;
-  RAISE NOTICE 'Eliminadas % facturas', v_count_facturas;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('facturas', v_count);
+  v_total := v_total + v_count;
 
   -- =====================================================
-  -- FASE 2: Eliminar lecturas e importaciones
-  -- Orden: lecturas -> importaciones_detalle -> contadores -> importaciones
-  -- (lecturas FK-> importaciones_detalle FK-> contadores)
+  -- FASE 3: Eliminar lecturas e importaciones
+  -- Orden: lecturas -> importaciones_detalle -> importaciones
   -- =====================================================
 
-  -- 7. Lecturas (depende de importaciones_detalle)
-  SELECT COUNT(*) INTO v_count_lecturas FROM lecturas;
+  -- lecturas
+  SELECT COUNT(*) INTO v_count FROM lecturas;
   DELETE FROM lecturas WHERE true;
-  RAISE NOTICE 'Eliminadas % lecturas', v_count_lecturas;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('lecturas', v_count);
+  v_total := v_total + v_count;
 
-  -- 8. Importaciones detalle (depende de contadores e importaciones)
-  SELECT COUNT(*) INTO v_count_importaciones_detalle FROM importaciones_detalle;
+  -- alertas_configuracion (si existe)
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'alertas_configuracion') THEN
+    SELECT COUNT(*) INTO v_count FROM alertas_configuracion;
+    DELETE FROM alertas_configuracion WHERE true;
+    v_deleted_counts := v_deleted_counts || jsonb_build_object('alertas_configuracion', v_count);
+    v_total := v_total + v_count;
+  END IF;
+
+  -- importaciones_detalle
+  SELECT COUNT(*) INTO v_count FROM importaciones_detalle;
   DELETE FROM importaciones_detalle WHERE true;
-  RAISE NOTICE 'Eliminados % detalles de importaciones', v_count_importaciones_detalle;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('importaciones_detalle', v_count);
+  v_total := v_total + v_count;
 
-  -- 9. Contadores (ahora libre de referencias)
-  SELECT COUNT(*) INTO v_count_contadores FROM contadores;
+  -- =====================================================
+  -- FASE 4: Eliminar contadores y precios
+  -- =====================================================
+
+  -- contadores_conceptos
+  SELECT COUNT(*) INTO v_count FROM contadores_conceptos;
+  DELETE FROM contadores_conceptos WHERE true;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('contadores_conceptos', v_count);
+  v_total := v_total + v_count;
+
+  -- contadores
+  SELECT COUNT(*) INTO v_count FROM contadores;
   DELETE FROM contadores WHERE true;
-  RAISE NOTICE 'Eliminados % contadores', v_count_contadores;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('contadores', v_count);
+  v_total := v_total + v_count;
 
-  -- 10. Importaciones
-  SELECT COUNT(*) INTO v_count_importaciones FROM importaciones;
-  DELETE FROM importaciones WHERE true;
-  RAISE NOTICE 'Eliminadas % importaciones', v_count_importaciones;
+  -- precios
+  SELECT COUNT(*) INTO v_count FROM precios;
+  DELETE FROM precios WHERE true;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('precios', v_count);
+  v_total := v_total + v_count;
 
   -- =====================================================
-  -- FASE 4: Eliminar clientes y estructura
+  -- FASE 5: Eliminar clientes y ubicaciones
   -- =====================================================
 
-  -- 11. Clientes
-  SELECT COUNT(*) INTO v_count_clientes FROM clientes;
+  -- ubicaciones_clientes
+  SELECT COUNT(*) INTO v_count FROM ubicaciones_clientes;
+  DELETE FROM ubicaciones_clientes WHERE true;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('ubicaciones_clientes', v_count);
+  v_total := v_total + v_count;
+
+  -- clientes
+  SELECT COUNT(*) INTO v_count FROM clientes;
   DELETE FROM clientes WHERE true;
-  RAISE NOTICE 'Eliminados % clientes', v_count_clientes;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('clientes', v_count);
+  v_total := v_total + v_count;
 
-  -- 12. Ubicaciones (viviendas)
-  SELECT COUNT(*) INTO v_count_ubicaciones FROM ubicaciones;
+  -- ubicaciones
+  SELECT COUNT(*) INTO v_count FROM ubicaciones;
   DELETE FROM ubicaciones WHERE true;
-  RAISE NOTICE 'Eliminadas % ubicaciones', v_count_ubicaciones;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('ubicaciones', v_count);
+  v_total := v_total + v_count;
 
-  -- 13. Portales
-  SELECT COUNT(*) INTO v_count_portales FROM portales;
-  DELETE FROM portales WHERE true;
-  RAISE NOTICE 'Eliminados % portales', v_count_portales;
+  -- =====================================================
+  -- FASE 6: Eliminar estructura de comunidades
+  -- =====================================================
 
-  -- 14. Comunidades
-  SELECT COUNT(*) INTO v_count_comunidades FROM comunidades;
+  -- agrupaciones
+  SELECT COUNT(*) INTO v_count FROM agrupaciones;
+  DELETE FROM agrupaciones WHERE true;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('agrupaciones', v_count);
+  v_total := v_total + v_count;
+
+  -- importaciones (después de importaciones_detalle)
+  SELECT COUNT(*) INTO v_count FROM importaciones;
+  DELETE FROM importaciones WHERE true;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('importaciones', v_count);
+  v_total := v_total + v_count;
+
+  -- comunidades
+  SELECT COUNT(*) INTO v_count FROM comunidades;
   DELETE FROM comunidades WHERE true;
-  RAISE NOTICE 'Eliminadas % comunidades', v_count_comunidades;
+  v_deleted_counts := v_deleted_counts || jsonb_build_object('comunidades', v_count);
+  v_total := v_total + v_count;
 
   -- =====================================================
-  -- FASE 5: Resetear secuencias
+  -- Resultado final
   -- =====================================================
-
-  -- Resetear secuencia de facturas al valor configurado
-  -- La secuencia se mantendrá en el valor actual de configuración
-  -- Si se desea resetear a 0, descomentar la siguiente línea:
-  -- PERFORM setval('seq_factura_numero', 1, false);
-
-  RAISE NOTICE 'Secuencia de facturas mantenida en su valor actual';
-
-  -- =====================================================
-  -- FASE 6: Construir resultado
-  -- =====================================================
-
-  v_deleted_counts := jsonb_build_object(
-    'remesas_recibos', v_count_remesas_recibos,
-    'remesas', v_count_remesas,
-    'almacenamiento_documentos', v_count_almacenamiento,
-    'envios_email', v_count_envios,
-    'facturas_lineas', v_count_facturas_lineas,
-    'facturas', v_count_facturas,
-    'importaciones_detalle', v_count_importaciones_detalle,
-    'importaciones', v_count_importaciones,
-    'lecturas', v_count_lecturas,
-    'contadores', v_count_contadores,
-    'clientes', v_count_clientes,
-    'ubicaciones', v_count_ubicaciones,
-    'portales', v_count_portales,
-    'comunidades', v_count_comunidades
-  );
 
   v_result := jsonb_build_object(
     'success', true,
     'message', 'Reset completo ejecutado exitosamente',
     'deleted_counts', v_deleted_counts,
-    'total_deleted', (
-      v_count_remesas_recibos + v_count_remesas + v_count_almacenamiento +
-      v_count_envios + v_count_facturas_lineas + v_count_facturas +
-      v_count_importaciones_detalle + v_count_importaciones +
-      v_count_lecturas + v_count_contadores + v_count_clientes +
-      v_count_ubicaciones + v_count_portales + v_count_comunidades
-    ),
-    'preserved', jsonb_build_array('usuarios', 'configuracion', 'secuencias')
+    'total_deleted', v_total,
+    'preserved', jsonb_build_array('profiles', 'configuracion', 'configuracion_email', 'configuracion_sepa', 'conceptos')
   );
 
-  RAISE NOTICE 'Reset completado exitosamente';
+  RAISE NOTICE 'Reset completado. Total eliminados: %', v_total;
 
   RETURN v_result;
 
@@ -178,4 +196,4 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION reset_datos_sistema IS
-  'Resetea todos los datos del sistema excepto usuarios y configuración (solo admins)';
+  'Resetea todos los datos del sistema excepto usuarios, configuración y conceptos (solo admins)';
