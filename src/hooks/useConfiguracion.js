@@ -34,12 +34,15 @@ export function useConfiguracion() {
         .order('numero', { ascending: false })
         .limit(1)
         .single()
-      
+
       if (maxError && maxError.code !== 'PGRST116') throw maxError
-      
-      // Actualizar el último número con el valor REAL de la BD
-      if (config.serie_facturacion && maxFactura?.numero) {
-        config.serie_facturacion.ultimo_numero = maxFactura.numero
+
+      // Usar el valor más alto entre configuración y facturas reales
+      // Esto permite avanzar el contador pero previene retroceder
+      if (config.serie_facturacion) {
+        const configuredNumber = config.serie_facturacion.ultimo_numero || 0
+        const actualMax = maxFactura?.numero || 0
+        config.serie_facturacion.ultimo_numero = Math.max(configuredNumber, actualMax)
       }
       
       return config
