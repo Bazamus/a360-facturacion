@@ -15,7 +15,7 @@ export function useClientes(options = {}) {
         .from('clientes')
         .select(`
           *,
-          ubicaciones_clientes!inner(
+          ubicaciones_clientes(
             ubicacion_id,
             es_actual,
             ubicacion:ubicaciones(
