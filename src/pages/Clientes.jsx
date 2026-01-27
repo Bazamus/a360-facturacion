@@ -8,7 +8,8 @@ import {
   useUpdateCliente,
   useAsignarClienteUbicacion,
   useFinalizarOcupacion,
-  useComunidades
+  useComunidades,
+  useEstadosCliente
 } from '@/hooks'
 import { getBadgeVariant } from '@/utils/estadosCliente'
 import { 
@@ -49,19 +50,20 @@ function ClientesList() {
   const [search, setSearch] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroComunidad, setFiltroComunidad] = useState('')
-  const [soloActivos, setSoloActivos] = useState(true)
+  const [filtroEstado, setFiltroEstado] = useState('')
   const [showImportModal, setShowImportModal] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState(false)
   const actionsMenuRef = useRef(null)
   const toast = useToast()
 
   const { data: comunidades } = useComunidades({ activa: true })
+  const { data: estados } = useEstadosCliente()
 
   const { data: clientes, isLoading, error, refetch } = useClientes({ 
     search,
     tipo: filtroTipo || undefined,
     comunidadId: filtroComunidad || undefined,
-    activo: soloActivos ? true : undefined
+    estadoId: filtroEstado || undefined
   })
 
   const { descargarPlantilla, exportarEntidad } = useImportExport()
@@ -264,46 +266,47 @@ function ClientesList() {
 
       <Card>
         {/* Filtros */}
-        <div className="p-4 border-b border-gray-200 flex flex-wrap gap-4 items-center">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar por nombre o NIF..."
-            className="w-64"
-          />
-          
-          <Select
-            value={filtroTipo}
-            onChange={e => setFiltroTipo(e.target.value)}
-            className="w-40"
-          >
-            <option value="">Todos los tipos</option>
-            <option value="propietario">Propietarios</option>
-            <option value="inquilino">Inquilinos</option>
-          </Select>
-
-          <Select
-            value={filtroComunidad}
-            onChange={e => setFiltroComunidad(e.target.value)}
-            className="w-64"
-          >
-            <option value="">Todas las comunidades</option>
-            {comunidades?.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.codigo} - {c.nombre}
-              </option>
-            ))}
-          </Select>
-
-          <label className="flex items-center gap-2 text-sm text-gray-600">
-            <input
-              type="checkbox"
-              checked={soloActivos}
-              onChange={e => setSoloActivos(e.target.checked)}
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        <div className="p-4 border-b border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por nombre o NIF..."
             />
-            Solo activos
-          </label>
+            
+            <Select
+              value={filtroTipo}
+              onChange={e => setFiltroTipo(e.target.value)}
+            >
+              <option value="">Todos los tipos</option>
+              <option value="propietario">Propietarios</option>
+              <option value="inquilino">Inquilinos</option>
+            </Select>
+
+            <Select
+              value={filtroComunidad}
+              onChange={e => setFiltroComunidad(e.target.value)}
+            >
+              <option value="">Todas las comunidades</option>
+              {comunidades?.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.codigo} - {c.nombre}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              value={filtroEstado}
+              onChange={e => setFiltroEstado(e.target.value)}
+            >
+              <option value="">Todos los estados</option>
+              {estados?.map(estado => (
+                <option key={estado.id} value={estado.id}>
+                  {estado.nombre}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
 
         {isLoading ? (
