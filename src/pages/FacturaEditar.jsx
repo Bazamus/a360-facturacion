@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Save, FileText, Trash2, Plus } from 'lucide-react'
 import { Button, Card, Modal, Input, Select, FormField } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -19,6 +20,7 @@ export default function FacturaEditar() {
   const { id } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
+  const queryClient = useQueryClient()
 
   // Hooks de datos
   const { data: factura, isLoading: loadingFactura } = useFactura(id)
@@ -60,8 +62,25 @@ export default function FacturaEditar() {
   // Cargar fechas de periodo
   useEffect(() => {
     if (factura) {
-      setPeriodoInicio(factura.periodo_inicio || '')
-      setPeriodoFin(factura.periodo_fin || '')
+      // Asegurar formato YYYY-MM-DD para inputs tipo date
+      const formatearFecha = (fecha) => {
+        if (!fecha) return ''
+        // Si ya está en formato correcto, devolverla
+        if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          return fecha
+        }
+        // Si es otro formato, convertir
+        const d = new Date(fecha)
+        return d.toISOString().split('T')[0]
+      }
+
+      setPeriodoInicio(formatearFecha(factura.periodo_inicio))
+      setPeriodoFin(formatearFecha(factura.periodo_fin))
+      
+      console.log('Fechas cargadas:', {
+        inicio: formatearFecha(factura.periodo_inicio),
+        fin: formatearFecha(factura.periodo_fin)
+      })
     }
   }, [factura])
 
@@ -171,16 +190,28 @@ export default function FacturaEditar() {
       const nuevoTotal = Math.round((nuevoSubtotal + nuevoIva) * 100) / 100
 
       // 3. Actualizar totales y periodo de la factura
-      await supabase
+      const datosActualizacion = {
+        base_imponible: Math.round(nuevoSubtotal * 100) / 100,
+        importe_iva: nuevoIva,
+        total: nuevoTotal,
+        periodo_inicio: periodoInicio || factura.periodo_inicio,
+        periodo_fin: periodoFin || factura.periodo_fin
+      }
+
+      console.log('Guardando factura con datos:', datosActualizacion)
+
+      const { error: errorActualizacion } = await supabase
         .from('facturas')
-        .update({
-          base_imponible: Math.round(nuevoSubtotal * 100) / 100,
-          importe_iva: nuevoIva,
-          total: nuevoTotal,
-          periodo_inicio: periodoInicio || factura.periodo_inicio,
-          periodo_fin: periodoFin || factura.periodo_fin
-        })
+        .update(datosActualizacion)
         .eq('id', id)
+
+      if (errorActualizacion) {
+        throw new Error(errorActualizacion.message)
+      }
+
+      // Invalidar queries para recargar datos actualizados
+      await queryClient.invalidateQueries(['factura', id])
+      await queryClient.invalidateQueries(['lineas-factura', id])
 
       toast.success('Cambios guardados')
     } catch (error) {
@@ -229,7 +260,7 @@ export default function FacturaEditar() {
       const nuevoTotal = Math.round((nuevoSubtotal + nuevoIva) * 100) / 100
 
       // Actualizar totales y periodo antes de emitir
-      await supabase
+      const { error: errorActualizacion } = await supabase
         .from('facturas')
         .update({
           base_imponible: Math.round(nuevoSubtotal * 100) / 100,
@@ -239,6 +270,10 @@ export default function FacturaEditar() {
           periodo_fin: periodoFin || factura.periodo_fin
         })
         .eq('id', id)
+
+      if (errorActualizacion) {
+        throw new Error(errorActualizacion.message)
+      }
 
       // Luego emitir
       const result = await emitirFactura.mutateAsync(id)
