@@ -46,11 +46,10 @@ export function useEstadisticas() {
           .select('id', { count: 'exact', head: true })
           .eq('activa', true),
 
-        // Total clientes activos
+        // Total clientes activos (todos los clientes, ya no existe columna 'activo')
         supabase
           .from('clientes')
-          .select('id', { count: 'exact', head: true })
-          .eq('activo', true),
+          .select('id', { count: 'exact', head: true }),
 
         // Total contadores activos
         supabase
@@ -104,25 +103,25 @@ export function useEstadisticas() {
       // Facturado del mes actual
       const { data: mesActual, error: errorActual } = await supabase
         .from('facturas')
-        .select('total_con_iva')
-        .gte('fecha_emision', primerDiaMes.toISOString())
-        .not('anulada', 'eq', true)
+        .select('total')
+        .gte('fecha_factura', primerDiaMes.toISOString())
+        .neq('estado', 'anulada')
 
       if (errorActual) throw errorActual
 
-      const totalMesActual = mesActual?.reduce((sum, f) => sum + (parseFloat(f.total_con_iva) || 0), 0) || 0
+      const totalMesActual = mesActual?.reduce((sum, f) => sum + (parseFloat(f.total) || 0), 0) || 0
 
       // Facturado del mes anterior (para calcular cambio)
       const { data: mesAnterior, error: errorAnterior } = await supabase
         .from('facturas')
-        .select('total_con_iva')
-        .gte('fecha_emision', primerDiaMesAnterior.toISOString())
-        .lte('fecha_emision', ultimoDiaMesAnterior.toISOString())
-        .not('anulada', 'eq', true)
+        .select('total')
+        .gte('fecha_factura', primerDiaMesAnterior.toISOString())
+        .lte('fecha_factura', ultimoDiaMesAnterior.toISOString())
+        .neq('estado', 'anulada')
 
       if (errorAnterior) throw errorAnterior
 
-      const totalMesAnterior = mesAnterior?.reduce((sum, f) => sum + (parseFloat(f.total_con_iva) || 0), 0) || 0
+      const totalMesAnterior = mesAnterior?.reduce((sum, f) => sum + (parseFloat(f.total) || 0), 0) || 0
 
       // Calcular porcentaje de cambio
       let cambio = 0
