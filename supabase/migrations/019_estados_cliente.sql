@@ -4,7 +4,17 @@
 --              por sistema flexible de estados con gestión en configuración
 -- =====================================================
 
--- 1. Crear tabla estados_cliente
+-- 1. Crear función para actualizar updated_at (si no existe)
+-- =====================================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Crear tabla estados_cliente
 -- =====================================================
 CREATE TABLE estados_cliente (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,7 +39,7 @@ CREATE INDEX idx_estados_cliente_codigo ON estados_cliente(codigo);
 CREATE INDEX idx_estados_cliente_orden ON estados_cliente(orden);
 
 -- =====================================================
--- 2. Insertar estados predefinidos del sistema
+-- 3. Insertar estados predefinidos del sistema
 -- =====================================================
 INSERT INTO estados_cliente (codigo, nombre, color, permite_facturacion, es_sistema, orden) VALUES
 ('ACT', 'Activo', 'green', true, true, 1),
@@ -38,12 +48,12 @@ INSERT INTO estados_cliente (codigo, nombre, color, permite_facturacion, es_sist
 ('MOR', 'Moroso', 'yellow', true, true, 4);
 
 -- =====================================================
--- 3. Añadir columna estado_id a tabla clientes
+-- 4. Añadir columna estado_id a tabla clientes
 -- =====================================================
 ALTER TABLE clientes ADD COLUMN estado_id UUID REFERENCES estados_cliente(id);
 
 -- =====================================================
--- 4. Migrar datos existentes
+-- 5. Migrar datos existentes
 -- =====================================================
 
 -- Clientes bloqueados → estado 'Bloqueado'
@@ -80,14 +90,14 @@ ALTER TABLE clientes ALTER COLUMN estado_id SET NOT NULL;
 CREATE INDEX idx_clientes_estado_id ON clientes(estado_id);
 
 -- =====================================================
--- 5. Eliminar columnas antiguas
+-- 6. Eliminar columnas antiguas
 -- =====================================================
 ALTER TABLE clientes DROP COLUMN activo;
 ALTER TABLE clientes DROP COLUMN bloqueado;
 ALTER TABLE clientes DROP COLUMN motivo_bloqueo;
 
 -- =====================================================
--- 6. Actualizar tabla facturas (snapshot de estado del cliente)
+-- 7. Actualizar tabla facturas (snapshot de estado del cliente)
 -- =====================================================
 ALTER TABLE facturas ADD COLUMN cliente_estado_codigo TEXT;
 ALTER TABLE facturas ADD COLUMN cliente_estado_nombre TEXT;
@@ -104,7 +114,7 @@ JOIN estados_cliente ec ON c.estado_id = ec.id
 WHERE f.cliente_id = c.id;
 
 -- =====================================================
--- 7. RLS (Row Level Security) para estados_cliente
+-- 8. RLS (Row Level Security) para estados_cliente
 -- =====================================================
 ALTER TABLE estados_cliente ENABLE ROW LEVEL SECURITY;
 
