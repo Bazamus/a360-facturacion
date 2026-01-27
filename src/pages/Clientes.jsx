@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { Users, Plus, Eye, Edit2, Ban, CheckCircle, MoreVertical, Upload, Download, FileSpreadsheet } from 'lucide-react'
-import { 
-  useClientes, 
-  useCliente, 
-  useCreateCliente, 
+import {
+  useClientes,
+  useCliente,
+  useCreateCliente,
   useUpdateCliente,
   useToggleBloqueoCliente,
   useAsignarClienteUbicacion,
-  useFinalizarOcupacion
+  useFinalizarOcupacion,
+  useComunidades
 } from '@/hooks'
 import { 
   Button, 
@@ -47,15 +48,19 @@ function ClientesList() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroComunidad, setFiltroComunidad] = useState('')
   const [soloActivos, setSoloActivos] = useState(true)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState(false)
   const actionsMenuRef = useRef(null)
   const toast = useToast()
 
+  const { data: comunidades } = useComunidades({ activa: true })
+
   const { data: clientes, isLoading, error, refetch } = useClientes({ 
     search,
     tipo: filtroTipo || undefined,
+    comunidadId: filtroComunidad || undefined,
     activo: soloActivos ? true : undefined
   })
 
@@ -279,6 +284,19 @@ function ClientesList() {
             <option value="">Todos los tipos</option>
             <option value="propietario">Propietarios</option>
             <option value="inquilino">Inquilinos</option>
+          </Select>
+
+          <Select
+            value={filtroComunidad}
+            onChange={e => setFiltroComunidad(e.target.value)}
+            className="w-64"
+          >
+            <option value="">Todas las comunidades</option>
+            {comunidades?.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.codigo} - {c.nombre}
+              </option>
+            ))}
           </Select>
 
           <label className="flex items-center gap-2 text-sm text-gray-600">
