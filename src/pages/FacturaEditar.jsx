@@ -200,8 +200,8 @@ export default function FacturaEditar() {
         periodo_fin: periodoFin || factura.periodo_fin
       }
 
-      console.log('📅 Estados locales:', { periodoInicio, periodoFin })
-      console.log('💾 Guardando factura con datos:', datosActualizacion)
+      console.log('📅 Estados locales de periodo:', { periodoInicio, periodoFin })
+      console.log('💾 Guardando factura ID', id, 'con datos:', datosActualizacion)
 
       const { data: dataActualizacion, error: errorActualizacion } = await supabase
         .from('facturas')
@@ -396,7 +396,10 @@ export default function FacturaEditar() {
                   <Input
                     type="date"
                     value={periodoInicio}
-                    onChange={(e) => setPeriodoInicio(e.target.value)}
+                    onChange={(e) => {
+                      console.log('📆 Cambiando fecha INICIO:', e.target.value)
+                      setPeriodoInicio(e.target.value)
+                    }}
                     className="text-sm"
                   />
                 </FormField>
@@ -404,7 +407,10 @@ export default function FacturaEditar() {
                   <Input
                     type="date"
                     value={periodoFin}
-                    onChange={(e) => setPeriodoFin(e.target.value)}
+                    onChange={(e) => {
+                      console.log('📆 Cambiando fecha FIN:', e.target.value)
+                      setPeriodoFin(e.target.value)
+                    }}
                     className="text-sm"
                   />
                 </FormField>
