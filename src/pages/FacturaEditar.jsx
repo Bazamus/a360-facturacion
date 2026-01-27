@@ -81,14 +81,6 @@ export default function FacturaEditar() {
       setPeriodoInicio(inicio)
       setPeriodoFin(fin)
       setFechasInicializadas(true)
-      
-      console.log('Fechas inicializadas desde factura:', { inicio, fin })
-      console.log('🗂️ Factura completa recargada:', {
-        id: factura.id,
-        periodo_inicio: factura.periodo_inicio,
-        periodo_fin: factura.periodo_fin,
-        updated_at: factura.updated_at
-      })
     }
   }, [factura, fechasInicializadas])
 
@@ -206,42 +198,26 @@ export default function FacturaEditar() {
         periodo_fin: periodoFin || factura.periodo_fin
       }
 
-      console.log('📅 Estados locales de periodo:', { periodoInicio, periodoFin })
-      console.log('💾 Guardando factura ID', id, 'con datos:', datosActualizacion)
-
-      const { data: dataActualizacion, error: errorActualizacion } = await supabase
+      const { error: errorActualizacion } = await supabase
         .from('facturas')
         .update(datosActualizacion)
         .eq('id', id)
-        .select()
-
-      console.log('📦 Respuesta de Supabase:', { data: dataActualizacion, error: errorActualizacion })
-      if (dataActualizacion && dataActualizacion.length > 0) {
-        console.log('📄 Registro actualizado en BD:', dataActualizacion[0])
-        console.log('🔍 Fechas en BD después de actualizar:', {
-          periodo_inicio: dataActualizacion[0].periodo_inicio,
-          periodo_fin: dataActualizacion[0].periodo_fin
-        })
-      }
 
       if (errorActualizacion) {
         throw new Error(errorActualizacion.message)
       }
 
       // Invalidar queries para recargar datos actualizados
-      console.log('🔄 Invalidando queries...')
-      await queryClient.invalidateQueries(['facturas', id]) // ✅ Corregido: 'facturas' con 's'
+      await queryClient.invalidateQueries(['facturas', id])
       await queryClient.invalidateQueries(['lineas-factura', id])
       
       // Esperar a que React Query recargue los datos
       await queryClient.refetchQueries(['facturas', id])
-      console.log('🔄 Queries recargadas')
       
       // Ahora sí, permitir que useEffect recargue las fechas
       setFechasInicializadas(false)
 
       toast.success('Cambios guardados')
-      console.log('✅ Factura actualizada correctamente')
     } catch (error) {
       toast.error(`Error al guardar: ${error.message}`)
     } finally {
@@ -416,10 +392,7 @@ export default function FacturaEditar() {
                   <Input
                     type="date"
                     value={periodoInicio}
-                    onChange={(e) => {
-                      console.log('📆 Cambiando fecha INICIO:', e.target.value)
-                      setPeriodoInicio(e.target.value)
-                    }}
+                    onChange={(e) => setPeriodoInicio(e.target.value)}
                     className="text-sm"
                   />
                 </FormField>
@@ -427,10 +400,7 @@ export default function FacturaEditar() {
                   <Input
                     type="date"
                     value={periodoFin}
-                    onChange={(e) => {
-                      console.log('📆 Cambiando fecha FIN:', e.target.value)
-                      setPeriodoFin(e.target.value)
-                    }}
+                    onChange={(e) => setPeriodoFin(e.target.value)}
                     className="text-sm"
                   />
                 </FormField>
