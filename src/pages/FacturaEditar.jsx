@@ -229,9 +229,16 @@ export default function FacturaEditar() {
       }
 
       // Invalidar queries para recargar datos actualizados
-      setFechasInicializadas(false) // Permitir recarga de fechas desde BD
+      console.log('🔄 Invalidando queries...')
       await queryClient.invalidateQueries(['facturas', id]) // ✅ Corregido: 'facturas' con 's'
       await queryClient.invalidateQueries(['lineas-factura', id])
+      
+      // Esperar a que React Query recargue los datos
+      await queryClient.refetchQueries(['facturas', id])
+      console.log('🔄 Queries recargadas')
+      
+      // Ahora sí, permitir que useEffect recargue las fechas
+      setFechasInicializadas(false)
 
       toast.success('Cambios guardados')
       console.log('✅ Factura actualizada correctamente')
