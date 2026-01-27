@@ -217,7 +217,7 @@ export default function FacturaEditar() {
 
       // Invalidar queries para recargar datos actualizados
       setFechasInicializadas(false) // Permitir recarga de fechas desde BD
-      await queryClient.invalidateQueries(['factura', id])
+      await queryClient.invalidateQueries(['facturas', id]) // ✅ Corregido: 'facturas' con 's'
       await queryClient.invalidateQueries(['lineas-factura', id])
 
       toast.success('Cambios guardados')
