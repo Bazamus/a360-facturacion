@@ -90,6 +90,7 @@ export const clienteSchema = z.object({
     .or(z.literal('')),
   titular_cuenta: z.string().max(100).optional().or(z.literal('')),
   tipo: z.enum(['propietario', 'inquilino']),
+  estado_id: z.string().uuid('Debe seleccionar un estado'),
   codigo_cliente: z.string().max(20).optional().or(z.literal('')),
   observaciones: z.string().max(500).optional().or(z.literal('')),
 })

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, FileText, Plus, Trash2, Calculator } from 'lucide-react'
-import { Button, Card, Modal, Input, Select, FormField } from '@/components/ui'
+import { ArrowLeft, Save, FileText, Plus, Trash2, Calculator, AlertTriangle } from 'lucide-react'
+import { Button, Card, Modal, Input, Select, FormField, Badge } from '@/components/ui'
+import { getBadgeVariant } from '@/utils/estadosCliente'
 import { useToast } from '@/components/ui/Toast'
 import {
   useCreateFactura,
@@ -30,8 +31,7 @@ export default function FacturaNueva() {
 
   // Obtener clientes filtrados por comunidad
   const { data: clientes, isLoading: loadingClientes } = useClientes({
-    comunidadId: comunidadId || undefined,
-    activo: true
+    comunidadId: comunidadId || undefined
   })
 
   // Obtener precios vigentes de la comunidad seleccionada
@@ -49,6 +49,7 @@ export default function FacturaNueva() {
   const emitirFactura = useEmitirFactura()
 
   const [guardando, setGuardando] = useState(false)
+  const [advertenciaModal, setAdvertenciaModal] = useState({ open: false, accion: null })
 
   // Reset cliente cuando cambia comunidad
   useEffect(() => {
@@ -173,6 +174,17 @@ export default function FacturaNueva() {
   const handleGuardarBorrador = async () => {
     if (!validarFormulario()) return
 
+    // Verificar estado del cliente
+    if (clienteSeleccionado?.estado && !clienteSeleccionado.estado.permite_facturacion) {
+      setAdvertenciaModal({ open: true, accion: 'guardar' })
+      return
+    }
+
+    await ejecutarGuardarBorrador()
+  }
+
+  const ejecutarGuardarBorrador = async () => {
+    setAdvertenciaModal({ open: false, accion: null })
     setGuardando(true)
     try {
       // Calcular días del periodo solo si hay fechas
@@ -213,6 +225,9 @@ export default function FacturaNueva() {
         cliente_provincia: clienteSeleccionado?.provincia_correspondencia || clienteSeleccionado?.provincia || '',
         cliente_email: clienteSeleccionado?.email || '',
         cliente_iban: clienteSeleccionado?.iban || '',
+        cliente_estado_codigo: clienteSeleccionado?.estado?.codigo || null,
+        cliente_estado_nombre: clienteSeleccionado?.estado?.nombre || null,
+        cliente_estado_color: clienteSeleccionado?.estado?.color || null,
         ubicacion_direccion: ubicacionCliente?.ubicacion?.nombre || ''
       }
 
@@ -292,6 +307,9 @@ export default function FacturaNueva() {
         cliente_provincia: clienteSeleccionado?.provincia_correspondencia || clienteSeleccionado?.provincia || '',
         cliente_email: clienteSeleccionado?.email || '',
         cliente_iban: clienteSeleccionado?.iban || '',
+        cliente_estado_codigo: clienteSeleccionado?.estado?.codigo || null,
+        cliente_estado_nombre: clienteSeleccionado?.estado?.nombre || null,
+        cliente_estado_color: clienteSeleccionado?.estado?.color || null,
         ubicacion_direccion: ubicacionCliente?.ubicacion?.nombre || ''
       }
 
@@ -667,6 +685,60 @@ export default function FacturaNueva() {
               disabled={!conceptoSeleccionado}
             >
               Agregar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal advertencia estado cliente */}
+      <Modal
+        open={advertenciaModal.open}
+        onClose={() => setAdvertenciaModal({ open: false, accion: null })}
+        title="Advertencia: Estado del Cliente"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-1" />
+            <div>
+              <p className="text-gray-900 font-medium mb-2">
+                El cliente seleccionado está en estado:
+              </p>
+              {clienteSeleccionado?.estado && (
+                <Badge variant={getBadgeVariant(clienteSeleccionado.estado.color)} className="mb-3">
+                  {clienteSeleccionado.estado.nombre}
+                </Badge>
+              )}
+              <p className="text-gray-600 text-sm">
+                Este estado requiere confirmación para continuar con la facturación. 
+                ¿Desea continuar de todas formas?
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <p className="font-medium mb-1">Recomendación:</p>
+            <p>
+              Verifica el estado del cliente antes de emitir la factura. 
+              Considera actualizar el estado si la situación ha cambiado.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setAdvertenciaModal({ open: false, accion: null })}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="warning"
+              onClick={() => {
+                if (advertenciaModal.accion === 'guardar') {
+                  ejecutarGuardarBorrador()
+                }
+              }}
+            >
+              Continuar de todas formas
             </Button>
           </div>
         </div>

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Save, FileText, Trash2, Plus } from 'lucide-react'
-import { Button, Card, Modal, Input, Select, FormField } from '@/components/ui'
+import { Button, Card, Modal, Input, Select, FormField, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
+import { getBadgeVariant } from '@/utils/estadosCliente'
 import {
   useFactura,
   useLineasFactura,
@@ -356,6 +357,18 @@ export default function FacturaEditar() {
             <div>
               <span className="text-gray-500">Nombre:</span>
               <span className="ml-2 font-medium">{factura.cliente_nombre}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Estado:</span>
+              <span className="ml-2">
+                {factura.cliente_estado_nombre ? (
+                  <Badge variant={getBadgeVariant(factura.cliente_estado_color)} className="text-xs">
+                    {factura.cliente_estado_nombre}
+                  </Badge>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </span>
             </div>
             <div>
               <span className="text-gray-500">NIF:</span>

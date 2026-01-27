@@ -6,11 +6,11 @@ import {
   useCliente,
   useCreateCliente,
   useUpdateCliente,
-  useToggleBloqueoCliente,
   useAsignarClienteUbicacion,
   useFinalizarOcupacion,
   useComunidades
 } from '@/hooks'
+import { getBadgeVariant } from '@/utils/estadosCliente'
 import { 
   Button, 
   Card, 
@@ -166,17 +166,13 @@ function ClientesList() {
       key: 'estado',
       header: 'Estado',
       render: (_, row) => (
-        <div className="flex flex-col gap-1">
-          {row.bloqueado && (
-            <Badge variant="danger" className="text-xs">Bloq.</Badge>
-          )}
-          {!row.activo && (
-            <Badge variant="default" className="text-xs">Inact.</Badge>
-          )}
-          {row.activo && !row.bloqueado && (
-            <Badge variant="success" className="text-xs">Activo</Badge>
-          )}
-        </div>
+        row.estado ? (
+          <Badge variant={getBadgeVariant(row.estado.color)} className="text-xs">
+            {row.estado.nombre}
+          </Badge>
+        ) : (
+          <Badge variant="default" className="text-xs">Sin estado</Badge>
+        )
       )
     },
     {
@@ -414,28 +410,6 @@ function ClienteNuevo() {
 function ClienteDetail() {
   const { id } = useParams()
   const { data: cliente, isLoading, error } = useCliente(id)
-  const toggleBloqueo = useToggleBloqueoCliente()
-  const toast = useToast()
-
-  const handleToggleBloqueo = async () => {
-    const nuevoEstado = !cliente.bloqueado
-    const motivo = nuevoEstado 
-      ? prompt('Motivo del bloqueo:') 
-      : null
-
-    if (nuevoEstado && !motivo) return
-
-    try {
-      await toggleBloqueo.mutateAsync({ 
-        id, 
-        bloqueado: nuevoEstado, 
-        motivo_bloqueo: motivo 
-      })
-      toast.success(nuevoEstado ? 'Cliente bloqueado' : 'Cliente desbloqueado')
-    } catch (error) {
-      toast.error(error.message)
-    }
-  }
 
   if (isLoading) return <LoadingSpinner />
   if (error) return <div className="text-red-600">Error: {error.message}</div>
@@ -458,28 +432,15 @@ function ClienteDetail() {
             <Badge variant={cliente.tipo === 'propietario' ? 'primary' : 'info'}>
               {cliente.tipo}
             </Badge>
-            {cliente.bloqueado && <Badge variant="danger">Bloqueado</Badge>}
+            {cliente.estado && (
+              <Badge variant={getBadgeVariant(cliente.estado.color)}>
+                {cliente.estado.nombre}
+              </Badge>
+            )}
           </div>
           <p className="page-description">{cliente.nif}</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant={cliente.bloqueado ? 'secondary' : 'danger'}
-            onClick={handleToggleBloqueo}
-            loading={toggleBloqueo.isPending}
-          >
-            {cliente.bloqueado ? (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Desbloquear
-              </>
-            ) : (
-              <>
-                <Ban className="h-4 w-4 mr-2" />
-                Bloquear
-              </>
-            )}
-          </Button>
           <Link to={`/clientes/${id}/editar`}>
             <Button variant="secondary">
               <Edit2 className="h-4 w-4 mr-2" />

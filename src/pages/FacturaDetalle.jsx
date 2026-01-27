@@ -17,9 +17,10 @@ import {
   Clock,
   Trash2
 } from 'lucide-react'
-import { Button, Card, Modal } from '@/components/ui'
+import { Button, Card, Modal, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { EstadoBadge } from '@/features/facturacion/components'
+import { getBadgeVariant } from '@/utils/estadosCliente'
 import { descargarFacturaPDF } from '@/features/facturacion/pdf'
 import {
   formatCurrency,
@@ -298,6 +299,18 @@ export default function FacturaDetalle({ showPdf = false }) {
             <div>
               <dt className="text-gray-500 text-sm">Nombre</dt>
               <dd className="font-medium">{factura.cliente_nombre}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500 text-sm">Estado</dt>
+              <dd>
+                {factura.cliente_estado_nombre ? (
+                  <Badge variant={getBadgeVariant(factura.cliente_estado_color)}>
+                    {factura.cliente_estado_nombre}
+                  </Badge>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-gray-500 text-sm">Código Cliente</dt>

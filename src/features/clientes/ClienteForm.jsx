@@ -5,6 +5,7 @@ import { clienteSchema } from '@/lib/validations'
 import { Button, Input, Select, FormField, Textarea, Checkbox } from '@/components/ui'
 import { formatIBAN } from '@/lib/utils'
 import { useComunidades, useUbicacionesByComunidad } from '@/hooks/useComunidades'
+import { useEstadosCliente } from '@/hooks'
 
 export function ClienteForm({ cliente, onSubmit, loading }) {
   // Obtener la ubicación actual del cliente para edición
@@ -15,9 +16,10 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
   const [comunidadId, setComunidadId] = useState(comunidadIdInicial)
   const [ubicacionId, setUbicacionId] = useState(ubicacionIdInicial)
 
-  // Cargar comunidades y ubicaciones
+  // Cargar comunidades, ubicaciones y estados
   const { data: comunidades, isLoading: loadingComunidades } = useComunidades({ activa: true })
   const { data: ubicaciones, isLoading: loadingUbicaciones } = useUbicacionesByComunidad(comunidadId)
+  const { data: estados, isLoading: loadingEstados } = useEstadosCliente()
 
   // Cuando cambia la comunidad, resetear ubicación si ya no es válida
   useEffect(() => {
@@ -28,6 +30,9 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
       }
     }
   }, [ubicaciones, ubicacionId])
+
+  // Obtener estado "Activo" por defecto para nuevos clientes
+  const estadoActivo = estados?.find(e => e.codigo === 'ACT')
 
   const {
     register,
@@ -51,6 +56,7 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
       iban: cliente?.iban || '',
       titular_cuenta: cliente?.titular_cuenta || '',
       tipo: cliente?.tipo || 'propietario',
+      estado_id: cliente?.estado_id || estadoActivo?.id || '',
       codigo_cliente: cliente?.codigo_cliente || '',
       observaciones: cliente?.observaciones || ''
     }
@@ -119,6 +125,19 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
               placeholder="CLI001"
               error={errors.codigo_cliente}
             />
+          </FormField>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <FormField label="Estado" error={errors.estado_id?.message} required>
+            <Select {...register('estado_id')} error={errors.estado_id} disabled={loadingEstados}>
+              <option value="">Seleccionar estado...</option>
+              {estados?.map(estado => (
+                <option key={estado.id} value={estado.id}>
+                  {estado.nombre}
+                </option>
+              ))}
+            </Select>
           </FormField>
         </div>
       </div>

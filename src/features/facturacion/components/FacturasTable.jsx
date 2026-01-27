@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Eye, FileText, Mail, Pencil, Trash2, CreditCard } from 'lucide-react'
-import { Button, Card, Checkbox } from '@/components/ui'
+import { Button, Card, Checkbox, Badge } from '@/components/ui'
 import { EstadoBadge } from './EstadoBadge'
 import { formatCurrency, formatDate } from '../utils/calculos'
+import { getBadgeVariant } from '@/utils/estadosCliente'
 
 export function FacturasTable({
   facturas = [],
@@ -107,6 +108,9 @@ export function FacturasTable({
               <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Cliente
               </th>
+              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Estado Cliente
+              </th>
               <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Comunidad
               </th>
@@ -160,6 +164,15 @@ export function FacturasTable({
                   <div className="text-xs text-gray-500">
                     {factura.cliente_nif}
                   </div>
+                </td>
+                <td className="px-2 py-3 text-center">
+                  {factura.cliente_estado_nombre ? (
+                    <Badge variant={getBadgeVariant(factura.cliente_estado_color)} className="text-xs">
+                      {factura.cliente_estado_nombre}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-gray-400">-</span>
+                  )}
                 </td>
                 <td className="px-2 py-3">
                   <div className="text-sm text-gray-900 truncate max-w-[120px]">

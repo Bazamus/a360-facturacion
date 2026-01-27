@@ -6,15 +6,16 @@ import { supabase } from '@/lib/supabase'
 // =====================================================
 
 export function useClientes(options = {}) {
-  const { search, tipo, activo, comunidadId } = options
+  const { search, tipo, estadoId, comunidadId } = options
 
   return useQuery({
-    queryKey: ['clientes', { search, tipo, activo, comunidadId }],
+    queryKey: ['clientes', { search, tipo, estadoId, comunidadId }],
     queryFn: async () => {
       let query = supabase
         .from('clientes')
         .select(`
           *,
+          estado:estados_cliente(*),
           ubicaciones_clientes(
             ubicacion_id,
             es_actual,
@@ -38,8 +39,8 @@ export function useClientes(options = {}) {
         query = query.eq('tipo', tipo)
       }
 
-      if (activo !== undefined) {
-        query = query.eq('activo', activo)
+      if (estadoId) {
+        query = query.eq('estado_id', estadoId)
       }
 
       const { data, error } = await query
@@ -63,20 +64,23 @@ export function useClientes(options = {}) {
 
 // Lista simple de clientes (sin joins pesados)
 export function useClientesSimple(options = {}) {
-  const { search, activo = true } = options
+  const { search, estadoId } = options
 
   return useQuery({
-    queryKey: ['clientes-simple', { search, activo }],
+    queryKey: ['clientes-simple', { search, estadoId }],
     queryFn: async () => {
       let query = supabase
         .from('clientes')
-        .select('id, nombre, apellidos, nif, email, tipo, activo')
-        .eq('activo', activo)
+        .select('id, nombre, apellidos, nif, email, tipo, estado_id, estado:estados_cliente(*)')
         .order('apellidos')
         .order('nombre')
 
       if (search) {
         query = query.or(`nombre.ilike.%${search}%,apellidos.ilike.%${search}%,nif.ilike.%${search}%`)
+      }
+
+      if (estadoId) {
+        query = query.eq('estado_id', estadoId)
       }
 
       const { data, error } = await query
@@ -95,6 +99,7 @@ export function useCliente(id) {
         .from('clientes')
         .select(`
           *,
+          estado:estados_cliente(*),
           ubicaciones_clientes(
             id,
             fecha_inicio,
@@ -185,32 +190,6 @@ export function useUpdateCliente() {
       const { data: result, error } = await supabase
         .from('clientes')
         .update(sanitizedData)
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-      return result
-    },
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] })
-      queryClient.invalidateQueries({ queryKey: ['clientes', id] })
-    }
-  })
-}
-
-// Bloquear/Desbloquear cliente
-export function useToggleBloqueoCliente() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({ id, bloqueado, motivo_bloqueo }) => {
-      const { data: result, error } = await supabase
-        .from('clientes')
-        .update({ 
-          bloqueado, 
-          motivo_bloqueo: bloqueado ? motivo_bloqueo : null 
-        })
         .eq('id', id)
         .select()
         .single()

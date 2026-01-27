@@ -26,7 +26,6 @@ export {
   useCliente,
   useCreateCliente,
   useUpdateCliente,
-  useToggleBloqueoCliente,
   useAsignarClienteUbicacion,
   useFinalizarOcupacion
 } from './useClientes'
@@ -50,6 +49,14 @@ export {
   useCreateConcepto,
   useUpdateConcepto
 } from './useConceptos'
+
+// Estados de Cliente
+export {
+  useEstadosCliente,
+  useEstadoCliente,
+  useCreateEstadoCliente,
+  useUpdateEstadoCliente
+} from './useEstadosCliente'
 
 // Configuración General
 export {

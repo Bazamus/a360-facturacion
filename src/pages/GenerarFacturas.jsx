@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, FileText, AlertTriangle, Check } from 'lucide-react'
-import { Button, Card, Modal } from '@/components/ui'
+import { Button, Card, Modal, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
+import { getBadgeVariant } from '@/utils/estadosCliente'
 import { PeriodoSelector, LecturasPendientesTable } from '@/features/facturacion/components'
 import { formatCurrency } from '@/features/facturacion/utils/calculos'
 import { useComunidades } from '@/hooks/useComunidades'
@@ -27,6 +28,7 @@ export default function GenerarFacturas() {
   const [selectedIds, setSelectedIds] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [resultados, setResultados] = useState(null)
+  const [advertenciaModal, setAdvertenciaModal] = useState({ open: false, clientesConAdvertencia: [] })
 
   // Queries
   const { data: comunidades } = useComunidades({ activa: true })
@@ -89,6 +91,37 @@ export default function GenerarFacturas() {
     setStep(2)
   }
 
+  // Verificar estados de clientes antes de generar
+  const verificarEstadosClientes = async () => {
+    const clientesConAdvertencia = []
+    
+    for (const contadorId of contadoresSeleccionados) {
+      const grupo = lecturasPorContador[contadorId]
+      if (!grupo.cliente_id) continue
+      
+      // Obtener estado del cliente
+      const { data: cliente } = await supabase
+        .from('clientes')
+        .select('id, nombre, apellidos, estado:estados_cliente(*)')
+        .eq('id', grupo.cliente_id)
+        .single()
+      
+      if (cliente?.estado && !cliente.estado.permite_facturacion) {
+        clientesConAdvertencia.push({
+          nombre: `${cliente.nombre} ${cliente.apellidos}`,
+          estado: cliente.estado
+        })
+      }
+    }
+    
+    if (clientesConAdvertencia.length > 0) {
+      setAdvertenciaModal({ open: true, clientesConAdvertencia })
+      return false
+    }
+    
+    return true
+  }
+
   // Generar facturas
   const handleGenerar = async () => {
     if (selectedIds.length === 0) {
@@ -96,6 +129,15 @@ export default function GenerarFacturas() {
       return
     }
 
+    // Verificar estados
+    const puedeGenerar = await verificarEstadosClientes()
+    if (!puedeGenerar) return
+
+    await ejecutarGeneracion()
+  }
+
+  const ejecutarGeneracion = async () => {
+    setAdvertenciaModal({ open: false, clientesConAdvertencia: [] })
     setIsGenerating(true)
     const results = {
       success: [],
@@ -123,10 +165,10 @@ export default function GenerarFacturas() {
         }
 
         try {
-          // Obtener datos completos del cliente
+          // Obtener datos completos del cliente con estado
           const { data: cliente } = await supabase
             .from('clientes')
-            .select('*')
+            .select('*, estado:estados_cliente(*)')
             .eq('id', grupo.cliente_id)
             .single()
 
@@ -240,6 +282,9 @@ export default function GenerarFacturas() {
             cliente_provincia: cliente.provincia_correspondencia || '',
             cliente_email: cliente.email,
             cliente_iban: cliente.iban,
+            cliente_estado_codigo: cliente.estado?.codigo || null,
+            cliente_estado_nombre: cliente.estado?.nombre || null,
+            cliente_estado_color: cliente.estado?.color || null,
             ubicacion_direccion: `${grupo.agrupacion_nombre} ${grupo.ubicacion_nombre}`.trim()
           })
 
@@ -511,9 +556,60 @@ export default function GenerarFacturas() {
           </div>
         </Card>
       )}
+
+      {/* Modal advertencia estado cliente */}
+      <Modal
+        open={advertenciaModal.open}
+        onClose={() => setAdvertenciaModal({ open: false, clientesConAdvertencia: [] })}
+        title="Advertencia: Estados de Cliente"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-1" />
+            <div>
+              <p className="text-gray-900 font-medium mb-3">
+                Los siguientes clientes tienen estados que requieren confirmación:
+              </p>
+              <div className="space-y-2 mb-3">
+                {advertenciaModal.clientesConAdvertencia.map((cliente, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">{cliente.nombre}</span>
+                    <Badge variant={getBadgeVariant(cliente.estado.color)} className="text-xs">
+                      {cliente.estado.nombre}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+              <p className="text-gray-600 text-sm">
+                ¿Desea continuar con la generación de facturas de todas formas?
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <p className="font-medium mb-1">Recomendación:</p>
+            <p>
+              Verifica el estado de estos clientes antes de facturar. 
+              Considera actualizar sus estados si la situación ha cambiado.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setAdvertenciaModal({ open: false, clientesConAdvertencia: [] })}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="warning"
+              onClick={ejecutarGeneracion}
+            >
+              Continuar de todas formas
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
-
-
-

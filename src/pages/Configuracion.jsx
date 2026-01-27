@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw, Trash2, Wrench, ShieldAlert } from 'lucide-react'
-import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword, useEliminarUsuario, useResetSistema } from '@/hooks'
+import { Settings, FileText, Mail, CreditCard, Users, Plus, Edit2, Building2, Database, AlertTriangle, UserPlus, Lock, RefreshCw, Trash2, Wrench, ShieldAlert, UserCheck } from 'lucide-react'
+import { useConceptos, useCreateConcepto, useUpdateConcepto, useEmailConfig, useUpdateEmailConfig, useConfiguracion, useActualizarSecuenciaFacturas, useUsuarios, useCrearUsuario, useActualizarUsuario, useResetearPassword, useEliminarUsuario, useResetSistema, useEstadosCliente, useCreateEstadoCliente, useUpdateEstadoCliente } from '@/hooks'
+import { getBadgeVariant, COLORES_ESTADO } from '@/utils/estadosCliente'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, Input, Select, FormField, DataTable, LoadingSpinner, Checkbox } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -17,6 +18,7 @@ export function ConfiguracionPage() {
   const configSections = [
     { name: 'General', href: '/configuracion', icon: Settings },
     { name: 'Conceptos', href: '/configuracion/conceptos', icon: FileText },
+    { name: 'Estados Cliente', href: '/configuracion/estados-cliente', icon: UserCheck },
     { name: 'Email', href: '/configuracion/email', icon: Mail },
     { name: 'SEPA', href: '/configuracion/sepa', icon: CreditCard },
     { name: 'Importar/Exportar', href: '/configuracion/importar-exportar', icon: Database },
@@ -66,6 +68,7 @@ export function ConfiguracionPage() {
           <Routes>
             <Route index element={<ConfigGeneral />} />
             <Route path="conceptos" element={<ConfigConceptos />} />
+            <Route path="estados-cliente" element={<ConfigEstadosCliente />} />
             <Route path="email" element={<ConfigEmail />} />
             <Route path="sepa" element={<ConfigSEPA />} />
             <Route path="importar-exportar" element={<ImportarExportarPage />} />
@@ -519,6 +522,226 @@ function ConfigConceptos() {
             </Button>
             <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
               {editingConcepto ? 'Guardar' : 'Crear'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
+  )
+}
+
+// =====================================================
+// Configuración Estados Cliente
+// =====================================================
+function ConfigEstadosCliente() {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingEstado, setEditingEstado] = useState(null)
+  
+  const { data: estados, isLoading } = useEstadosCliente({ activo: undefined })
+  const createMutation = useCreateEstadoCliente()
+  const updateMutation = useUpdateEstadoCliente()
+  const toast = useToast()
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const formData = new FormData(e.target)
+
+    const data = {
+      codigo: editingEstado ? editingEstado.codigo : formData.get('codigo')?.toUpperCase(),
+      nombre: formData.get('nombre'),
+      color: formData.get('color'),
+      permite_facturacion: formData.get('permite_facturacion') !== 'on',
+      orden: parseInt(formData.get('orden')) || 0,
+      es_sistema: false
+    }
+
+    try {
+      if (editingEstado) {
+        await updateMutation.mutateAsync({ id: editingEstado.id, ...data })
+        toast.success('Estado actualizado')
+      } else {
+        await createMutation.mutateAsync(data)
+        toast.success('Estado creado')
+      }
+      setModalOpen(false)
+      setEditingEstado(null)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const openEdit = (estado) => {
+    // Solo permitir editar estados no del sistema
+    if (estado.es_sistema) {
+      toast.error('No se pueden editar estados del sistema')
+      return
+    }
+    setEditingEstado(estado)
+    setModalOpen(true)
+  }
+
+  const columns = [
+    {
+      key: 'codigo',
+      header: 'Código',
+      render: (value) => (
+        <span className="font-mono font-medium text-primary-600">{value}</span>
+      )
+    },
+    {
+      key: 'nombre',
+      header: 'Nombre'
+    },
+    {
+      key: 'color',
+      header: 'Color',
+      render: (value) => (
+        <Badge variant={getBadgeVariant(value)}>
+          {value === 'green' ? 'Verde' : value === 'red' ? 'Rojo' : value === 'yellow' ? 'Amarillo' : 'Gris'}
+        </Badge>
+      )
+    },
+    {
+      key: 'permite_facturacion',
+      header: 'Facturación',
+      render: (value) => (
+        <Badge variant={value ? 'success' : 'warning'}>
+          {value ? 'Sí' : 'Advertencia'}
+        </Badge>
+      )
+    },
+    {
+      key: 'es_sistema',
+      header: 'Tipo',
+      render: (value) => (
+        <Badge variant={value ? 'default' : 'primary'}>
+          {value ? 'Sistema' : 'Personalizado'}
+        </Badge>
+      )
+    },
+    {
+      key: 'acciones',
+      header: '',
+      sortable: false,
+      render: (_, row) => (
+        <button
+          onClick={() => openEdit(row)}
+          disabled={row.es_sistema}
+          className={cn(
+            "p-2 rounded",
+            row.es_sistema 
+              ? "text-gray-300 cursor-not-allowed" 
+              : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          )}
+          title={row.es_sistema ? 'No se pueden editar estados del sistema' : 'Editar estado'}
+        >
+          <Edit2 className="h-4 w-4" />
+        </button>
+      )
+    }
+  ]
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Estados de Cliente</CardTitle>
+        <Button size="sm" onClick={() => { setEditingEstado(null); setModalOpen(true) }}>
+          <Plus className="h-4 w-4 mr-1" />
+          Nuevo Estado
+        </Button>
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="py-12 flex justify-center">
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <DataTable
+            data={estados || []}
+            columns={columns}
+            pageSize={10}
+          />
+        )}
+      </CardContent>
+
+      {/* Modal */}
+      <Modal
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditingEstado(null) }}
+        title={editingEstado ? 'Editar Estado' : 'Nuevo Estado'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Código" required>
+              <Input
+                name="codigo"
+                defaultValue={editingEstado?.codigo || ''}
+                placeholder="MOR"
+                maxLength={10}
+                className="uppercase"
+                required
+                disabled={!!editingEstado}
+              />
+            </FormField>
+
+            <FormField label="Color" required>
+              <Select
+                name="color"
+                defaultValue={editingEstado?.color || 'gray'}
+                required
+              >
+                {COLORES_ESTADO.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </Select>
+            </FormField>
+          </div>
+
+          <FormField label="Nombre" required>
+            <Input
+              name="nombre"
+              defaultValue={editingEstado?.nombre || ''}
+              placeholder="Moroso"
+              required
+            />
+          </FormField>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Orden">
+              <Input
+                name="orden"
+                type="number"
+                defaultValue={editingEstado?.orden || 0}
+                min={0}
+              />
+            </FormField>
+
+            <FormField label="">
+              <div className="flex items-center h-full pt-6">
+                <Checkbox
+                  name="permite_facturacion"
+                  defaultChecked={editingEstado ? !editingEstado.permite_facturacion : false}
+                  label="Mostrar advertencia al facturar"
+                />
+              </div>
+            </FormField>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <p className="font-medium mb-1">Nota:</p>
+            <p>Los estados del sistema (Activo, Bloqueado, Baja, Moroso) no se pueden editar ni eliminar.</p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button 
+              type="button" 
+              variant="secondary"
+              onClick={() => { setModalOpen(false); setEditingEstado(null) }}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
+              {editingEstado ? 'Guardar' : 'Crear'}
             </Button>
           </div>
         </form>
