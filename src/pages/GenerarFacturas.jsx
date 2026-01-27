@@ -179,31 +179,34 @@ export default function GenerarFacturas() {
             })
           }
 
-          // Añadir término fijo si existe
-          const conceptoTF = conceptos?.find(c => c.es_termino_fijo && c.activo)
-          const precioTF = conceptoTF ? precios?.find(p => p.concepto_id === conceptoTF.id) : null
+          // Añadir TODOS los términos fijos que tengan precio configurado en la comunidad
+          const conceptosTF = conceptos?.filter(c => c.es_termino_fijo && c.activo) || []
 
-          if (conceptoTF && precioTF) {
-            const esParcial = diasPeriodo < diasMes
-            const cantidadTF = esParcial ? Math.round((diasPeriodo / diasMes) * 10000) / 10000 : 1
-            const subtotalTF = esParcial 
-              ? Math.round((precioTF.precio_unitario * diasPeriodo / diasMes) * 100) / 100
-              : precioTF.precio_unitario
+          for (const conceptoTF of conceptosTF) {
+            const precioTF = precios?.find(p => p.concepto_id === conceptoTF.id)
 
-            baseImponible += subtotalTF
+            if (precioTF) {
+              const esParcial = diasPeriodo < diasMes
+              const cantidadTF = esParcial ? Math.round((diasPeriodo / diasMes) * 10000) / 10000 : 1
+              const subtotalTF = esParcial
+                ? Math.round((precioTF.precio_unitario * diasPeriodo / diasMes) * 100) / 100
+                : precioTF.precio_unitario
 
-            lineas.push({
-              lectura_id: null,
-              concepto_id: conceptoTF.id,
-              concepto_codigo: conceptoTF.codigo,
-              concepto_nombre: 'Término fijo gestión energética',
-              unidad_medida: 'unidad',
-              es_termino_fijo: true,
-              cantidad: cantidadTF,
-              precio_unitario: precioTF.precio_unitario,
-              subtotal: subtotalTF,
-              orden: orden++
-            })
+              baseImponible += subtotalTF
+
+              lineas.push({
+                lectura_id: null,
+                concepto_id: conceptoTF.id,
+                concepto_codigo: conceptoTF.codigo,
+                concepto_nombre: conceptoTF.nombre,
+                unidad_medida: conceptoTF.unidad_medida || 'unidad',
+                es_termino_fijo: true,
+                cantidad: cantidadTF,
+                precio_unitario: precioTF.precio_unitario,
+                subtotal: subtotalTF,
+                orden: orden++
+              })
+            }
           }
 
           // Calcular totales
