@@ -122,14 +122,45 @@ export function useCliente(id) {
 }
 
 // Crear cliente
+// Helper para sanitizar datos del cliente
+// Convierte cadenas vacías en null para campos opcionales
+function sanitizeClienteData(data) {
+  const optionalFields = [
+    'codigo_cliente',
+    'email',
+    'telefono',
+    'telefono_secundario',
+    'direccion_correspondencia',
+    'cp_correspondencia',
+    'ciudad_correspondencia',
+    'provincia_correspondencia',
+    'iban',
+    'titular_cuenta',
+    'observaciones'
+  ]
+
+  const sanitized = { ...data }
+  
+  optionalFields.forEach(field => {
+    if (sanitized[field] === '' || sanitized[field] === undefined) {
+      sanitized[field] = null
+    }
+  })
+
+  return sanitized
+}
+
 export function useCreateCliente() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (data) => {
+      // Sanitizar datos antes de insertar
+      const sanitizedData = sanitizeClienteData(data)
+      
       const { data: result, error } = await supabase
         .from('clientes')
-        .insert(data)
+        .insert(sanitizedData)
         .select()
         .single()
 
@@ -148,9 +179,12 @@ export function useUpdateCliente() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }) => {
+      // Sanitizar datos antes de actualizar
+      const sanitizedData = sanitizeClienteData(data)
+      
       const { data: result, error } = await supabase
         .from('clientes')
-        .update(data)
+        .update(sanitizedData)
         .eq('id', id)
         .select()
         .single()
