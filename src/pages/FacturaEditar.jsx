@@ -38,6 +38,7 @@ export default function FacturaEditar() {
   const [lineasEditadas, setLineasEditadas] = useState([])
   const [periodoInicio, setPeriodoInicio] = useState('')
   const [periodoFin, setPeriodoFin] = useState('')
+  const [fechasInicializadas, setFechasInicializadas] = useState(false)
   const [totales, setTotales] = useState({ subtotal: 0, iva: 0, total: 0 })
   const [deleteModal, setDeleteModal] = useState({ open: false, linea: null })
   const [addLineaModal, setAddLineaModal] = useState({ open: false })
@@ -59,9 +60,9 @@ export default function FacturaEditar() {
     }
   }, [lineas])
 
-  // Cargar fechas de periodo
+  // Cargar fechas de periodo (solo la primera vez)
   useEffect(() => {
-    if (factura) {
+    if (factura && !fechasInicializadas) {
       // Asegurar formato YYYY-MM-DD para inputs tipo date
       const formatearFecha = (fecha) => {
         if (!fecha) return ''
@@ -74,15 +75,16 @@ export default function FacturaEditar() {
         return d.toISOString().split('T')[0]
       }
 
-      setPeriodoInicio(formatearFecha(factura.periodo_inicio))
-      setPeriodoFin(formatearFecha(factura.periodo_fin))
+      const inicio = formatearFecha(factura.periodo_inicio)
+      const fin = formatearFecha(factura.periodo_fin)
+
+      setPeriodoInicio(inicio)
+      setPeriodoFin(fin)
+      setFechasInicializadas(true)
       
-      console.log('Fechas cargadas:', {
-        inicio: formatearFecha(factura.periodo_inicio),
-        fin: formatearFecha(factura.periodo_fin)
-      })
+      console.log('Fechas inicializadas:', { inicio, fin })
     }
-  }, [factura])
+  }, [factura, fechasInicializadas])
 
   // Recalcular totales cuando cambien las líneas
   useEffect(() => {
@@ -198,22 +200,28 @@ export default function FacturaEditar() {
         periodo_fin: periodoFin || factura.periodo_fin
       }
 
-      console.log('Guardando factura con datos:', datosActualizacion)
+      console.log('📅 Estados locales:', { periodoInicio, periodoFin })
+      console.log('💾 Guardando factura con datos:', datosActualizacion)
 
-      const { error: errorActualizacion } = await supabase
+      const { data: dataActualizacion, error: errorActualizacion } = await supabase
         .from('facturas')
         .update(datosActualizacion)
         .eq('id', id)
+        .select()
+
+      console.log('📦 Respuesta de Supabase:', { data: dataActualizacion, error: errorActualizacion })
 
       if (errorActualizacion) {
         throw new Error(errorActualizacion.message)
       }
 
       // Invalidar queries para recargar datos actualizados
+      setFechasInicializadas(false) // Permitir recarga de fechas desde BD
       await queryClient.invalidateQueries(['factura', id])
       await queryClient.invalidateQueries(['lineas-factura', id])
 
       toast.success('Cambios guardados')
+      console.log('✅ Factura actualizada correctamente')
     } catch (error) {
       toast.error(`Error al guardar: ${error.message}`)
     } finally {
