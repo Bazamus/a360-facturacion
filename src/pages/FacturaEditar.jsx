@@ -82,7 +82,13 @@ export default function FacturaEditar() {
       setPeriodoFin(fin)
       setFechasInicializadas(true)
       
-      console.log('Fechas inicializadas:', { inicio, fin })
+      console.log('Fechas inicializadas desde factura:', { inicio, fin })
+      console.log('🗂️ Factura completa recargada:', {
+        id: factura.id,
+        periodo_inicio: factura.periodo_inicio,
+        periodo_fin: factura.periodo_fin,
+        updated_at: factura.updated_at
+      })
     }
   }, [factura, fechasInicializadas])
 
@@ -210,6 +216,13 @@ export default function FacturaEditar() {
         .select()
 
       console.log('📦 Respuesta de Supabase:', { data: dataActualizacion, error: errorActualizacion })
+      if (dataActualizacion && dataActualizacion.length > 0) {
+        console.log('📄 Registro actualizado en BD:', dataActualizacion[0])
+        console.log('🔍 Fechas en BD después de actualizar:', {
+          periodo_inicio: dataActualizacion[0].periodo_inicio,
+          periodo_fin: dataActualizacion[0].periodo_fin
+        })
+      }
 
       if (errorActualizacion) {
         throw new Error(errorActualizacion.message)
