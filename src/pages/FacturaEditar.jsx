@@ -34,6 +34,8 @@ export default function FacturaEditar() {
 
   // Estados locales
   const [lineasEditadas, setLineasEditadas] = useState([])
+  const [periodoInicio, setPeriodoInicio] = useState('')
+  const [periodoFin, setPeriodoFin] = useState('')
   const [totales, setTotales] = useState({ subtotal: 0, iva: 0, total: 0 })
   const [deleteModal, setDeleteModal] = useState({ open: false, linea: null })
   const [addLineaModal, setAddLineaModal] = useState({ open: false })
@@ -48,12 +50,20 @@ export default function FacturaEditar() {
     }
   }, [factura, id, navigate, toast])
 
-  // Cargar líneas en estado local
+  // Cargar líneas y fechas en estado local
   useEffect(() => {
     if (lineas) {
       setLineasEditadas(lineas.map(l => ({ ...l })))
     }
   }, [lineas])
+
+  // Cargar fechas de periodo
+  useEffect(() => {
+    if (factura) {
+      setPeriodoInicio(factura.periodo_inicio || '')
+      setPeriodoFin(factura.periodo_fin || '')
+    }
+  }, [factura])
 
   // Recalcular totales cuando cambien las líneas
   useEffect(() => {
@@ -160,12 +170,15 @@ export default function FacturaEditar() {
       const nuevoIva = Math.round(nuevoSubtotal * (porcentajeIva / 100) * 100) / 100
       const nuevoTotal = Math.round((nuevoSubtotal + nuevoIva) * 100) / 100
 
+      // 3. Actualizar totales y periodo de la factura
       await supabase
         .from('facturas')
         .update({
           base_imponible: Math.round(nuevoSubtotal * 100) / 100,
           importe_iva: nuevoIva,
-          total: nuevoTotal
+          total: nuevoTotal,
+          periodo_inicio: periodoInicio || factura.periodo_inicio,
+          periodo_fin: periodoFin || factura.periodo_fin
         })
         .eq('id', id)
 
@@ -215,12 +228,15 @@ export default function FacturaEditar() {
       const nuevoIva = Math.round(nuevoSubtotal * (porcentajeIva / 100) * 100) / 100
       const nuevoTotal = Math.round((nuevoSubtotal + nuevoIva) * 100) / 100
 
+      // Actualizar totales y periodo antes de emitir
       await supabase
         .from('facturas')
         .update({
           base_imponible: Math.round(nuevoSubtotal * 100) / 100,
           importe_iva: nuevoIva,
-          total: nuevoTotal
+          total: nuevoTotal,
+          periodo_inicio: periodoInicio || factura.periodo_inicio,
+          periodo_fin: periodoFin || factura.periodo_fin
         })
         .eq('id', id)
 
@@ -321,7 +337,7 @@ export default function FacturaEditar() {
 
         <Card className="p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Datos de la Factura</h3>
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3 text-sm">
             <div>
               <span className="text-gray-500">Comunidad:</span>
               <span className="ml-2 font-medium">{factura.comunidad?.nombre || '-'}</span>
@@ -331,10 +347,25 @@ export default function FacturaEditar() {
               <span className="ml-2 font-medium">{factura.ubicacion?.nombre || factura.ubicacion_direccion || '-'}</span>
             </div>
             <div>
-              <span className="text-gray-500">Periodo:</span>
-              <span className="ml-2 font-medium">
-                {formatDate(factura.periodo_inicio)} - {formatDate(factura.periodo_fin)}
-              </span>
+              <label className="block text-gray-500 mb-1">Periodo:</label>
+              <div className="grid grid-cols-2 gap-2">
+                <FormField label="Desde">
+                  <Input
+                    type="date"
+                    value={periodoInicio}
+                    onChange={(e) => setPeriodoInicio(e.target.value)}
+                    className="text-sm"
+                  />
+                </FormField>
+                <FormField label="Hasta">
+                  <Input
+                    type="date"
+                    value={periodoFin}
+                    onChange={(e) => setPeriodoFin(e.target.value)}
+                    className="text-sm"
+                  />
+                </FormField>
+              </div>
             </div>
           </div>
         </Card>
