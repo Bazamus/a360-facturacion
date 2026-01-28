@@ -109,13 +109,13 @@ export function useImportacionDetalle(importacionId, options = {}) {
   return useQuery({
     queryKey: ['importaciones-detalle', importacionId, { estado }],
     queryFn: async () => {
+      // Primero obtener los detalles con contador y concepto
       let query = supabase
         .from('importaciones_detalle')
         .select(`
           *,
           contador:contadores(id, numero_serie, ubicacion_id),
-          concepto:conceptos(id, codigo, nombre, unidad_medida),
-          cliente:clientes(id, nombre, apellidos, nif, bloqueado)
+          concepto:conceptos(id, codigo, nombre, unidad_medida)
         `)
         .eq('importacion_id', importacionId)
         .order('fila_numero')
@@ -126,6 +126,25 @@ export function useImportacionDetalle(importacionId, options = {}) {
 
       const { data, error } = await query
       if (error) throw error
+
+      // Si hay datos y algunos tienen cliente_id, obtener info de clientes
+      if (data && data.length > 0) {
+        const clienteIds = [...new Set(data.filter(d => d.cliente_id).map(d => d.cliente_id))]
+
+        if (clienteIds.length > 0) {
+          const { data: clientes } = await supabase
+            .from('clientes')
+            .select('id, nombre, apellidos, nif, bloqueado')
+            .in('id', clienteIds)
+
+          // Mapear clientes a los detalles
+          const clientesMap = new Map(clientes?.map(c => [c.id, c]) || [])
+          data.forEach(detalle => {
+            detalle.cliente = detalle.cliente_id ? clientesMap.get(detalle.cliente_id) || null : null
+          })
+        }
+      }
+
       return data
     },
     enabled: !!importacionId
