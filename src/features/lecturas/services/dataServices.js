@@ -127,7 +127,7 @@ export async function getClienteActualUbicacion(ubicacionId) {
         nif,
         email,
         telefono,
-        estado:estados_cliente(bloquea_facturacion, nombre)
+        estado:estados_cliente(permite_facturacion, nombre)
       )
     `)
     .eq('ubicacion_id', ubicacionId)
@@ -140,6 +140,9 @@ export async function getClienteActualUbicacion(ubicacionId) {
     return null
   }
 
+  // permite_facturacion: false = cliente bloqueado
+  const estaBloqueado = data.clientes.estado?.permite_facturacion === false
+
   return {
     id: data.clientes.id,
     nombre: data.clientes.nombre,
@@ -147,8 +150,8 @@ export async function getClienteActualUbicacion(ubicacionId) {
     nif: data.clientes.nif,
     email: data.clientes.email,
     telefono: data.clientes.telefono,
-    bloqueado: data.clientes.estado?.bloquea_facturacion || false,
-    motivo_bloqueo: data.clientes.estado?.bloquea_facturacion ? data.clientes.estado.nombre : null,
+    bloqueado: estaBloqueado,
+    motivo_bloqueo: estaBloqueado ? data.clientes.estado.nombre : null,
     fecha_inicio: data.fecha_inicio
   }
 }

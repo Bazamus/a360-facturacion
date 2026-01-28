@@ -195,10 +195,12 @@ export default function ImportarLecturas() {
 
             if (clienteData) {
               // Mapear estado bloqueado desde estados_cliente
+              // permite_facturacion: false = cliente bloqueado
+              const estaBloqueado = clienteData.estado?.permite_facturacion === false
               cliente = {
                 ...clienteData,
-                bloqueado: clienteData.estado?.bloquea_facturacion || false,
-                motivo_bloqueo: clienteData.estado?.bloquea_facturacion ? clienteData.estado.nombre : null
+                bloqueado: estaBloqueado,
+                motivo_bloqueo: estaBloqueado ? clienteData.estado.nombre : null
               }
             }
           }
