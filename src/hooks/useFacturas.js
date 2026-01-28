@@ -203,6 +203,17 @@ export function useDeleteFactura() {
         throw new Error('Solo se pueden eliminar facturas en borrador')
       }
 
+      // Revertir lecturas a no facturadas antes de eliminar la factura
+      // (ya que las líneas se eliminan con CASCADE)
+      await supabase
+        .from('lecturas')
+        .update({
+          facturada: false,
+          factura_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('factura_id', id)
+
       const { error } = await supabase
         .from('facturas')
         .delete()
@@ -212,6 +223,8 @@ export function useDeleteFactura() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['facturas'] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas'] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas-pendientes-facturar'] })
     }
   })
 }

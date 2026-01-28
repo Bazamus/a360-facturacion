@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, FileText, AlertTriangle, Check } from 'lucide-react'
 import { Button, Card, Modal, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -7,7 +8,7 @@ import { getBadgeVariant } from '@/utils/estadosCliente'
 import { PeriodoSelector, LecturasPendientesTable } from '@/features/facturacion/components'
 import { formatCurrency } from '@/features/facturacion/utils/calculos'
 import { useComunidades } from '@/hooks/useComunidades'
-import { 
+import {
   useLecturasPendientesFacturar,
   useCreateFactura,
   useCreateFacturaLineas,
@@ -19,6 +20,7 @@ import { supabase } from '@/lib/supabase'
 
 export default function GenerarFacturas() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const toast = useToast()
 
   // Estado
@@ -292,6 +294,19 @@ export default function GenerarFacturas() {
           const lineasConFactura = lineas.map(l => ({ ...l, factura_id: factura.id }))
           await createLineas.mutateAsync(lineasConFactura)
 
+          // Marcar lecturas como facturadas (para que desaparezcan del listado de pendientes)
+          const lecturaIds = lecturasContador.map(l => l.id)
+          if (lecturaIds.length > 0) {
+            await supabase
+              .from('lecturas')
+              .update({
+                facturada: true,
+                factura_id: factura.id,
+                updated_at: new Date().toISOString()
+              })
+              .in('id', lecturaIds)
+          }
+
           results.success.push({
             contador: grupo.contador_numero_serie,
             cliente: grupo.cliente_nombre,
@@ -313,6 +328,10 @@ export default function GenerarFacturas() {
 
       if (results.success.length > 0) {
         toast.success(`${results.success.length} factura(s) generada(s) correctamente`)
+        // Invalidar queries para actualizar las listas
+        queryClient.invalidateQueries({ queryKey: ['lecturas-pendientes-facturar'] })
+        queryClient.invalidateQueries({ queryKey: ['lecturas'] })
+        queryClient.invalidateQueries({ queryKey: ['facturas'] })
       }
       if (results.errors.length > 0) {
         toast.warning(`${results.errors.length} factura(s) con errores`)
