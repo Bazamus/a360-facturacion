@@ -183,6 +183,17 @@ export async function procesarClientes(filas, onProgress = () => {}) {
   const result = { created: 0, updated: 0, ubicacionesAsignadas: 0, errors: [], total: filas.length }
   limpiarCache()
   
+  // Obtener estado "Activo" por defecto (una sola vez)
+  const { data: estadoActivo } = await supabase
+    .from('estados_cliente')
+    .select('id')
+    .eq('codigo', 'ACT')
+    .single()
+  
+  if (!estadoActivo) {
+    throw new Error('No se encontró el estado "Activo" en el sistema. Ejecuta las migraciones de base de datos.')
+  }
+  
   for (let i = 0; i < filas.length; i++) {
     const fila = filas[i]
     const rowNum = fila._rowIndex || i + 2
@@ -227,7 +238,7 @@ export async function procesarClientes(filas, onProgress = () => {}) {
         cp_correspondencia: toStr(fila.cp_correspondencia) || null,
         ciudad_correspondencia: toStr(fila.ciudad_correspondencia) || null,
         provincia_correspondencia: toStr(fila.provincia_correspondencia) || null,
-        activo: true
+        estado_id: estadoActivo.id
       }
       
       // Verificar si existe el cliente
