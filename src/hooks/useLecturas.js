@@ -135,12 +135,15 @@ export function useImportacionDetalle(importacionId, options = {}) {
           // Usar filter instead of in() para evitar errores de encoding
           const { data: clientes, error: clientesError } = await supabase
             .from('clientes')
-            .select('id, nombre, apellidos, nif, bloqueado')
+            .select('id, nombre, apellidos, nif, estado:estados_cliente(bloquea_facturacion, nombre)')
             .or(clienteIds.map(id => `id.eq.${id}`).join(','))
 
           if (!clientesError && clientes) {
-            // Mapear clientes a los detalles
-            const clientesMap = new Map(clientes.map(c => [c.id, c]))
+            // Mapear clientes a los detalles con info de bloqueo
+            const clientesMap = new Map(clientes.map(c => [c.id, {
+              ...c,
+              bloqueado: c.estado?.bloquea_facturacion || false
+            }]))
             data.forEach(detalle => {
               detalle.cliente = detalle.cliente_id ? clientesMap.get(detalle.cliente_id) || null : null
             })

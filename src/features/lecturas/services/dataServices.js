@@ -114,7 +114,7 @@ export async function findContadorConcepto(contadorId, conceptoId) {
  */
 export async function getClienteActualUbicacion(ubicacionId) {
   if (!ubicacionId) return null
-  
+
   const { data, error } = await supabase
     .from('ubicaciones_clientes')
     .select(`
@@ -127,20 +127,19 @@ export async function getClienteActualUbicacion(ubicacionId) {
         nif,
         email,
         telefono,
-        bloqueado,
-        motivo_bloqueo
+        estado:estados_cliente(bloquea_facturacion, nombre)
       )
     `)
     .eq('ubicacion_id', ubicacionId)
     .eq('es_actual', true)
     .single()
-  
+
   if (error) {
     if (error.code === 'PGRST116') return null // No hay cliente asignado
     console.error('Error al obtener cliente actual:', error)
     return null
   }
-  
+
   return {
     id: data.clientes.id,
     nombre: data.clientes.nombre,
@@ -148,8 +147,8 @@ export async function getClienteActualUbicacion(ubicacionId) {
     nif: data.clientes.nif,
     email: data.clientes.email,
     telefono: data.clientes.telefono,
-    bloqueado: data.clientes.bloqueado,
-    motivo_bloqueo: data.clientes.motivo_bloqueo,
+    bloqueado: data.clientes.estado?.bloquea_facturacion || false,
+    motivo_bloqueo: data.clientes.estado?.bloquea_facturacion ? data.clientes.estado.nombre : null,
     fecha_inicio: data.fecha_inicio
   }
 }

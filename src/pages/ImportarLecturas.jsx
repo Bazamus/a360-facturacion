@@ -185,23 +185,21 @@ export default function ImportarLecturas() {
             .eq('es_actual', true)
             .maybeSingle()
 
-          console.log('Debug cliente - ubicacion_id:', contador.ubicacion_id)
-          console.log('Debug cliente - ubicacionCliente:', ubicacionCliente)
-          console.log('Debug cliente - errorUC:', errorUC)
-
           // Paso 2: Si hay relación, obtener datos del cliente
           if (ubicacionCliente?.cliente_id) {
-            const { data: clienteData, error: errorCliente } = await supabase
+            const { data: clienteData } = await supabase
               .from('clientes')
-              .select('id, nombre, apellidos, nif, email, telefono, bloqueado, motivo_bloqueo')
+              .select('id, nombre, apellidos, nif, email, telefono, estado_id, estado:estados_cliente(*)')
               .eq('id', ubicacionCliente.cliente_id)
               .single()
 
-            console.log('Debug cliente - clienteData:', clienteData)
-            console.log('Debug cliente - errorCliente:', errorCliente)
-
             if (clienteData) {
-              cliente = clienteData
+              // Mapear estado bloqueado desde estados_cliente
+              cliente = {
+                ...clienteData,
+                bloqueado: clienteData.estado?.bloquea_facturacion || false,
+                motivo_bloqueo: clienteData.estado?.bloquea_facturacion ? clienteData.estado.nombre : null
+              }
             }
           }
         }
