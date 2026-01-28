@@ -132,15 +132,23 @@ export function useImportacionDetalle(importacionId, options = {}) {
         const clienteIds = [...new Set(data.filter(d => d.cliente_id).map(d => d.cliente_id))]
 
         if (clienteIds.length > 0) {
-          const { data: clientes } = await supabase
+          // Usar filter instead of in() para evitar errores de encoding
+          const { data: clientes, error: clientesError } = await supabase
             .from('clientes')
             .select('id, nombre, apellidos, nif, bloqueado')
-            .in('id', clienteIds)
+            .or(clienteIds.map(id => `id.eq.${id}`).join(','))
 
-          // Mapear clientes a los detalles
-          const clientesMap = new Map(clientes?.map(c => [c.id, c]) || [])
+          if (!clientesError && clientes) {
+            // Mapear clientes a los detalles
+            const clientesMap = new Map(clientes.map(c => [c.id, c]))
+            data.forEach(detalle => {
+              detalle.cliente = detalle.cliente_id ? clientesMap.get(detalle.cliente_id) || null : null
+            })
+          }
+        } else {
+          // No hay cliente_ids, inicializar cliente como null
           data.forEach(detalle => {
-            detalle.cliente = detalle.cliente_id ? clientesMap.get(detalle.cliente_id) || null : null
+            detalle.cliente = null
           })
         }
       }

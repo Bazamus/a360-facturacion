@@ -177,15 +177,23 @@ export default function ImportarLecturas() {
 
         // Obtener cliente actual de la ubicación
         if (contador?.ubicacion_id) {
+          // Primero obtener la relación ubicación-cliente
           const { data: ubicacionesClientes } = await supabase
             .from('ubicaciones_clientes')
-            .select(`*, cliente:clientes(*)`)
+            .select('cliente_id')
             .eq('ubicacion_id', contador.ubicacion_id)
             .eq('es_actual', true)
             .limit(1)
-          
-          if (ubicacionesClientes && ubicacionesClientes.length > 0) {
-            cliente = ubicacionesClientes[0].cliente
+
+          // Si hay cliente asignado, obtener sus datos
+          if (ubicacionesClientes && ubicacionesClientes.length > 0 && ubicacionesClientes[0].cliente_id) {
+            const { data: clienteData } = await supabase
+              .from('clientes')
+              .select('id, nombre, apellidos, nif, email, telefono, bloqueado, motivo_bloqueo')
+              .eq('id', ubicacionesClientes[0].cliente_id)
+              .single()
+
+            cliente = clienteData
           }
         }
 
@@ -219,7 +227,7 @@ export default function ImportarLecturas() {
             
             contadorConcepto = cc
             
-            // Obtener última lectura
+            // Obtener última lectura confirmada de la tabla lecturas
             const { data: lecturas } = await supabase
               .from('lecturas')
               .select('lectura_valor, fecha_lectura')
@@ -227,13 +235,15 @@ export default function ImportarLecturas() {
               .eq('concepto_id', conceptoInfo.concepto_id)
               .order('fecha_lectura', { ascending: false })
               .limit(1)
-            
+
             if (lecturas && lecturas.length > 0) {
               lecturaAnterior = lecturas[0]
             } else if (contadorConcepto) {
+              // Si no hay lecturas confirmadas, usar lectura_actual del contador_concepto
+              // (que representa la última lectura conocida, puede ser igual a lectura_inicial)
               lecturaAnterior = {
-                lectura_valor: contadorConcepto.lectura_inicial,
-                fecha_lectura: contadorConcepto.fecha_lectura_inicial
+                lectura_valor: contadorConcepto.lectura_actual,
+                fecha_lectura: contadorConcepto.fecha_lectura_actual
               }
             }
           }
