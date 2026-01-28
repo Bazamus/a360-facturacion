@@ -177,27 +177,32 @@ export default function ImportarLecturas() {
 
         // Obtener cliente actual de la ubicación
         if (contador?.ubicacion_id) {
-          const { data: ubicacionCliente } = await supabase
+          // Paso 1: Obtener la relación ubicación-cliente
+          const { data: ubicacionCliente, error: errorUC } = await supabase
             .from('ubicaciones_clientes')
-            .select(`
-              id,
-              clientes!inner (
-                id,
-                nombre,
-                apellidos,
-                nif,
-                email,
-                telefono,
-                bloqueado,
-                motivo_bloqueo
-              )
-            `)
+            .select('*')
             .eq('ubicacion_id', contador.ubicacion_id)
             .eq('es_actual', true)
             .maybeSingle()
 
-          if (ubicacionCliente?.clientes) {
-            cliente = ubicacionCliente.clientes
+          console.log('Debug cliente - ubicacion_id:', contador.ubicacion_id)
+          console.log('Debug cliente - ubicacionCliente:', ubicacionCliente)
+          console.log('Debug cliente - errorUC:', errorUC)
+
+          // Paso 2: Si hay relación, obtener datos del cliente
+          if (ubicacionCliente?.cliente_id) {
+            const { data: clienteData, error: errorCliente } = await supabase
+              .from('clientes')
+              .select('id, nombre, apellidos, nif, email, telefono, bloqueado, motivo_bloqueo')
+              .eq('id', ubicacionCliente.cliente_id)
+              .single()
+
+            console.log('Debug cliente - clienteData:', clienteData)
+            console.log('Debug cliente - errorCliente:', errorCliente)
+
+            if (clienteData) {
+              cliente = clienteData
+            }
           }
         }
 
