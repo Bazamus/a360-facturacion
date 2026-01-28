@@ -214,22 +214,50 @@ export function useAsignarConcepto() {
 
   return useMutation({
     mutationFn: async (data) => {
-      const { data: result, error } = await supabase
+      // Verificar si ya existe el registro (activo o inactivo)
+      const { data: existing } = await supabase
         .from('contadores_conceptos')
-        .insert({
-          contador_id: data.contador_id,
-          concepto_id: data.concepto_id,
-          lectura_inicial: data.lectura_inicial || 0,
-          lectura_actual: data.lectura_inicial || 0,
-          fecha_lectura_inicial: data.fecha_lectura_inicial || new Date().toISOString().split('T')[0],
-          fecha_lectura_actual: data.fecha_lectura_inicial || new Date().toISOString().split('T')[0],
-          activo: true
-        })
-        .select()
-        .single()
+        .select('id, activo')
+        .eq('contador_id', data.contador_id)
+        .eq('concepto_id', data.concepto_id)
+        .maybeSingle()
 
-      if (error) throw error
-      return result
+      if (existing) {
+        // Ya existe - actualizar con nuevos valores
+        const { data: result, error } = await supabase
+          .from('contadores_conceptos')
+          .update({
+            lectura_inicial: data.lectura_inicial || 0,
+            lectura_actual: data.lectura_inicial || 0,
+            fecha_lectura_inicial: data.fecha_lectura_inicial || new Date().toISOString().split('T')[0],
+            fecha_lectura_actual: data.fecha_lectura_inicial || new Date().toISOString().split('T')[0],
+            activo: true
+          })
+          .eq('id', existing.id)
+          .select()
+          .single()
+
+        if (error) throw error
+        return result
+      } else {
+        // No existe - insertar nuevo
+        const { data: result, error } = await supabase
+          .from('contadores_conceptos')
+          .insert({
+            contador_id: data.contador_id,
+            concepto_id: data.concepto_id,
+            lectura_inicial: data.lectura_inicial || 0,
+            lectura_actual: data.lectura_inicial || 0,
+            fecha_lectura_inicial: data.fecha_lectura_inicial || new Date().toISOString().split('T')[0],
+            fecha_lectura_actual: data.fecha_lectura_inicial || new Date().toISOString().split('T')[0],
+            activo: true
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+        return result
+      }
     },
     onSuccess: (_, { contador_id }) => {
       queryClient.invalidateQueries({ queryKey: ['contadores'] })
