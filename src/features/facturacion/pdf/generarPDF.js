@@ -192,18 +192,30 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // DETALLE DE CONSUMOS
   // =========================================
   
+  // Obtener número de contador (todas las líneas no-fijas deberían tener el mismo)
+  const contadorNumero = lineas.find(l => !l.es_termino_fijo && l.contador_numero_serie)?.contador_numero_serie
+  
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text('DETALLE DE CONSUMOS', margin, y)
+  
+  // Título con número de contador
+  if (contadorNumero) {
+    doc.text('DETALLE DE CONSUMOS', margin, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(...COLORS.gray)
+    doc.text(`Contador: ${contadorNumero}`, margin + 65, y)
+  } else {
+    doc.text('DETALLE DE CONSUMOS', margin, y)
+  }
+  
   y += 5
 
   // Preparar datos tabla
   const tableBody = lineas.map(linea => {
-    let concepto = linea.concepto_nombre || '-'
-    if (!linea.es_termino_fijo && linea.contador_numero_serie) {
-      concepto += `\nContador: ${linea.contador_numero_serie}`
-    }
+    // Solo el nombre del concepto, sin repetir el contador
+    const concepto = linea.concepto_nombre || '-'
     
     // Lecturas (usar caracteres ASCII compatibles) - 3 decimales
     // Mostrar lecturas incluso si son 0 (para evitar confusión con lecturas iniciales)
