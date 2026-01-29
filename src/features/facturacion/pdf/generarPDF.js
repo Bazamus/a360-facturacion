@@ -202,9 +202,9 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // Título con número de contador
   if (contadorNumero) {
     doc.text('DETALLE DE CONSUMOS', margin, y)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    doc.setTextColor(...COLORS.gray)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(...COLORS.secondary)
     doc.text(`Contador: ${contadorNumero}`, margin + 65, y)
   } else {
     doc.text('DETALLE DE CONSUMOS', margin, y)
