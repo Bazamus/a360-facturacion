@@ -206,9 +206,10 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
     }
     
     // Lecturas (usar caracteres ASCII compatibles) - 3 decimales
+    // Mostrar lecturas incluso si son 0 (para evitar confusión con lecturas iniciales)
     let lecturas = '-'
-    if (!linea.es_termino_fijo && linea.lectura_anterior != null) {
-      lecturas = `${formatLectura(linea.lectura_anterior)}\u00A0/\u00A0${formatLectura(linea.lectura_actual)}`
+    if (!linea.es_termino_fijo && linea.lectura_actual != null) {
+      lecturas = `${formatLectura(linea.lectura_anterior ?? 0)}\u00A0/\u00A0${formatLectura(linea.lectura_actual)}`
     }
 
     // Consumo - 3 decimales
