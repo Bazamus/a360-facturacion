@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Calendar } from 'lucide-react'
+import { Calendar, Info } from 'lucide-react'
 import { Card } from '@/components/ui'
 
 // Generar lista de meses para selector
@@ -48,6 +48,19 @@ export function PeriodoSelector({ value, onChange }) {
 
   return (
     <Card className="p-4">
+      {/* Título y tooltip explicativo */}
+      <div className="mb-3 flex items-start gap-2">
+        <h3 className="text-sm font-medium text-gray-700">
+          Rango de búsqueda de lecturas
+        </h3>
+        <div className="group relative">
+          <Info className="w-4 h-4 text-gray-400 cursor-help" />
+          <div className="absolute left-0 top-6 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+            Filtra las lecturas pendientes dentro de este rango. El período real de facturación se calculará automáticamente desde las fechas de cada lectura (anterior → actual).
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center gap-6">
         {/* Selector de modo */}
         <div className="flex items-center gap-4">

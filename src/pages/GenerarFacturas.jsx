@@ -31,6 +31,17 @@ export default function GenerarFacturas() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [resultados, setResultados] = useState(null)
   const [advertenciaModal, setAdvertenciaModal] = useState({ open: false, clientesConAdvertencia: [] })
+  
+  // Fechas de facturación (con valores por defecto)
+  const [fechaEmision, setFechaEmision] = useState(() => {
+    const hoy = new Date()
+    return hoy.toISOString().split('T')[0]
+  })
+  const [fechaVencimiento, setFechaVencimiento] = useState(() => {
+    const hoy = new Date()
+    hoy.setDate(hoy.getDate() + 15)
+    return hoy.toISOString().split('T')[0]
+  })
 
   // Queries
   const { data: comunidades } = useComunidades({ activa: true })
@@ -86,9 +97,22 @@ export default function GenerarFacturas() {
   // Buscar lecturas
   const handleBuscar = () => {
     if (!comunidadId || !periodo.inicio || !periodo.fin) {
-      toast.error('Selecciona una comunidad y un periodo')
+      toast.error('Selecciona una comunidad y un rango de búsqueda')
       return
     }
+    
+    // Validar fechas de facturación
+    if (!fechaEmision || !fechaVencimiento) {
+      toast.error('Indica la fecha de emisión y vencimiento')
+      return
+    }
+    
+    // Validar que fecha de vencimiento sea posterior a emisión
+    if (new Date(fechaVencimiento) <= new Date(fechaEmision)) {
+      toast.error('La fecha de vencimiento debe ser posterior a la emisión')
+      return
+    }
+    
     refetchLecturas()
     setStep(2)
   }
@@ -181,13 +205,30 @@ export default function GenerarFacturas() {
             .eq('id', grupo.ubicacion_id)
             .single()
 
-          // Calcular días del periodo
+          // Calcular período REAL desde fechas de lecturas
+          // Obtener fecha más antigua (lectura anterior) y más reciente (lectura actual)
+          const fechasAnteriores = lecturasContador
+            .map(l => l.fecha_lectura_anterior)
+            .filter(Boolean)
+          const fechasActuales = lecturasContador
+            .map(l => l.fecha_lectura)
+            .filter(Boolean)
+
+          const periodoRealInicio = fechasAnteriores.length > 0
+            ? fechasAnteriores.sort()[0]  // Fecha más antigua
+            : periodo.inicio  // Fallback si no hay fechas
+
+          const periodoRealFin = fechasActuales.length > 0
+            ? fechasActuales.sort().reverse()[0]  // Fecha más reciente
+            : periodo.fin  // Fallback si no hay fechas
+
+          // Recalcular días del periodo con fechas reales
           const diasPeriodo = Math.floor(
-            (new Date(periodo.fin) - new Date(periodo.inicio)) / (1000 * 60 * 60 * 24)
+            (new Date(periodoRealFin) - new Date(periodoRealInicio)) / (1000 * 60 * 60 * 24)
           ) + 1
           const diasMes = new Date(
-            new Date(periodo.inicio).getFullYear(),
-            new Date(periodo.inicio).getMonth() + 1,
+            new Date(periodoRealInicio).getFullYear(),
+            new Date(periodoRealInicio).getMonth() + 1,
             0
           ).getDate()
 
@@ -257,21 +298,18 @@ export default function GenerarFacturas() {
           const importeIva = Math.round(baseImponible * 0.21 * 100) / 100
           const total = Math.round((baseImponible + importeIva) * 100) / 100
 
-          // Fecha vencimiento: 15 días después del fin del periodo
-          const fechaVencimiento = new Date(periodo.fin)
-          fechaVencimiento.setDate(fechaVencimiento.getDate() + 15)
-
-          // Crear factura
+          // Crear factura (usando fechas manuales y período real)
           const factura = await createFactura.mutateAsync({
             cliente_id: grupo.cliente_id,
             comunidad_id: comunidadId,
             ubicacion_id: grupo.ubicacion_id,
             contador_id: contadorId,
-            periodo_inicio: periodo.inicio,
-            periodo_fin: periodo.fin,
+            fecha_factura: fechaEmision,  // Fecha manual del usuario
+            periodo_inicio: periodoRealInicio,  // Fecha real de lecturas
+            periodo_fin: periodoRealFin,  // Fecha real de lecturas
             es_periodo_parcial: diasPeriodo < diasMes,
             dias_periodo: diasPeriodo,
-            fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0],
+            fecha_vencimiento: fechaVencimiento,  // Fecha manual del usuario
             base_imponible: Math.round(baseImponible * 100) / 100,
             importe_iva: importeIva,
             total,
@@ -412,18 +450,54 @@ export default function GenerarFacturas() {
             </select>
           </div>
 
-          {/* Periodo */}
+          {/* Rango de búsqueda */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Periodo de facturación
-            </label>
             <PeriodoSelector value={periodo} onChange={setPeriodo} />
           </div>
+
+          {/* Fechas de Facturación */}
+          <Card className="p-4 bg-blue-50 border border-blue-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">
+              Fechas de Facturación
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Fecha de Emisión <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={fechaEmision}
+                  onChange={(e) => setFechaEmision(e.target.value)}
+                  required
+                  className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Aparecerá en todas las facturas generadas
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Fecha de Vencimiento <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={fechaVencimiento}
+                  onChange={(e) => setFechaVencimiento(e.target.value)}
+                  required
+                  className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Fecha límite de pago para todas las facturas
+                </p>
+              </div>
+            </div>
+          </Card>
 
           <div className="flex justify-end pt-4">
             <Button
               onClick={handleBuscar}
-              disabled={!comunidadId || !periodo.inicio || !periodo.fin}
+              disabled={!comunidadId || !periodo.inicio || !periodo.fin || !fechaEmision || !fechaVencimiento}
             >
               Buscar lecturas pendientes
               <ArrowRight className="w-4 h-4 ml-2" />
