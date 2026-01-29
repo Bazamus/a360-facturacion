@@ -44,13 +44,19 @@ export default function Facturas() {
   // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(50)
+  
+  // Estados de ordenación
+  const [sortBy, setSortBy] = useState('fecha_factura')
+  const [sortDirection, setSortDirection] = useState('desc')
 
   const { data: comunidades } = useComunidades()
   const { data: facturasResult, isLoading, refetch } = useFacturas({
     ...filters,
     limit: itemsPerPage,
     offset: (currentPage - 1) * itemsPerPage,
-    withCount: true
+    withCount: true,
+    sortBy,
+    sortDirection
   })
   const { data: stats } = useEstadisticasFacturacion(filters)
   
@@ -215,6 +221,20 @@ export default function Facturas() {
   const handleFiltersChange = (newFilters) => {
     setFilters(newFilters)
     setCurrentPage(1)
+  }
+
+  // Handler de ordenación
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      // Cambiar dirección si ya estamos ordenando por este campo
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Nuevo campo, empezar con orden descendente (excepto para texto)
+      setSortBy(field)
+      const textFields = ['cliente_nombre', 'numero_completo', 'comunidad_nombre']
+      setSortDirection(textFields.includes(field) ? 'asc' : 'desc')
+    }
+    setCurrentPage(1) // Volver a primera página al ordenar
   }
 
   // Handler emisión masiva
@@ -527,6 +547,9 @@ export default function Facturas() {
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         modo={modo}
+        sortBy={sortBy}
+        sortDirection={sortDirection}
+        onSort={handleSort}
       />
 
       {/* Paginación */}

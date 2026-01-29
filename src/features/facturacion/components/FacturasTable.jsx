@@ -1,9 +1,29 @@
 import React, { useState, useEffect } from 'react'
-import { Eye, FileText, Mail, Pencil, Trash2, CreditCard } from 'lucide-react'
+import { Eye, FileText, Mail, Pencil, Trash2, CreditCard, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Button, Card, Checkbox, Badge } from '@/components/ui'
 import { EstadoBadge } from './EstadoBadge'
 import { formatCurrency, formatDate } from '../utils/calculos'
 import { getBadgeVariant } from '@/utils/estadosCliente'
+
+// Componente helper para encabezados ordenables
+function SortableHeader({ field, currentSort, currentDirection, onSort, children, align = 'left' }) {
+  const isActive = currentSort === field
+  const Icon = isActive 
+    ? (currentDirection === 'asc' ? ArrowUp : ArrowDown)
+    : ArrowUpDown
+
+  return (
+    <th 
+      className={`px-2 py-3 text-${align} text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none`}
+      onClick={() => onSort?.(field)}
+    >
+      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : ''}`}>
+        <span>{children}</span>
+        <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-primary-600' : 'text-gray-400'}`} />
+      </div>
+    </th>
+  )
+}
 
 export function FacturasTable({
   facturas = [],
@@ -16,7 +36,10 @@ export function FacturasTable({
   isLoading,
   selectedIds = [],
   onSelectionChange,
-  modo = 'emision' // 'emision' | 'descarga'
+  modo = 'emision', // 'emision' | 'descarga' | 'eliminar'
+  sortBy = 'fecha_factura',
+  sortDirection = 'desc',
+  onSort
 }) {
   // Estado local para checkboxes
   const [localSelectedIds, setLocalSelectedIds] = useState(selectedIds)
@@ -96,30 +119,81 @@ export function FacturasTable({
                   />
                 </th>
               )}
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <SortableHeader 
+                field="numero_completo" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+              >
                 Nº Factura
-              </th>
-              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              
+              <SortableHeader 
+                field="fecha_factura" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+              >
                 Fecha
-              </th>
-              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+              </SortableHeader>
+              
+              <SortableHeader 
+                field="codigo_cliente" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+              >
                 Cód.
-              </th>
-              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              
+              <SortableHeader 
+                field="cliente_nombre" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+              >
                 Cliente
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              
+              <SortableHeader 
+                field="cliente_estado_nombre" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+                align="center"
+              >
                 Estado Cliente
-              </th>
-              <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              
+              <SortableHeader 
+                field="comunidad_nombre" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+              >
                 Comunidad
-              </th>
-              <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              
+              <SortableHeader 
+                field="total" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+                align="right"
+              >
                 Total
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              
+              <SortableHeader 
+                field="estado" 
+                currentSort={sortBy} 
+                currentDirection={sortDirection}
+                onSort={onSort}
+                align="center"
+              >
                 Estado
-              </th>
+              </SortableHeader>
+              
               <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>

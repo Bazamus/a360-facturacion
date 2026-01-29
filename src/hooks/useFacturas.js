@@ -7,10 +7,22 @@ import { useAuth } from '@/features/auth/AuthContext'
 // =====================================================
 
 export function useFacturas(options = {}) {
-  const { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit = 50, offset = 0, withCount = false } = options
+  const { 
+    comunidadId, 
+    estado, 
+    clienteId, 
+    search, 
+    fechaDesde, 
+    fechaHasta, 
+    limit = 50, 
+    offset = 0, 
+    withCount = false,
+    sortBy = 'fecha_factura',
+    sortDirection = 'desc'
+  } = options
 
   return useQuery({
-    queryKey: ['facturas', { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit, offset }],
+    queryKey: ['facturas', { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit, offset, sortBy, sortDirection }],
     queryFn: async () => {
       // Construir query base con los filtros
       let baseQuery = supabase.from('v_facturas_resumen')
@@ -36,12 +48,16 @@ export function useFacturas(options = {}) {
         totalCount = count
       }
 
-      // Obtener facturas con paginación
+      // Obtener facturas con paginación y ordenación
       let query = baseQuery
         .select('*')
-        .order('fecha_factura', { ascending: false })
-        .order('created_at', { ascending: false })
+        .order(sortBy, { ascending: sortDirection === 'asc' })
         .range(offset, offset + limit - 1)
+
+      // Ordenación secundaria para estabilidad
+      if (sortBy !== 'created_at') {
+        query = query.order('created_at', { ascending: false })
+      }
 
       query = applyFilters(query)
 
