@@ -22,7 +22,8 @@ export function ModalExportarFacturas({
       email: false,
       iban: false,
       numeroContador: false,
-      ubicacion: false
+      ubicacion: false,
+      codigoComunidad: false
     },
 
     // Formato de números
@@ -188,6 +189,16 @@ export function ModalExportarFacturas({
                   className="rounded"
                 />
                 <span className="text-sm text-gray-700">Ubicación</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.columnasAdicionales.codigoComunidad}
+                  onChange={() => handleToggleColumna('codigoComunidad')}
+                  className="rounded"
+                />
+                <span className="text-sm text-gray-700">Código de Comunidad</span>
               </label>
             </div>
           </div>

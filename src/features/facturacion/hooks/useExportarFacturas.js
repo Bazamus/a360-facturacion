@@ -118,6 +118,7 @@ async function generarResumen(facturas, opciones) {
   if (columnasAdicionales.direccion) columnas.splice(6, 0, 'DIRECCIÓN')
   if (columnasAdicionales.email) columnas.splice(6, 0, 'EMAIL')
   if (columnasAdicionales.iban) columnas.splice(6, 0, 'IBAN')
+  if (columnasAdicionales.codigoComunidad) columnas.splice(6, 0, 'CÓD. COMUNIDAD')
   if (columnasAdicionales.numeroContador) columnas.push('Nº CONTADOR')
   if (columnasAdicionales.ubicacion) columnas.push('UBICACIÓN')
 
@@ -147,6 +148,7 @@ async function generarResumen(facturas, opciones) {
     }
     if (columnasAdicionales.email) fila['EMAIL'] = f.cliente_email || '-'
     if (columnasAdicionales.iban) fila['IBAN'] = f.cliente_iban || '-'
+    if (columnasAdicionales.codigoComunidad) fila['CÓD. COMUNIDAD'] = f.comunidad_codigo || f.comunidad?.codigo || '-'
     if (columnasAdicionales.numeroContador) fila['Nº CONTADOR'] = f.contador_numero_serie || '-'
     if (columnasAdicionales.ubicacion) fila['UBICACIÓN'] = f.ubicacion_direccion || '-'
 
@@ -203,6 +205,7 @@ async function generarCompleto(facturas, lineas, opciones) {
   if (columnasAdicionales.direccion) columnasFacturas.splice(6, 0, 'DIRECCIÓN')
   if (columnasAdicionales.email) columnasFacturas.splice(6, 0, 'EMAIL')
   if (columnasAdicionales.iban) columnasFacturas.splice(6, 0, 'IBAN')
+  if (columnasAdicionales.codigoComunidad) columnasFacturas.splice(6, 0, 'CÓD. COMUNIDAD')
   if (columnasAdicionales.numeroContador) columnasFacturas.push('Nº CONTADOR')
   if (columnasAdicionales.ubicacion) columnasFacturas.push('UBICACIÓN')
 
@@ -230,6 +233,7 @@ async function generarCompleto(facturas, lineas, opciones) {
     }
     if (columnasAdicionales.email) fila['EMAIL'] = f.cliente_email || '-'
     if (columnasAdicionales.iban) fila['IBAN'] = f.cliente_iban || '-'
+    if (columnasAdicionales.codigoComunidad) fila['CÓD. COMUNIDAD'] = f.comunidad_codigo || f.comunidad?.codigo || '-'
     if (columnasAdicionales.numeroContador) fila['Nº CONTADOR'] = f.contador_numero_serie || '-'
     if (columnasAdicionales.ubicacion) fila['UBICACIÓN'] = f.ubicacion_direccion || '-'
 
