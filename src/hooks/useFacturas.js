@@ -7,43 +7,43 @@ import { useAuth } from '@/features/auth/AuthContext'
 // =====================================================
 
 export function useFacturas(options = {}) {
-  const { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit = 50 } = options
+  const { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit = 50, offset = 0, withCount = false } = options
 
   return useQuery({
-    queryKey: ['facturas', { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit }],
+    queryKey: ['facturas', { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit, offset }],
     queryFn: async () => {
-      // Primero obtener las facturas
-      let query = supabase
-        .from('v_facturas_resumen')
+      // Construir query base con los filtros
+      let baseQuery = supabase.from('v_facturas_resumen')
+      let countQuery = supabase.from('v_facturas_resumen').select('*', { count: 'exact', head: true })
+
+      // Aplicar filtros a ambas queries
+      const applyFilters = (q) => {
+        if (comunidadId) q = q.eq('comunidad_id', comunidadId)
+        if (estado) q = q.eq('estado', estado)
+        if (clienteId) q = q.eq('cliente_id', clienteId)
+        if (search) q = q.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
+        if (fechaDesde) q = q.gte('fecha_factura', fechaDesde)
+        if (fechaHasta) q = q.lte('fecha_factura', fechaHasta)
+        return q
+      }
+
+      // Obtener conteo total si se solicita
+      let totalCount = null
+      if (withCount) {
+        countQuery = applyFilters(countQuery)
+        const { count, error: countError } = await countQuery
+        if (countError) throw countError
+        totalCount = count
+      }
+
+      // Obtener facturas con paginación
+      let query = baseQuery
         .select('*')
         .order('fecha_factura', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(limit)
+        .range(offset, offset + limit - 1)
 
-      if (comunidadId) {
-        query = query.eq('comunidad_id', comunidadId)
-      }
-
-      if (estado) {
-        query = query.eq('estado', estado)
-      }
-
-      if (clienteId) {
-        query = query.eq('cliente_id', clienteId)
-      }
-
-      if (search) {
-        query = query.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
-      }
-
-      // Filtros de fecha
-      if (fechaDesde) {
-        query = query.gte('fecha_factura', fechaDesde)
-      }
-
-      if (fechaHasta) {
-        query = query.lte('fecha_factura', fechaHasta)
-      }
+      query = applyFilters(query)
 
       const { data: facturas, error } = await query
       if (error) throw error
@@ -65,14 +65,16 @@ export function useFacturas(options = {}) {
           })
 
           // Añadir codigo_cliente a cada factura
-          return facturas.map(f => ({
+          const facturasConCodigo = facturas.map(f => ({
             ...f,
             codigo_cliente: f.cliente_id ? codigosMap[f.cliente_id] || null : null
           }))
+
+          return withCount ? { data: facturasConCodigo, total: totalCount } : facturasConCodigo
         }
       }
 
-      return facturas
+      return withCount ? { data: facturas, total: totalCount } : facturas
     }
   })
 }

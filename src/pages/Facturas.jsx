@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus, Mail, Trash2, AlertTriangle } from 'lucide-react'
-import { Button, Card, Modal } from '@/components/ui'
+import { Button, Card, Modal, Pagination } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge, ModalExportarFacturas, ProgressoExportacion } from '@/features/facturacion/components'
 import { formatCurrency, formatDate } from '@/features/facturacion/utils/calculos'
@@ -40,10 +40,24 @@ export default function Facturas() {
   const [modo, setModo] = useState('emision') // 'emision' | 'descarga' | 'eliminar'
   const [descargandoPDFs, setDescargandoPDFs] = useState(false)
   const [progresoDescarga, setProgresoDescarga] = useState({ actual: 0, total: 0 })
+  
+  // Estados de paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(50)
 
   const { data: comunidades } = useComunidades()
-  const { data: facturas, isLoading, refetch } = useFacturas(filters)
+  const { data: facturasResult, isLoading, refetch } = useFacturas({
+    ...filters,
+    limit: itemsPerPage,
+    offset: (currentPage - 1) * itemsPerPage,
+    withCount: true
+  })
   const { data: stats } = useEstadisticasFacturacion(filters)
+  
+  // Extraer datos y total de la respuesta
+  const facturas = facturasResult?.data || facturasResult || []
+  const totalFacturas = facturasResult?.total || 0
+  const totalPages = Math.ceil(totalFacturas / itemsPerPage)
   const deleteFactura = useDeleteFactura()
   const marcarPagada = useMarcarPagada()
   const emitirMasivo = useEmitirFacturasMasivo()
@@ -181,6 +195,26 @@ export default function Facturas() {
       fechaDesde: null,
       fechaHasta: null
     })
+    setCurrentPage(1) // Resetear a primera página al limpiar filtros
+  }
+
+  // Handlers de paginación
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+    setSelectedIds([]) // Limpiar selección al cambiar de página
+    window.scrollTo({ top: 0, behavior: 'smooth' }) // Scroll al inicio
+  }
+
+  const handleItemsPerPageChange = (newSize) => {
+    setItemsPerPage(newSize)
+    setCurrentPage(1) // Volver a primera página al cambiar tamaño
+    setSelectedIds([]) // Limpiar selección
+  }
+
+  // Resetear a página 1 cuando cambian los filtros
+  const handleFiltersChange = (newFilters) => {
+    setFilters(newFilters)
+    setCurrentPage(1)
   }
 
   // Handler emisión masiva
@@ -440,7 +474,7 @@ export default function Facturas() {
       <FacturaFilters
         comunidades={comunidades || []}
         filters={filters}
-        onChange={setFilters}
+        onChange={handleFiltersChange}
         onClear={clearFilters}
       />
 
@@ -494,6 +528,21 @@ export default function Facturas() {
         onSelectionChange={setSelectedIds}
         modo={modo}
       />
+
+      {/* Paginación */}
+      {!isLoading && totalFacturas > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalFacturas}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          pageSizeOptions={[25, 50, 100, 200, 500]}
+          showPageSizeSelector={true}
+          showInfo={true}
+        />
+      )}
 
       {/* Modal eliminar */}
       <Modal
