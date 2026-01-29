@@ -30,6 +30,8 @@ import {
 } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { ClienteForm } from '@/features/clientes/ClienteForm'
+import { ModalExportarClientes } from '@/features/clientes/components'
+import { useExportarClientes } from '@/features/clientes/hooks'
 import { formatIBAN, formatDate } from '@/lib/utils'
 import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
@@ -53,6 +55,8 @@ function ClientesList() {
   const [filtroEstado, setFiltroEstado] = useState('')
   const [showImportModal, setShowImportModal] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const actionsMenuRef = useRef(null)
   const toast = useToast()
 
@@ -67,6 +71,7 @@ function ClientesList() {
   })
 
   const { descargarPlantilla, exportarEntidad } = useImportExport()
+  const { exportar } = useExportarClientes()
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
@@ -79,13 +84,29 @@ function ClientesList() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleExportar = async () => {
+  const handleAbrirModalExportar = () => {
     setShowActionsMenu(false)
-    const result = await exportarEntidad('clientes')
-    if (result.success) {
-      toast.success(`Exportados ${result.count} registros: ${result.fileName}`)
-    } else {
-      toast.error(result.error)
+    setShowExportModal(true)
+  }
+
+  const handleExportar = async (config) => {
+    try {
+      setIsExporting(true)
+      
+      const result = await exportar.mutateAsync({
+        clientes: clientes || [],
+        config
+      })
+
+      if (result.success) {
+        toast.success(`Exportados ${result.totalClientes} clientes correctamente`)
+        setShowExportModal(false)
+      }
+    } catch (error) {
+      console.error('Error exportando:', error)
+      toast.error(`Error al exportar: ${error.message}`)
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -244,7 +265,7 @@ function ClientesList() {
                   Importar desde Excel
                 </button>
                 <button
-                  onClick={handleExportar}
+                  onClick={handleAbrirModalExportar}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Download className="w-4 h-4 text-green-500" />
@@ -346,6 +367,15 @@ function ClientesList() {
         onClose={() => setShowImportModal(false)}
         entidad="clientes"
         onSuccess={handleImportSuccess}
+      />
+
+      {/* Modal de exportación */}
+      <ModalExportarClientes
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportar}
+        totalClientes={clientes?.length || 0}
+        isExporting={isExporting}
       />
     </div>
   )
