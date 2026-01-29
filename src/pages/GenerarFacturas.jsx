@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, FileText, AlertTriangle, Check } from 'lucide-re
 import { Button, Card, Modal, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getBadgeVariant } from '@/utils/estadosCliente'
-import { PeriodoSelector, LecturasPendientesTable } from '@/features/facturacion/components'
+import { PeriodoSelector, LecturasPendientesTable, GeneracionProgress } from '@/features/facturacion/components'
 import { formatCurrency } from '@/features/facturacion/utils/calculos'
 import { useComunidades } from '@/hooks/useComunidades'
 import {
@@ -42,6 +42,11 @@ export default function GenerarFacturas() {
     hoy.setDate(hoy.getDate() + 15)
     return hoy.toISOString().split('T')[0]
   })
+
+  // Estados para modal de progreso
+  const [showProgressModal, setShowProgressModal] = useState(false)
+  const [progress, setProgress] = useState({ porcentaje: 0, actual: 0, total: 0, contador: null, cliente: null })
+  const [isGenerationCompleted, setIsGenerationCompleted] = useState(false)
 
   // Queries
   const { data: comunidades } = useComunidades({ activa: true })
@@ -165,10 +170,18 @@ export default function GenerarFacturas() {
   const ejecutarGeneracion = async () => {
     setAdvertenciaModal({ open: false, clientesConAdvertencia: [] })
     setIsGenerating(true)
+    setIsGenerationCompleted(false)
+    
+    // Mostrar modal de progreso
+    setShowProgressModal(true)
+    
     const results = {
       success: [],
       errors: []
     }
+
+    const totalContadores = contadoresSeleccionados.size
+    let contadorActual = 0
 
     try {
       // Obtener datos necesarios
@@ -176,10 +189,21 @@ export default function GenerarFacturas() {
       
       // Procesar cada contador con lecturas seleccionadas
       for (const contadorId of contadoresSeleccionados) {
+        contadorActual++
+        const porcentaje = Math.round((contadorActual / totalContadores) * 100)
         const grupo = lecturasPorContador[contadorId]
         const lecturasContador = grupo.lecturas.filter(l => selectedIds.includes(l.id))
 
         if (lecturasContador.length === 0) continue
+
+        // Actualizar progreso
+        setProgress({
+          porcentaje,
+          actual: contadorActual,
+          total: totalContadores,
+          contador: grupo.contador_numero_serie,
+          cliente: grupo.cliente_nombre
+        })
 
         // Verificar que hay cliente
         if (!grupo.cliente_id) {
@@ -362,25 +386,50 @@ export default function GenerarFacturas() {
       }
 
       setResultados(results)
-      setStep(3)
+      
+      // Marcar generación como completada
+      setIsGenerationCompleted(true)
+      setProgress({
+        porcentaje: 100,
+        actual: totalContadores,
+        total: totalContadores,
+        contador: null,
+        cliente: null
+      })
 
-      if (results.success.length > 0) {
-        toast.success(`${results.success.length} factura(s) generada(s) correctamente`)
-        // Invalidar queries para actualizar las listas
-        queryClient.invalidateQueries({ queryKey: ['lecturas-pendientes-facturar'] })
-        queryClient.invalidateQueries({ queryKey: ['lecturas'] })
-        queryClient.invalidateQueries({ queryKey: ['facturas'] })
-      }
-      if (results.errors.length > 0) {
-        toast.warning(`${results.errors.length} factura(s) con errores`)
-      }
+      // Invalidar queries para actualizar las listas
+      queryClient.invalidateQueries({ queryKey: ['lecturas-pendientes-facturar'] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas'] })
+      queryClient.invalidateQueries({ queryKey: ['facturas'] })
 
     } catch (error) {
       console.error('Error en generación masiva:', error)
       toast.error(`Error: ${error.message}`)
+      setShowProgressModal(false)
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  // Cerrar modal y volver a paso 3 con resultados
+  const handleCloseProgressModal = () => {
+    setShowProgressModal(false)
+    if (isGenerationCompleted && resultados) {
+      setStep(3)
+      
+      if (resultados.success.length > 0) {
+        toast.success(`${resultados.success.length} factura(s) generada(s) correctamente`)
+      }
+      if (resultados.errors.length > 0) {
+        toast.warning(`${resultados.errors.length} factura(s) con errores`)
+      }
+    }
+  }
+
+  // Ir a ver las facturas generadas
+  const handleVerFacturas = () => {
+    setShowProgressModal(false)
+    navigate('/facturacion/facturas')
   }
 
   return (
@@ -703,6 +752,16 @@ export default function GenerarFacturas() {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de progreso de generación */}
+      <GeneracionProgress
+        isOpen={showProgressModal}
+        onClose={handleCloseProgressModal}
+        progress={progress}
+        resultados={resultados}
+        isCompleted={isGenerationCompleted}
+        onVerFacturas={handleVerFacturas}
+      />
     </div>
   )
 }
