@@ -179,10 +179,15 @@ BEGIN
   END IF;
   
   -- Actualizar contador_conceptos
+  -- IMPORTANTE: También actualizamos lectura_actual y fecha_lectura_actual
+  -- porque en un contador sin lecturas posteriores, la lectura inicial
+  -- ES la lectura actual. Esto permite que las importaciones funcionen correctamente.
   UPDATE contadores_conceptos
   SET 
     lectura_inicial = COALESCE(p_nueva_lectura, lectura_inicial),
     fecha_lectura_inicial = COALESCE(p_nueva_fecha, fecha_lectura_inicial),
+    lectura_actual = COALESCE(p_nueva_lectura, lectura_actual),
+    fecha_lectura_actual = COALESCE(p_nueva_fecha, fecha_lectura_actual),
     updated_at = NOW()
   WHERE id = p_contador_concepto_id;
   
