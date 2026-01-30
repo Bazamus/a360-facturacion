@@ -2,6 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { LOGO_A360_BASE64 } from './logoA360'
 import { formatPrecio, formatLectura, formatConsumo, formatImporte } from '@/utils/precision'
+import { ordenarLineasFactura } from '../utils/ordenConceptos'
 
 // Colores corporativos
 const COLORS = {
@@ -212,8 +213,11 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   
   y += 5
 
+  // Ordenar líneas según orden predefinido de conceptos
+  const lineasOrdenadas = ordenarLineasFactura(lineas)
+
   // Preparar datos tabla
-  const tableBody = lineas.map(linea => {
+  const tableBody = lineasOrdenadas.map(linea => {
     // Solo el nombre del concepto, sin repetir el contador
     const concepto = linea.concepto_nombre || '-'
     

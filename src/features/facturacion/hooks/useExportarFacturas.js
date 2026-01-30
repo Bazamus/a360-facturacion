@@ -2,6 +2,34 @@ import { useMutation } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
 import { supabase } from '../../../lib/supabase'
 import { formatPrecio, formatLectura, formatConsumo, formatImporte } from '@/utils/precision'
+import { ordenarLineasFactura } from '../utils/ordenConceptos'
+
+/**
+ * Ordena líneas de múltiples facturas
+ * Agrupa por factura y ordena cada grupo según el orden de conceptos
+ */
+function ordenarLineasPorFactura(lineas) {
+  if (!lineas || !Array.isArray(lineas)) return []
+  
+  // Agrupar por factura_id
+  const grupos = {}
+  lineas.forEach(linea => {
+    const facturaId = linea.factura_id
+    if (!grupos[facturaId]) {
+      grupos[facturaId] = []
+    }
+    grupos[facturaId].push(linea)
+  })
+  
+  // Ordenar cada grupo y aplanar
+  const resultado = []
+  Object.values(grupos).forEach(grupo => {
+    const grupoOrdenado = ordenarLineasFactura(grupo)
+    resultado.push(...grupoOrdenado)
+  })
+  
+  return resultado
+}
 
 /**
  * Hook para exportar facturas a Excel
@@ -44,6 +72,9 @@ export function useExportarFacturas() {
 
       if (error) throw error
 
+      // Ordenar líneas según orden predefinido de conceptos (por factura)
+      const lineasOrdenadas = ordenarLineasPorFactura(lineas)
+
       reportProgress(40, 100, 'Generando Excel...')
 
       let wb, resultado
@@ -54,11 +85,11 @@ export function useExportarFacturas() {
           wb = resultado.workbook
           break
         case 'completo':
-          resultado = await generarCompleto(facturas, lineas, { columnasAdicionales, formatoNumeros, formatoAvanzado })
+          resultado = await generarCompleto(facturas, lineasOrdenadas, { columnasAdicionales, formatoNumeros, formatoAvanzado })
           wb = resultado.workbook
           break
         case 'detallado':
-          resultado = await generarDetallado(facturas, lineas, { formatoNumeros, formatoAvanzado })
+          resultado = await generarDetallado(facturas, lineasOrdenadas, { formatoNumeros, formatoAvanzado })
           wb = resultado.workbook
           break
         default:
@@ -81,7 +112,7 @@ export function useExportarFacturas() {
       return {
         success: true,
         totalFacturas: facturas.length,
-        totalLineas: lineas?.length || 0,
+        totalLineas: lineasOrdenadas?.length || 0,
         formato
       }
     }

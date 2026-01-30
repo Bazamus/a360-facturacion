@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -29,6 +29,7 @@ import {
   formatIBAN,
   getMetodoPagoLabel
 } from '@/features/facturacion/utils/calculos'
+import { ordenarLineasFactura } from '@/features/facturacion/utils/ordenConceptos'
 import {
   useFactura,
   useFacturaLineas,
@@ -55,6 +56,9 @@ export default function FacturaDetalle({ showPdf = false }) {
   const { data: factura, isLoading, refetch } = useFactura(id)
   const { data: lineas } = useFacturaLineas(id)
   const { data: historico } = useFacturaHistoricoConsumo(id)
+
+  // Ordenar líneas según orden predefinido de conceptos
+  const lineasOrdenadas = useMemo(() => ordenarLineasFactura(lineas), [lineas])
 
   const emitirFactura = useEmitirFactura()
   const anularFactura = useAnularFactura()
@@ -401,7 +405,7 @@ export default function FacturaDetalle({ showPdf = false }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {lineas?.map(linea => (
+              {lineasOrdenadas?.map(linea => (
                 <tr key={linea.id}>
                   <td className="px-6 py-4">
                     <div className="font-medium">{linea.concepto_nombre}</div>
