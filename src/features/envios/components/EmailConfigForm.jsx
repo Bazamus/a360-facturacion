@@ -16,7 +16,7 @@ export function EmailConfigForm() {
     asunto_template: '',
     envio_automatico: false,
     hora_envio_preferida: '09:00',
-    max_envios_por_hora: 100,
+    max_envios_por_hora: 10000,
     reintentos_activos: true,
     intervalo_reintento_minutos: 60,
     max_reintentos: 3,
@@ -33,7 +33,7 @@ export function EmailConfigForm() {
         asunto_template: config.asunto_template || '',
         envio_automatico: config.envio_automatico || false,
         hora_envio_preferida: config.hora_envio_preferida || '09:00',
-        max_envios_por_hora: config.max_envios_por_hora || 100,
+        max_envios_por_hora: config.max_envios_por_hora || 10000,
         reintentos_activos: config.reintentos_activos ?? true,
         intervalo_reintento_minutos: config.intervalo_reintento_minutos || 60,
         max_reintentos: config.max_reintentos || 3,
@@ -172,10 +172,13 @@ export function EmailConfigForm() {
               <Input
                 type="number"
                 min={1}
-                max={1000}
+                max={50000}
                 value={formData.max_envios_por_hora}
                 onChange={(e) => handleChange('max_envios_por_hora', parseInt(e.target.value))}
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Plan Pro Resend: hasta 50,000 emails/mes (valor por defecto: 10,000/hora)
+              </p>
             </div>
           </div>
         </div>

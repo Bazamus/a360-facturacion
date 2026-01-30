@@ -793,7 +793,7 @@ function ConfigEmailForm() {
     asunto_template: 'Factura {numero_factura} - {periodo}',
     envio_automatico: false,
     hora_envio_preferida: '09:00',
-    max_envios_por_hora: 100,
+    max_envios_por_hora: 10000,
     reintentos_activos: true,
     intervalo_reintento_minutos: 60,
     max_reintentos: 3,
@@ -910,11 +910,14 @@ function ConfigEmailForm() {
                   onChange={(e) => handleChange('hora_envio_preferida', e.target.value)}
                 />
               </FormField>
-              <FormField label="Máximo envíos por hora">
+              <FormField 
+                label="Máximo envíos por hora"
+                description="Plan Pro Resend: hasta 50,000 emails/mes (valor por defecto: 10,000/hora)"
+              >
                 <Input
                   type="number"
                   min={1}
-                  max={1000}
+                  max={50000}
                   value={formData.max_envios_por_hora}
                   onChange={(e) => handleChange('max_envios_por_hora', parseInt(e.target.value))}
                 />

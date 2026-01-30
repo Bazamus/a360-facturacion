@@ -35,7 +35,9 @@ export async function enviarFacturasMasivo(facturaIds, options = {}) {
     .select('max_envios_por_hora')
     .single()
 
-  const maxPorHora = config?.max_envios_por_hora || 100
+  // Plan Pro de Resend: 50,000 emails/mes sin límite diario estricto
+  // Establecemos un límite razonable por defecto de 10,000 por hora
+  const maxPorHora = config?.max_envios_por_hora || 10000
 
   if (facturaIds.length > maxPorHora) {
     throw new Error(
