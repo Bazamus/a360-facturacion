@@ -54,25 +54,39 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
     // 2. Obtener email actual del cliente (no el snapshot de la factura)
     const emailActualCliente = factura.cliente?.email || factura.cliente_email
 
-    // 3. Si modo test, reemplazar email con dirección de prueba de Resend
-    let emailDestino = emailActualCliente
-    if (modoTest) {
-      // Usar el ID de factura para generar email de prueba único
-      emailDestino = `delivered+factura${facturaId.slice(0, 8)}@resend.dev`
-      console.log(`🧪 MODO TEST activado: Email original ${emailActualCliente} → ${emailDestino}`)
-    }
-
-    // 4. Validar que tiene email
+    // 3. Validar que tiene email
     if (!emailActualCliente) {
       throw new Error('El cliente no tiene email configurado')
     }
 
-    // 4. Validar que la factura está emitida (no es borrador)
+    // 4. Procesar múltiples emails (soporta email1@test.com;email2@test.com)
+    const emailsCliente = parseMultipleEmails(emailActualCliente)
+    
+    if (emailsCliente.length === 0) {
+      throw new Error('El email del cliente no es válido')
+    }
+
+    console.log(`📧 Email(s) del cliente: ${emailsCliente.join(', ')}`)
+
+    // 5. Si modo test, reemplazar emails con direcciones de prueba de Resend
+    let emailsDestino = emailsCliente
+    if (modoTest) {
+      // Generar emails de prueba únicos para cada destinatario
+      emailsDestino = emailsCliente.map((_, index) => 
+        `delivered+factura${facturaId.slice(0, 8)}_${index}@resend.dev`
+      )
+      console.log(`🧪 MODO TEST activado:`)
+      emailsCliente.forEach((original, index) => {
+        console.log(`   ${original} → ${emailsDestino[index]}`)
+      })
+    }
+
+    // 6. Validar que la factura está emitida (no es borrador)
     if (factura.estado === 'borrador') {
       throw new Error('No se pueden enviar facturas en borrador')
     }
 
-    // 5. Obtener configuración de email
+    // 7. Obtener configuración de email
     const { data: config } = await supabase
       .from('configuracion_email')
       .select('*')
@@ -82,33 +96,34 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
       throw new Error('No se encontró configuración de email')
     }
 
-    // 6. Preparar datos para la plantilla
+    // 8. Preparar datos para la plantilla
     const datosEmail = prepararDatosEmail(factura)
 
-    // 7. Preparar asunto del email
+    // 9. Preparar asunto del email
     const asunto = config.asunto_template
       .replace('{numero_factura}', factura.numero_completo)
       .replace('{periodo}', datosEmail.periodo_texto)
       .replace('{cliente}', factura.cliente_nombre)
 
-    // 8. Crear registro de envío en BD (estado: enviando)
+    // 10. Crear registro de envío en BD (estado: enviando)
+    // Guardar todos los emails destino separados por coma
     const { data: envio, error: envioError } = await supabase
       .from('envios_email')
       .insert({
         factura_id: facturaId,
         cliente_id: factura.cliente_id,
-        email_destino: emailDestino, // Usa emailDestino (puede ser test o real)
+        email_destino: emailsDestino.join(', '), // Guardar todos los emails
         email_cc: emailCc || null,
         asunto: asunto,
         estado: 'enviando',
-        es_test: modoTest // ✅ NUEVO: Flag de modo test
+        es_test: modoTest
       })
       .select()
       .single()
 
     if (envioError) throw envioError
 
-    // 9. Generar PDF como Blob
+    // 11. Generar PDF como Blob
     const { data: historico } = await supabase
       .from('v_historico_consumo_factura')
       .select('*')
@@ -121,10 +136,10 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
       historico || []
     )
 
-    // 10. Convertir Blob a base64 para Resend
+    // 12. Convertir Blob a base64 para Resend
     const pdfBase64 = await blobToBase64(pdfBlob)
 
-    // 11. Renderizar plantilla HTML (llamando al componente como función)
+    // 13. Renderizar plantilla HTML (llamando al componente como función)
     const htmlContent = await render(
       FacturaEmailTemplate({
         factura: datosEmail,
@@ -132,13 +147,23 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
       })
     )
 
-    // 12. Enviar via Resend
-    const destinatarios = [emailDestino] // Usa emailDestino (test o real)
-    if (emailCc) destinatarios.push(emailCc)
-    if (config.enviar_copia_admin && config.email_copia_admin && !modoTest) {
-      // No enviar copia admin en modo test
-      destinatarios.push(config.email_copia_admin)
+    // 14. Preparar array de destinatarios para Resend
+    // Resend requiere un array de emails individuales: ['email1@test.com', 'email2@test.com']
+    const destinatarios = [...emailsDestino] // Spread de todos los emails del cliente
+    
+    // Añadir email CC si existe (soporta múltiples emails)
+    if (emailCc) {
+      const emailsCc = parseMultipleEmails(emailCc)
+      destinatarios.push(...emailsCc)
     }
+    
+    // Añadir copia admin si está configurado (solo en modo producción)
+    if (config.enviar_copia_admin && config.email_copia_admin && !modoTest) {
+      const emailsAdmin = parseMultipleEmails(config.email_copia_admin)
+      destinatarios.push(...emailsAdmin)
+    }
+
+    console.log(`📨 Destinatarios totales: ${destinatarios.length}`, destinatarios)
 
     const emailData = {
       from: `${config.from_name || EMPRESA_CONFIG.from_name} <${config.from_email || EMPRESA_CONFIG.from_email}>`,
@@ -171,7 +196,7 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
 
     console.log('✅ Email enviado exitosamente', resendResponse)
 
-    // 13. Actualizar registro de envío (estado: enviado)
+    // 15. Actualizar registro de envío (estado: enviado)
     await supabase
       .from('envios_email')
       .update({
@@ -183,7 +208,7 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
       })
       .eq('id', envio.id)
 
-    // 14. Marcar factura como enviada
+    // 16. Marcar factura como enviada
     await supabase
       .from('facturas')
       .update({
@@ -196,7 +221,8 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
       success: true,
       envioId: envio.id,
       resendId: resendResponse.id,
-      email: emailActualCliente
+      email: emailActualCliente,
+      destinatarios: emailsDestino.length
     }
 
   } catch (error) {
@@ -235,6 +261,29 @@ function prepararDatosEmail(factura) {
     iban_ultimos4: factura.cliente_iban?.slice(-4) || '0000',
     pdf_url: null, // OneDrive URL en Fase 2
   }
+}
+
+/**
+ * Procesa un string de emails que pueden estar separados por ; o ,
+ * Retorna un array de emails individuales válidos
+ * @param {string} emailString - String con uno o más emails (ej: "email1@test.com;email2@test.com")
+ * @returns {string[]} Array de emails individuales
+ */
+function parseMultipleEmails(emailString) {
+  if (!emailString) return []
+  
+  // Dividir por ; o , y limpiar espacios
+  const emails = emailString
+    .split(/[;,]/)
+    .map(email => email.trim())
+    .filter(email => email.length > 0)
+    .filter(email => {
+      // Validación básica de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(email)
+    })
+  
+  return emails
 }
 
 /**
