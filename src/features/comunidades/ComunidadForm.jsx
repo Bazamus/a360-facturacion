@@ -124,6 +124,7 @@ export function ComunidadForm({ comunidad, onSubmit, loading }) {
               <option value="Portal">Portal</option>
               <option value="Bloque">Bloque</option>
               <option value="Escalera">Escalera</option>
+              <option value="Torre">Torre</option>
             </Select>
           </FormField>
 

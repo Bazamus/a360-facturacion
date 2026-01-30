@@ -28,7 +28,7 @@ export const comunidadSchema = z.object({
   provincia: z.string()
     .min(2, 'Mínimo 2 caracteres')
     .max(100, 'Máximo 100 caracteres'),
-  nombre_agrupacion: z.enum(['Portal', 'Bloque', 'Escalera']),
+  nombre_agrupacion: z.enum(['Portal', 'Bloque', 'Escalera', 'Torre']),
   nombre_ubicacion: z.enum(['Vivienda', 'Piso', 'Local']),
   email: z.string()
     .email('Email inválido')

@@ -220,7 +220,7 @@ function generarHojaInstrucciones(entidad, config, conceptos = []) {
     [''],
     ['CAMPOS DE UBICACIÓN (para Clientes y Contadores):'],
     ['  - Código Comunidad: Código único de la comunidad (ej: TROYA40)'],
-    ['  - Portal: Nombre del portal/bloque (ej: 1, 2, A, B)'],
+    ['  - Portal: Nombre del portal/bloque/escalera/torre (ej: 1, 2, A, B, Torre A)'],
     ['  - Vivienda: Nombre de la vivienda (ej: 1ºA, 2ºB, Bajo C)'],
     ['']
   ]
