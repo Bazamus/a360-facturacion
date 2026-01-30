@@ -42,6 +42,13 @@ export {
   useDesasignarConcepto
 } from './useContadores'
 
+// Contador Conceptos (edición y historial)
+export {
+  useValidarEdicionLecturaInicial,
+  useEditarLecturaInicial,
+  useHistorialContadorConcepto
+} from './useContadorConceptos'
+
 // Conceptos
 export {
   useConceptos,

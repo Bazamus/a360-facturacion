@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Edit2 } from 'lucide-react'
 import { useConceptos, useAsignarConcepto, useDesasignarConcepto } from '@/hooks'
 import { Button, Modal, Input, Select, FormField, Badge, EmptyState } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { formatNumber, formatDate } from '@/lib/utils'
+import { EditarLecturaInicialModal } from './EditarLecturaInicialModal'
 
 export function ConceptosContadorTab({ contador }) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [contadorConceptoEditar, setContadorConceptoEditar] = useState(null)
   const { data: conceptosDisponibles } = useConceptos()
   const asignarMutation = useAsignarConcepto()
   const desasignarMutation = useDesasignarConcepto()
@@ -49,6 +52,16 @@ export function ConceptosContadorTab({ contador }) {
     } catch (error) {
       toast.error(error.message)
     }
+  }
+
+  const handleEditar = (contadorConcepto) => {
+    setContadorConceptoEditar(contadorConcepto)
+    setEditModalOpen(true)
+  }
+
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false)
+    setContadorConceptoEditar(null)
   }
 
   return (
@@ -118,13 +131,23 @@ export function ConceptosContadorTab({ contador }) {
                 </div>
               </div>
 
-              <button
-                onClick={() => handleDesasignar(cc.concepto?.id)}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                disabled={desasignarMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => handleEditar(cc)}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                  title="Editar lectura inicial"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => handleDesasignar(cc.concepto?.id)}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                  disabled={desasignarMutation.isPending}
+                  title="Desasignar concepto"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -186,6 +209,13 @@ export function ConceptosContadorTab({ contador }) {
           </div>
         </form>
       </Modal>
+
+      {/* Modal para editar lectura inicial */}
+      <EditarLecturaInicialModal
+        open={editModalOpen}
+        onClose={handleCloseEditModal}
+        contadorConcepto={contadorConceptoEditar}
+      />
     </div>
   )
 }
