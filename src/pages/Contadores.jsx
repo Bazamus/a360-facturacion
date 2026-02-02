@@ -614,6 +614,18 @@ function ContadorEditar() {
   const updateMutation = useUpdateContador()
   const toast = useToast()
 
+  // Debug: Ver qué datos recibe el componente
+  useEffect(() => {
+    if (contador) {
+      console.log('=== CONTADOR EDITAR - DATOS RECIBIDOS ===')
+      console.log('Contador completo:', contador)
+      console.log('ubicacion_id:', contador.ubicacion_id)
+      console.log('ubicacion objeto:', contador.ubicacion)
+      console.log('ubicacion.agrupacion:', contador.ubicacion?.agrupacion)
+      console.log('ubicacion.agrupacion.comunidad:', contador.ubicacion?.agrupacion?.comunidad)
+    }
+  }, [contador])
+
   const handleSubmit = async (data) => {
     try {
       console.log('=== ACTUALIZANDO CONTADOR ===')
