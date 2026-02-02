@@ -24,7 +24,8 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  TabsContent
+  TabsContent,
+  Modal
 } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { ContadorForm } from '@/features/contadores/ContadorForm'
