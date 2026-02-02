@@ -17,6 +17,7 @@ export function ContadorForm({ contador, onSubmit, loading }) {
     register,
     handleSubmit,
     setValue,
+    reset,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(contadorSchema),
@@ -31,15 +32,38 @@ export function ContadorForm({ contador, onSubmit, loading }) {
     }
   })
 
-  // Si estamos editando, cargar la jerarquía inicial
+  // Actualizar formulario cuando cambien los datos del contador
   useEffect(() => {
-    if (contador?.ubicacion) {
-      const com = contador.ubicacion.agrupacion?.comunidad
-      const agr = contador.ubicacion.agrupacion
-      if (com) setComunidadId(com.id)
-      if (agr) setAgrupacionId(agr.id)
+    if (contador) {
+      console.log('=== ACTUALIZANDO FORMULARIO CON DATOS ===')
+      console.log('Contador:', contador)
+      console.log('ubicacion_id:', contador.ubicacion_id)
+      
+      reset({
+        numero_serie: contador.numero_serie || '',
+        ubicacion_id: contador.ubicacion_id || '',
+        marca: contador.marca || '',
+        modelo: contador.modelo || '',
+        fecha_instalacion: contador.fecha_instalacion || '',
+        fecha_ultima_verificacion: contador.fecha_ultima_verificacion || '',
+        observaciones: contador.observaciones || ''
+      })
+      
+      // Cargar la jerarquía de ubicación
+      if (contador.ubicacion) {
+        const com = contador.ubicacion.agrupacion?.comunidad
+        const agr = contador.ubicacion.agrupacion
+        
+        console.log('Cargando jerarquía:')
+        console.log('  Comunidad:', com?.nombre, com?.id)
+        console.log('  Agrupación:', agr?.nombre, agr?.id)
+        console.log('  Ubicación:', contador.ubicacion.nombre, contador.ubicacion_id)
+        
+        if (com) setComunidadId(com.id)
+        if (agr) setAgrupacionId(agr.id)
+      }
     }
-  }, [contador])
+  }, [contador, reset])
 
   const handleComunidadChange = (e) => {
     setComunidadId(e.target.value)
