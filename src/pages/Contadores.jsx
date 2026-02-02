@@ -188,45 +188,34 @@ function ContadoresList() {
       key: 'acciones',
       header: '',
       sortable: false,
-      render: (_, row) => {
-        // Verificar si el contador es eliminable (sin lecturas ni conceptos con datos)
-        const esEliminable = row.conceptos?.length === 0 || 
-          (row.conceptos?.every(c => 
-            (!c.lectura_inicial || c.lectura_inicial === 0) && 
-            (!c.lectura_actual || c.lectura_actual === 0)
-          ))
-        
-        return (
-          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-            <Link
-              to={`/contadores/${row.id}`}
-              className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
-              title="Ver detalles"
-            >
-              <Eye className="h-4 w-4" />
-            </Link>
-            <Link
-              to={`/contadores/${row.id}/editar`}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-              title="Editar"
-            >
-              <Edit2 className="h-4 w-4" />
-            </Link>
-            {esEliminable && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleClickEliminar(row)
-                }}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                title="Eliminar permanentemente (solo contadores sin uso)"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        )
-      }
+      render: (_, row) => (
+        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          <Link
+            to={`/contadores/${row.id}`}
+            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+            title="Ver detalles"
+          >
+            <Eye className="h-4 w-4" />
+          </Link>
+          <Link
+            to={`/contadores/${row.id}/editar`}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            title="Editar"
+          >
+            <Edit2 className="h-4 w-4" />
+          </Link>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleClickEliminar(row)
+            }}
+            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+            title="Eliminar permanentemente (solo contadores sin lecturas ni facturas)"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      )
     }
   ]
 
