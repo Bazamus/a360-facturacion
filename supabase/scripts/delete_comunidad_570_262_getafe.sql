@@ -32,7 +32,6 @@ WHERE nombre ILIKE '%570 262 VIV GETAFE II%'
 SELECT 
   a.id AS agrupacion_id,
   a.nombre AS agrupacion,
-  a.tipo,
   COUNT(DISTINCT u.id) AS num_ubicaciones,
   COUNT(DISTINCT cont.id) AS num_contadores
 FROM agrupaciones a
@@ -41,7 +40,7 @@ LEFT JOIN contadores cont ON cont.ubicacion_id = u.id
 WHERE a.comunidad_id = (
   SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
 )
-GROUP BY a.id, a.nombre, a.tipo;
+GROUP BY a.id, a.nombre;
 
 -- Vista previa: Clientes que se borrarán
 SELECT 
@@ -63,7 +62,6 @@ WHERE a.comunidad_id = (
 SELECT 
   cont.id AS contador_id,
   cont.numero_serie,
-  cont.tipo,
   u.nombre AS ubicacion,
   a.nombre AS agrupacion,
   COUNT(l.id) AS num_lecturas
@@ -74,7 +72,7 @@ LEFT JOIN lecturas l ON l.contador_id = cont.id
 WHERE a.comunidad_id = (
   SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
 )
-GROUP BY cont.id, cont.numero_serie, cont.tipo, u.nombre, a.nombre;
+GROUP BY cont.id, cont.numero_serie, u.nombre, a.nombre;
 
 -- Vista previa: Facturas en borrador que se borrarán
 SELECT 
