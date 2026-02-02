@@ -73,9 +73,10 @@ export function useEnviosEnProceso() {
 }
 
 /**
- * Hook para cancelar un envío específico
+ * Hook para cancelar un envío atascado específico
+ * Solo funciona con envíos en estado "enviando"
  */
-export function useCancelarEnvio() {
+export function useCancelarEnvioAtascado() {
   const queryClient = useQueryClient()
   
   return useMutation({

@@ -165,7 +165,7 @@ export {
   useDetectarEnviosAtascados,
   useLimpiarEnviosAtascados,
   useEnviosEnProceso,
-  useCancelarEnvio
+  useCancelarEnvioAtascado
 } from './useEnviosAtascados'
 
 // Reportes y Dashboard
