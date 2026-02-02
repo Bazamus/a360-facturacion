@@ -49,20 +49,20 @@ export default function GenerarReporte() {
   const [periodo1Selector, setPeriodo1Selector] = useState('mes_anterior')
   const [periodo2Selector, setPeriodo2Selector] = useState('mes_actual')
 
-  // Queries
+  // Queries - siempre habilitados para evitar problemas con enabled switching
   const consumosQuery = useReporteConsumos({
     ...filtros,
-    enabled: vistaPrevia && tipo === 'consumos'
+    enabled: tipo === 'consumos'
   })
   
   const facturacionQuery = useReporteFacturacion({
     ...filtros,
-    enabled: vistaPrevia && tipo === 'facturacion'
+    enabled: tipo === 'facturacion'
   })
   
   const morosidadQuery = useReporteMorosidad({
     comunidadId: filtros.comunidadId,
-    enabled: vistaPrevia && tipo === 'morosidad'
+    enabled: tipo === 'morosidad'
   })
 
   const exportarExcel = useExportarExcel()
@@ -179,11 +179,11 @@ export default function GenerarReporte() {
   const cashFlowQuery = useReporteCashFlow({
     comunidadId: filtros.comunidadId,
     meses: 12,
-    enabled: vistaPrevia && tipo === 'cashflow'
+    enabled: tipo === 'cashflow'
   })
   const proyeccionQuery = useProyeccionCobros({
     diasHorizonte: 90,
-    enabled: vistaPrevia && tipo === 'cashflow'
+    enabled: tipo === 'cashflow'
   })
 
   const opcionesTipo = [
@@ -213,24 +213,50 @@ export default function GenerarReporte() {
       tipo: 'generar'
     })
 
-    // Habilitar vista previa inmediatamente para que el query se active
-    setVistaPrevia(true)
+    // Refetch del query correspondiente según el tipo
+    let refetchPromise
+    switch (tipo) {
+      case 'consumos':
+        refetchPromise = consumosQuery.refetch()
+        break
+      case 'facturacion':
+        refetchPromise = facturacionQuery.refetch()
+        break
+      case 'morosidad':
+        refetchPromise = morosidadQuery.refetch()
+        break
+      case 'cashflow':
+        refetchPromise = Promise.all([cashFlowQuery.refetch(), proyeccionQuery.refetch()])
+        break
+      case 'comparativo':
+        refetchPromise = comparativoQuery.refetch()
+        break
+      default:
+        refetchPromise = Promise.resolve()
+    }
 
-    // Simular progreso visual
-    setTimeout(() => {
+    // Esperar a que se complete la consulta
+    try {
+      await refetchPromise
+      
       setProgressModal(prev => ({ ...prev, progress: 60, mensaje: 'Procesando información...' }))
-    }, 500)
-
-    setTimeout(() => {
-      setProgressModal(prev => ({ ...prev, progress: 90, mensaje: 'Preparando visualización...' }))
-    }, 1000)
-
-    setTimeout(() => {
-      setProgressModal(prev => ({ ...prev, progress: 100, isCompleted: true }))
+      
       setTimeout(() => {
-        setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'generar' })
-      }, 1500)
-    }, 1500)
+        setProgressModal(prev => ({ ...prev, progress: 90, mensaje: 'Preparando visualización...' }))
+      }, 300)
+
+      setTimeout(() => {
+        setVistaPrevia(true)
+        setProgressModal(prev => ({ ...prev, progress: 100, isCompleted: true }))
+        setTimeout(() => {
+          setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'generar' })
+        }, 1000)
+      }, 600)
+    } catch (error) {
+      console.error('Error al generar reporte:', error)
+      setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'generar' })
+      showToast('Error al generar el reporte', 'error')
+    }
   }
 
   const handleExportExcel = async () => {
