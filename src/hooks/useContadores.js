@@ -205,6 +205,50 @@ export function useDeleteContador() {
   })
 }
 
+// Verificar si un contador es eliminable
+export function useVerificarContadorEliminable(contadorId) {
+  return useQuery({
+    queryKey: ['contador-eliminable', contadorId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('verificar_contador_eliminable', { p_contador_id: contadorId })
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    enabled: !!contadorId
+  })
+}
+
+// Eliminar contador permanentemente (solo si es seguro)
+export function useEliminarContadorPermanente() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (contadorId) => {
+      const { data, error } = await supabase
+        .rpc('eliminar_contador_seguro', { 
+          p_contador_id: contadorId
+        })
+        .single()
+
+      if (error) throw error
+      
+      if (!data.success) {
+        throw new Error(data.message)
+      }
+      
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contadores'] })
+      queryClient.invalidateQueries({ queryKey: ['contador-eliminable'] })
+      queryClient.invalidateQueries({ queryKey: ['comunidades'] })
+    }
+  })
+}
+
 // =====================================================
 // Hooks para Conceptos de Contador
 // =====================================================

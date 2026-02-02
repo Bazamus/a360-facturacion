@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
-import { Gauge, Plus, Eye, Edit2, MoreVertical, Upload, Download, FileSpreadsheet } from 'lucide-react'
+import { Gauge, Plus, Eye, Edit2, MoreVertical, Upload, Download, FileSpreadsheet, Trash2, AlertTriangle } from 'lucide-react'
 import { 
   useContadores, 
   useContador, 
   useCreateContador, 
   useUpdateContador,
+  useVerificarContadorEliminable,
+  useEliminarContadorPermanente,
   useComunidades
 } from '@/hooks'
 import { 
@@ -49,8 +51,12 @@ function ContadoresList() {
   const [soloActivos, setSoloActivos] = useState(true)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const [contadorAEliminar, setContadorAEliminar] = useState(null)
+  const [showEliminarModal, setShowEliminarModal] = useState(false)
   const actionsMenuRef = useRef(null)
   const toast = useToast()
+  
+  const eliminarContador = useEliminarContadorPermanente()
 
   const { data: comunidades } = useComunidades({ activa: true })
   const { data: contadores, isLoading, error, refetch } = useContadores({ 
@@ -162,22 +168,45 @@ function ContadoresList() {
       key: 'acciones',
       header: '',
       sortable: false,
-      render: (_, row) => (
-        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-          <Link
-            to={`/contadores/${row.id}`}
-            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
-          <Link
-            to={`/contadores/${row.id}/editar`}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-          >
-            <Edit2 className="h-4 w-4" />
-          </Link>
-        </div>
-      )
+      render: (_, row) => {
+        // Verificar si el contador es eliminable (sin lecturas ni conceptos con datos)
+        const esEliminable = row.conceptos?.length === 0 || 
+          (row.conceptos?.every(c => 
+            (!c.lectura_inicial || c.lectura_inicial === 0) && 
+            (!c.lectura_actual || c.lectura_actual === 0)
+          ))
+        
+        return (
+          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <Link
+              to={`/contadores/${row.id}`}
+              className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+              title="Ver detalles"
+            >
+              <Eye className="h-4 w-4" />
+            </Link>
+            <Link
+              to={`/contadores/${row.id}/editar`}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+              title="Editar"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Link>
+            {esEliminable && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleClickEliminar(row)
+                }}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                title="Eliminar permanentemente (solo contadores sin uso)"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )
+      }
     }
   ]
 
@@ -315,6 +344,77 @@ function ContadoresList() {
         entidad="contadores"
         onSuccess={handleImportSuccess}
       />
+      
+      {/* Modal de confirmación de eliminación */}
+      <Modal
+        open={showEliminarModal}
+        onClose={() => {
+          setShowEliminarModal(false)
+          setContadorAEliminar(null)
+        }}
+        title="⚠️ Eliminar Contador Permanentemente"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-red-900 mb-2">ADVERTENCIA: Esta acción es IRREVERSIBLE</h3>
+                <ul className="text-sm text-red-800 space-y-1">
+                  <li>• El contador se eliminará completamente de la base de datos</li>
+                  <li>• Se borrarán las relaciones con conceptos</li>
+                  <li>• Esta operación NO se puede deshacer</li>
+                  <li>• Solo se pueden eliminar contadores sin lecturas ni facturas</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          {contadorAEliminar && (
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <p><strong>Número de Serie:</strong> <span className="font-mono">{contadorAEliminar.numero_serie}</span></p>
+              <p><strong>Ubicación:</strong> {contadorAEliminar.ubicacion_nombre}</p>
+              <p><strong>Comunidad:</strong> {contadorAEliminar.comunidad_nombre}</p>
+              {contadorAEliminar.marca && (
+                <p><strong>Marca/Modelo:</strong> {contadorAEliminar.marca} {contadorAEliminar.modelo}</p>
+              )}
+              {contadorAEliminar.conceptos?.length > 0 && (
+                <div>
+                  <strong>Conceptos asociados:</strong>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {contadorAEliminar.conceptos.map(c => (
+                      <Badge key={c.id} variant="default">{c.codigo}</Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-amber-600 mt-2">
+                    ⚠️ Las relaciones con estos conceptos serán eliminadas
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-3 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowEliminarModal(false)
+                setContadorAEliminar(null)
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmarEliminar}
+              disabled={eliminarContador.isPending}
+            >
+              {eliminarContador.isPending ? 'Eliminando...' : 'Confirmar Eliminación'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

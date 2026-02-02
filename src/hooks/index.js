@@ -38,6 +38,8 @@ export {
   useCreateContador,
   useUpdateContador,
   useDeleteContador,
+  useVerificarContadorEliminable,
+  useEliminarContadorPermanente,
   useAsignarConcepto,
   useDesasignarConcepto
 } from './useContadores'
