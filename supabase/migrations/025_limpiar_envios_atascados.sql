@@ -49,8 +49,18 @@ DECLARE
   v_count INTEGER := 0;
   v_envio_record RECORD;
   v_envios_limpiados UUID[] := '{}';
+  v_config RECORD;
 BEGIN
   RAISE NOTICE 'Iniciando limpieza de envíos atascados (timeout: % minutos)...', p_timeout_minutos;
+  
+  -- Obtener configuración de reintentos
+  SELECT 
+    reintentos_activos,
+    intervalo_reintento_minutos,
+    max_reintentos
+  INTO v_config
+  FROM configuracion_email
+  LIMIT 1;
   
   -- Buscar y actualizar envíos atascados
   FOR v_envio_record IN
@@ -67,8 +77,8 @@ BEGIN
       ),
       updated_at = NOW(),
       proximo_reintento = CASE 
-        WHEN reintentos_activos = true AND intentos < max_reintentos 
-        THEN NOW() + (intervalo_reintento_minutos || ' minutes')::INTERVAL
+        WHEN v_config.reintentos_activos = true AND intentos < max_intentos 
+        THEN NOW() + (v_config.intervalo_reintento_minutos || ' minutes')::INTERVAL
         ELSE NULL
       END
     WHERE id = v_envio_record.id;
@@ -125,6 +135,7 @@ CREATE OR REPLACE FUNCTION check_envio_timeout()
 RETURNS TRIGGER AS $$
 DECLARE
   v_minutos_en_enviando INTEGER;
+  v_config RECORD;
 BEGIN
   -- Solo verificar si el estado es "enviando"
   IF NEW.estado = 'enviando' THEN
@@ -133,6 +144,14 @@ BEGIN
     
     -- Si lleva más de 60 minutos, marcar como timeout automáticamente
     IF v_minutos_en_enviando > 60 THEN
+      -- Obtener configuración de reintentos
+      SELECT 
+        reintentos_activos,
+        intervalo_reintento_minutos
+      INTO v_config
+      FROM configuracion_email
+      LIMIT 1;
+      
       NEW.estado := 'fallido';
       NEW.error_codigo := 'AUTO_TIMEOUT';
       NEW.error_mensaje := format(
@@ -140,6 +159,11 @@ BEGIN
         v_minutos_en_enviando
       );
       NEW.updated_at := NOW();
+      
+      -- Configurar próximo reintento si está habilitado
+      IF v_config.reintentos_activos = true AND NEW.intentos < NEW.max_intentos THEN
+        NEW.proximo_reintento := NOW() + (v_config.intervalo_reintento_minutos || ' minutes')::INTERVAL;
+      END IF;
       
       RAISE WARNING 'Timeout automático aplicado a envío %: % minutos en "enviando"',
         NEW.id, v_minutos_en_enviando;
