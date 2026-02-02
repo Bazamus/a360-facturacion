@@ -168,6 +168,18 @@ export {
   useCancelarEnvioAtascado
 } from './useEnviosAtascados'
 
+// Configuraciones de Reportes
+export {
+  useConfiguracionesUsuario,
+  useConfiguracionesPorTipo,
+  useConfiguracionReporte,
+  useGuardarConfiguracion,
+  useActualizarConfiguracion,
+  useEliminarConfiguracion,
+  useToggleFavorito,
+  useDuplicarConfiguracion
+} from './useReportesConfig'
+
 // Reportes y Dashboard
 export {
   useDashboardMetricas,

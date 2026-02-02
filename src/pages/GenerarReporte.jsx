@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, BarChart3, Download } from 'lucide-react'
 import { Button, Select, Card } from '../components/ui'
-import { ReporteFiltros, ExportButtons } from '../features/reportes/components'
+import { ReporteFiltros, ExportButtons, ConfiguracionReporte, ReporteProgress } from '../features/reportes/components'
 import { ReporteComparativo } from '../features/reportes/templates/ReporteComparativo'
 import { ReporteCashFlow } from '../features/reportes/templates/ReporteCashFlow'
 import { ReporteEnvios } from '../features/reportes/templates/ReporteEnvios'
@@ -37,6 +37,13 @@ export default function GenerarReporte() {
     estado: ''
   })
   const [vistaPrevia, setVistaPrevia] = useState(false)
+  const [progressModal, setProgressModal] = useState({
+    isOpen: false,
+    progress: 0,
+    mensaje: '',
+    isCompleted: false,
+    tipo: 'generar'
+  })
   
   // Para reporte comparativo
   const [periodo1Selector, setPeriodo1Selector] = useState('mes_anterior')
@@ -192,7 +199,30 @@ export default function GenerarReporte() {
   ]
 
   const handleGenerarVistaPrevia = () => {
-    setVistaPrevia(true)
+    setProgressModal({
+      isOpen: true,
+      progress: 30,
+      mensaje: 'Consultando datos...',
+      isCompleted: false,
+      tipo: 'generar'
+    })
+
+    // Simular progreso
+    setTimeout(() => {
+      setProgressModal(prev => ({ ...prev, progress: 60, mensaje: 'Procesando información...' }))
+    }, 500)
+
+    setTimeout(() => {
+      setProgressModal(prev => ({ ...prev, progress: 90, mensaje: 'Preparando visualización...' }))
+    }, 1000)
+
+    setTimeout(() => {
+      setVistaPrevia(true)
+      setProgressModal(prev => ({ ...prev, progress: 100, isCompleted: true }))
+      setTimeout(() => {
+        setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'generar' })
+      }, 1500)
+    }, 1500)
   }
 
   const handleExportExcel = async () => {
@@ -201,14 +231,33 @@ export default function GenerarReporte() {
       return
     }
 
+    setProgressModal({
+      isOpen: true,
+      progress: 20,
+      mensaje: 'Preparando datos...',
+      isCompleted: false,
+      tipo: 'exportar'
+    })
+
     try {
+      setTimeout(() => {
+        setProgressModal(prev => ({ ...prev, progress: 50, mensaje: 'Generando Excel...' }))
+      }, 300)
+
       await exportarExcel.mutateAsync({
         data: datos,
         nombreArchivo: `Reporte_${tipo}_${new Date().toISOString().split('T')[0]}`,
         nombreHoja: tipo.charAt(0).toUpperCase() + tipo.slice(1)
       })
+
+      setProgressModal(prev => ({ ...prev, progress: 100, mensaje: 'Descargando archivo...', isCompleted: true }))
       showToast('Excel exportado correctamente', 'success')
+      
+      setTimeout(() => {
+        setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'exportar' })
+      }, 1500)
     } catch (error) {
+      setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'exportar' })
       showToast(error.message, 'error')
     }
   }
@@ -219,13 +268,32 @@ export default function GenerarReporte() {
       return
     }
 
+    setProgressModal({
+      isOpen: true,
+      progress: 20,
+      mensaje: 'Preparando datos...',
+      isCompleted: false,
+      tipo: 'exportar'
+    })
+
     try {
+      setTimeout(() => {
+        setProgressModal(prev => ({ ...prev, progress: 50, mensaje: 'Generando CSV...' }))
+      }, 300)
+
       await exportarCSV.mutateAsync({
         data: datos,
         nombreArchivo: `Reporte_${tipo}_${new Date().toISOString().split('T')[0]}`
       })
+
+      setProgressModal(prev => ({ ...prev, progress: 100, mensaje: 'Descargando archivo...', isCompleted: true }))
       showToast('CSV exportado correctamente', 'success')
+      
+      setTimeout(() => {
+        setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'exportar' })
+      }, 1500)
     } catch (error) {
+      setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'exportar' })
       showToast(error.message, 'error')
     }
   }
@@ -236,11 +304,27 @@ export default function GenerarReporte() {
       return
     }
 
+    setProgressModal({
+      isOpen: true,
+      progress: 10,
+      mensaje: 'Preparando datos...',
+      isCompleted: false,
+      tipo: 'exportar'
+    })
+
     try {
       const tipoNombre = tipo.charAt(0).toUpperCase() + tipo.slice(1)
       const periodo = filtros.fechaInicio && filtros.fechaFin
         ? `${new Date(filtros.fechaInicio).toLocaleDateString('es-ES')} - ${new Date(filtros.fechaFin).toLocaleDateString('es-ES')}`
         : 'Todos los periodos'
+
+      setTimeout(() => {
+        setProgressModal(prev => ({ ...prev, progress: 40, mensaje: 'Generando PDF...' }))
+      }, 300)
+
+      setTimeout(() => {
+        setProgressModal(prev => ({ ...prev, progress: 70, mensaje: 'Formateando documento...' }))
+      }, 800)
 
       await descargarReportePDF({
         titulo: `Reporte de ${tipoNombre}`,
@@ -251,9 +335,15 @@ export default function GenerarReporte() {
         totales: totales ? Object.values(totales) : null
       }, `Reporte_${tipo}_${new Date().toISOString().split('T')[0]}.pdf`)
 
+      setProgressModal(prev => ({ ...prev, progress: 100, mensaje: 'Descargando archivo...', isCompleted: true }))
       showToast('PDF generado correctamente', 'success')
+      
+      setTimeout(() => {
+        setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'exportar' })
+      }, 1500)
     } catch (error) {
       console.error('Error al generar PDF:', error)
+      setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'exportar' })
       showToast('Error al generar PDF: ' + error.message, 'error')
     }
   }
@@ -276,10 +366,19 @@ export default function GenerarReporte() {
 
       {/* Tipo de reporte */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Tipo de Reporte
-        </h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Tipo de Reporte
+          </h2>
+          {tipo !== 'comparativo' && tipo !== 'cashflow' && tipo !== 'envios' && (
+            <ConfiguracionReporte
+              tipoReporte={tipo}
+              filtrosActuales={filtros}
+              onCargar={setFiltros}
+            />
+          )}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {opcionesTipo.map(opt => (
             <button
               key={opt.value}
@@ -453,6 +552,16 @@ export default function GenerarReporte() {
           />
         </div>
       )}
+
+      {/* Modal de progreso */}
+      <ReporteProgress
+        isOpen={progressModal.isOpen}
+        onClose={() => setProgressModal({ ...progressModal, isOpen: false })}
+        progress={progressModal.progress}
+        mensaje={progressModal.mensaje}
+        isCompleted={progressModal.isCompleted}
+        tipo={progressModal.tipo}
+      />
     </div>
   )
 }
