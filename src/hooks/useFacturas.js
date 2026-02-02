@@ -106,7 +106,22 @@ export function useFactura(id) {
           comunidad:comunidades(id, nombre, codigo),
           ubicacion:ubicaciones(id, nombre),
           contador:contadores(id, numero_serie),
-          cliente:clientes(codigo_cliente)
+          cliente:clientes(
+            id,
+            codigo_cliente,
+            nombre,
+            apellidos,
+            nif,
+            email,
+            telefono,
+            telefono_secundario,
+            direccion_correspondencia,
+            cp_correspondencia,
+            ciudad_correspondencia,
+            provincia_correspondencia,
+            iban,
+            estado_cliente_id
+          )
         `)
         .eq('id', id)
         .single()

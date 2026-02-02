@@ -196,8 +196,8 @@ export default function FacturaDetalle({ showPdf = false }) {
               <Button
                 variant={factura.email_enviado ? "ghost" : "outline"}
                 onClick={() => setEmailModalOpen(true)}
-                disabled={!factura.cliente_email}
-                title={!factura.cliente_email ? 'Cliente sin email configurado' : ''}
+                disabled={!factura.cliente?.email && !factura.cliente_email}
+                title={!factura.cliente?.email && !factura.cliente_email ? 'Cliente sin email configurado' : ''}
               >
                 <Mail className={`w-4 h-4 mr-2 ${factura.email_enviado ? 'text-green-500' : ''}`} />
                 {factura.email_enviado ? 'Reenviar' : 'Enviar por email'}
@@ -338,10 +338,19 @@ export default function FacturaDetalle({ showPdf = false }) {
                 <dd className="font-mono text-sm">{formatIBAN(factura.cliente_iban)}</dd>
               </div>
             )}
-            {factura.cliente_email && (
+            {(factura.cliente?.email || factura.cliente_email) && (
               <div>
                 <dt className="text-gray-500 text-sm">Email</dt>
-                <dd className="text-blue-600">{factura.cliente_email}</dd>
+                <dd className="flex items-center gap-2">
+                  <span className="text-blue-600">
+                    {factura.cliente?.email || factura.cliente_email}
+                  </span>
+                  {factura.cliente?.email && factura.cliente.email !== factura.cliente_email && (
+                    <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">
+                      Actualizado
+                    </span>
+                  )}
+                </dd>
               </div>
             )}
 
@@ -360,7 +369,7 @@ export default function FacturaDetalle({ showPdf = false }) {
                         </p>
                       </div>
                     </div>
-                  ) : factura.cliente_email ? (
+                  ) : (factura.cliente?.email || factura.cliente_email) ? (
                     <div className="flex items-center gap-2 text-amber-600">
                       <Clock size={18} />
                       <p className="font-medium">Pendiente de envío</p>
@@ -564,7 +573,12 @@ export default function FacturaDetalle({ showPdf = false }) {
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
             <p><strong>Factura:</strong> {factura?.numero_completo}</p>
-            <p><strong>Destinatario:</strong> {factura?.cliente_email}</p>
+            <p><strong>Destinatario:</strong> {factura?.cliente?.email || factura?.cliente_email}</p>
+            {factura?.cliente?.email && factura.cliente.email !== factura.cliente_email && (
+              <p className="text-xs text-green-600">
+                ✓ Se usará el email actualizado del cliente
+              </p>
+            )}
             <p><strong>Total:</strong> {formatCurrency(factura?.total)}</p>
           </div>
 

@@ -12,5 +12,10 @@
       "Bash(npx eslint:*)",
       "Bash(npm run dev:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase",
+    "context7"
+  ]
 }
