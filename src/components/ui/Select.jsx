@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-react'
 
 export const Select = forwardRef(
-  ({ className, error, children, placeholder, ...props }, ref) => {
+  ({ className, error, children, placeholder, options, ...props }, ref) => {
     return (
       <div className="relative">
         <select
@@ -23,7 +23,15 @@ export const Select = forwardRef(
           {placeholder && (
             <option value="">{placeholder}</option>
           )}
-          {children}
+          {options ? (
+            options.map((option, index) => (
+              <option key={option.value || index} value={option.value}>
+                {option.label}
+              </option>
+            ))
+          ) : (
+            children
+          )}
         </select>
         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
       </div>
