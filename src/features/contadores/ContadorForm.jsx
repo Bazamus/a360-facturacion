@@ -65,6 +65,19 @@ export function ContadorForm({ contador, onSubmit, loading }) {
     }
   }, [contador, reset])
 
+  // Actualizar ubicacion_id cuando las ubicaciones se carguen
+  useEffect(() => {
+    if (contador?.ubicacion_id && ubicaciones && ubicaciones.length > 0 && !loadingUbicaciones) {
+      const ubicacionExiste = ubicaciones.find(u => u.ubicacion_id === contador.ubicacion_id)
+      if (ubicacionExiste) {
+        console.log('=== ESTABLECIENDO UBICACIÓN EN SELECT ===')
+        console.log('ubicacion_id:', contador.ubicacion_id)
+        console.log('ubicación encontrada:', ubicacionExiste.ubicacion_nombre)
+        setValue('ubicacion_id', contador.ubicacion_id)
+      }
+    }
+  }, [ubicaciones, loadingUbicaciones, contador, setValue])
+
   const handleComunidadChange = (e) => {
     setComunidadId(e.target.value)
     setAgrupacionId('')
@@ -159,6 +172,7 @@ export function ContadorForm({ contador, onSubmit, loading }) {
 
           <FormField label="Vivienda" error={errors.ubicacion_id?.message} required>
             <Select
+              key={`ubicacion-${agrupacionId}-${ubicaciones?.length || 0}`}
               {...register('ubicacion_id')}
               disabled={!agrupacionId || loadingUbicaciones}
               error={errors.ubicacion_id}
