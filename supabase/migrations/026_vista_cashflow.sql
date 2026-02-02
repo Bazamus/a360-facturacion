@@ -27,7 +27,7 @@ SELECT
   ) as tasa_cobro,
   AVG(CASE 
     WHEN f.fecha_pago IS NOT NULL AND f.fecha_factura IS NOT NULL
-    THEN EXTRACT(DAY FROM f.fecha_pago - f.fecha_factura)::INTEGER
+    THEN (f.fecha_pago::DATE - f.fecha_factura::DATE)
   END) as dias_medio_cobro
 FROM facturas f
 WHERE f.estado != 'anulada'
@@ -54,7 +54,7 @@ SELECT
   SUM(CASE WHEN f.estado != 'pagada' AND f.estado != 'anulada' THEN f.total ELSE 0 END) as pendiente_cobro,
   AVG(CASE 
     WHEN f.fecha_pago IS NOT NULL AND f.fecha_factura IS NOT NULL
-    THEN EXTRACT(DAY FROM f.fecha_pago - f.fecha_factura)::INTEGER
+    THEN (f.fecha_pago::DATE - f.fecha_factura::DATE)
   END) as dias_medio_cobro
 FROM facturas f
 JOIN comunidades c ON f.comunidad_id = c.id
