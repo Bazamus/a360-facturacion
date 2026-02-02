@@ -120,7 +120,7 @@ export function useFactura(id) {
             ciudad_correspondencia,
             provincia_correspondencia,
             iban,
-            estado_cliente_id
+            estado_id
           )
         `)
         .eq('id', id)

@@ -98,7 +98,7 @@ FROM facturas f
 JOIN comunidades com ON com.id = f.comunidad_id
 LEFT JOIN contadores cont ON cont.id = f.contador_id
 LEFT JOIN clientes cli ON cli.id = f.cliente_id
-LEFT JOIN estados_cliente ec ON ec.id = cli.estado_cliente_id;
+LEFT JOIN estados_cliente ec ON ec.id = cli.estado_id;
 
 COMMENT ON VIEW v_facturas_resumen IS 
 'Vista resumida de facturas con datos relacionados.
