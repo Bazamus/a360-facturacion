@@ -82,42 +82,19 @@ export default function HistorialEnvios() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <HistorialEnviosTable
-          envios={historial?.data || []}
-          isLoading={isLoading}
-          onViewDetalle={setSelectedEnvioId}
-          onReintentar={handleReintentar}
-        />
-
-        {/* Paginación */}
-        {historial && historial.totalPages > 1 && (
-          <div className="flex items-center justify-between p-4 border-t border-gray-100">
-            <p className="text-sm text-gray-500">
-              Mostrando {((historial.page - 1) * historial.pageSize) + 1} - {Math.min(historial.page * historial.pageSize, historial.total)} de {historial.total} envíos
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(historial.page - 1)}
-                disabled={historial.page === 1}
-                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Anterior
-              </button>
-              <span className="text-sm text-gray-600">
-                Página {historial.page} de {historial.totalPages}
-              </span>
-              <button
-                onClick={() => handlePageChange(historial.page + 1)}
-                disabled={historial.page === historial.totalPages}
-                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <HistorialEnviosTable
+        envios={historial?.data || []}
+        isLoading={isLoading}
+        onViewDetalle={setSelectedEnvioId}
+        onReintentar={handleReintentar}
+        pagination={{
+          currentPage: historial?.page || 1,
+          totalPages: historial?.totalPages || 1,
+          pageSize: historial?.pageSize || 20,
+          total: historial?.total || 0,
+          onPageChange: handlePageChange
+        }}
+      />
 
       {/* Modal de detalle */}
       <Modal

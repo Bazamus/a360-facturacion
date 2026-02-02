@@ -6,7 +6,8 @@ export function HistorialEnviosTable({
   envios = [], 
   isLoading,
   onViewDetalle,
-  onReintentar
+  onReintentar,
+  pagination
 }) {
   const formatFecha = (fecha) => {
     if (!fecha) return '-'
@@ -144,11 +145,55 @@ export function HistorialEnviosTable({
     }
   ]
 
+  // Si hay paginación externa (del servidor), renderizar tabla personalizada
+  if (pagination) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <DataTable
+          columns={columns}
+          data={envios}
+          loading={isLoading}
+          emptyMessage="No hay envíos en el historial"
+          pageSize={999999} // Desactivar paginación interna
+        />
+
+        {/* Paginación externa (del servidor) */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t border-gray-100">
+            <p className="text-sm text-gray-500">
+              Mostrando {((pagination.currentPage - 1) * pagination.pageSize) + 1} - {Math.min(pagination.currentPage * pagination.pageSize, pagination.total)} de {pagination.total} envíos
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="text-sm text-gray-600">
+                Página {pagination.currentPage} de {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Sin paginación externa, usar DataTable con su paginación interna
   return (
     <DataTable
       columns={columns}
       data={envios}
-      isLoading={isLoading}
+      loading={isLoading}
       emptyMessage="No hay envíos en el historial"
     />
   )
