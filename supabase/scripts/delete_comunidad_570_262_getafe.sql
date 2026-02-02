@@ -53,7 +53,7 @@ SELECT
 FROM clientes c
 JOIN ubicaciones_clientes uc ON uc.cliente_id = c.id
 JOIN ubicaciones u ON u.id = uc.ubicacion_id
-JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+JOIN agrupaciones a ON a.id = u.agrupacion_id
 WHERE a.comunidad_id = (
   SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
 );
@@ -67,7 +67,7 @@ SELECT
   COUNT(l.id) AS num_lecturas
 FROM contadores cont
 JOIN ubicaciones u ON u.id = cont.ubicacion_id
-JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+JOIN agrupaciones a ON a.id = u.agrupacion_id
 LEFT JOIN lecturas l ON l.contador_id = cont.id
 WHERE a.comunidad_id = (
   SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
@@ -94,18 +94,18 @@ SELECT
   (SELECT COUNT(*) FROM clientes c
    JOIN ubicaciones_clientes uc ON uc.cliente_id = c.id
    JOIN ubicaciones u ON u.id = uc.ubicacion_id
-   JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+   JOIN agrupaciones a ON a.id = u.agrupacion_id
    WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
   ) AS total_clientes,
   (SELECT COUNT(*) FROM contadores cont
    JOIN ubicaciones u ON u.id = cont.ubicacion_id
-   JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+   JOIN agrupaciones a ON a.id = u.agrupacion_id
    WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
   ) AS total_contadores,
   (SELECT COUNT(*) FROM lecturas l
    JOIN contadores cont ON cont.id = l.contador_id
    JOIN ubicaciones u ON u.id = cont.ubicacion_id
-   JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+   JOIN agrupaciones a ON a.id = u.agrupacion_id
    WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
   ) AS total_lecturas,
   (SELECT COUNT(*) FROM facturas f
@@ -218,14 +218,14 @@ BEGIN
     FROM clientes c
     JOIN ubicaciones_clientes uc ON uc.cliente_id = c.id
     JOIN ubicaciones u ON u.id = uc.ubicacion_id
-    JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+    JOIN agrupaciones a ON a.id = u.agrupacion_id
     WHERE a.comunidad_id = v_comunidad_id
     AND NOT EXISTS (
       -- No borrar si el cliente está en otra comunidad
       SELECT 1
       FROM ubicaciones_clientes uc2
       JOIN ubicaciones u2 ON u2.id = uc2.ubicacion_id
-      JOIN agrupaciones a2 ON a2.agrupacion_id = u2.agrupacion_id
+      JOIN agrupaciones a2 ON a2.id = u2.agrupacion_id
       WHERE uc2.cliente_id = c.id
       AND a2.comunidad_id != v_comunidad_id
     )
@@ -287,12 +287,12 @@ SELECT
     SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
   )) AS agrupaciones_restantes,
   (SELECT COUNT(*) FROM ubicaciones u
-   JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+   JOIN agrupaciones a ON a.id = u.agrupacion_id
    WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
   ) AS ubicaciones_restantes,
   (SELECT COUNT(*) FROM contadores cont
    JOIN ubicaciones u ON u.id = cont.ubicacion_id
-   JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+   JOIN agrupaciones a ON a.id = u.agrupacion_id
    WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
   ) AS contadores_restantes,
   (SELECT COUNT(*) FROM facturas
