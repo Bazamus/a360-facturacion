@@ -23,7 +23,7 @@ export function BarChart({ data, bars, height = 300, xDataKey = 'name', layout =
       <RechartsBarChart 
         data={data} 
         layout={layout}
-        margin={{ top: 5, right: 30, left: layout === 'vertical' ? 80 : 20, bottom: 5 }}
+        margin={{ top: 5, right: 30, left: layout === 'vertical' ? 20 : 20, bottom: 5 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
         {layout === 'vertical' ? (
@@ -31,15 +31,17 @@ export function BarChart({ data, bars, height = 300, xDataKey = 'name', layout =
             <XAxis 
               type="number" 
               stroke="#6b7280"
-              style={{ fontSize: '12px' }}
+              style={{ fontSize: '11px' }}
               tickFormatter={(value) => formatCurrency(value)}
             />
             <YAxis 
               type="category" 
               dataKey={xDataKey}
               stroke="#6b7280"
-              style={{ fontSize: '12px' }}
-              width={75}
+              style={{ fontSize: '10px' }}
+              width={120}
+              tick={{ width: 120 }}
+              interval={0}
             />
           </>
         ) : (

@@ -10,9 +10,10 @@ import {
   RefreshCw,
   Mail,
   Gauge,
-  Building2
+  Building2,
+  Calendar
 } from 'lucide-react'
-import { Button, Select, Card } from '../components/ui'
+import { Button, Select, Card, Input, Modal } from '../components/ui'
 import { 
   MetricasCard, 
   GraficoComunidades, 
@@ -29,8 +30,19 @@ import { useEnviosStats } from '../hooks/useEnvios'
 export default function ReportesDashboard() {
   const navigate = useNavigate()
   const [periodo, setPeriodo] = useState('mes_actual')
+  const [mostrarFechasPersonalizadas, setMostrarFechasPersonalizadas] = useState(false)
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
+  const [usarFechasPersonalizadas, setUsarFechasPersonalizadas] = useState(false)
   
-  const rangoFechas = calcularRangoFechas(periodo)
+  // Calcular rango de fechas
+  const rangoFechas = useMemo(() => {
+    if (usarFechasPersonalizadas && fechaInicio && fechaFin) {
+      return { fechaInicio, fechaFin }
+    }
+    return calcularRangoFechas(periodo)
+  }, [periodo, usarFechasPersonalizadas, fechaInicio, fechaFin])
+
   const { data: metricas, isLoading, refetch } = useDashboardMetricas(rangoFechas)
   const { data: evolucion = [] } = useEvolucionFacturacion()
   const { data: statsEnvios } = useEnviosStats()
@@ -50,8 +62,33 @@ export default function ReportesDashboard() {
     { value: 'mes_actual', label: 'Mes actual' },
     { value: 'mes_anterior', label: 'Mes anterior' },
     { value: 'trimestre', label: 'Último trimestre' },
-    { value: 'año_actual', label: 'Año actual' }
+    { value: 'año_actual', label: 'Año actual' },
+    { value: 'personalizado', label: 'Personalizado...' }
   ]
+
+  const handlePeriodoChange = (e) => {
+    const valor = e.target.value
+    if (valor === 'personalizado') {
+      setMostrarFechasPersonalizadas(true)
+    } else {
+      setPeriodo(valor)
+      setUsarFechasPersonalizadas(false)
+    }
+  }
+
+  const handleAplicarFechas = () => {
+    if (fechaInicio && fechaFin) {
+      setUsarFechasPersonalizadas(true)
+      setMostrarFechasPersonalizadas(false)
+    }
+  }
+
+  const handleCancelarFechas = () => {
+    setMostrarFechasPersonalizadas(false)
+    if (!usarFechasPersonalizadas) {
+      setPeriodo('mes_actual')
+    }
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -67,12 +104,25 @@ export default function ReportesDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Select
-            value={periodo}
-            onChange={(e) => setPeriodo(e.target.value)}
-            options={opcionesPeriodo}
-            className="w-40"
-          />
+          <div className="flex items-center gap-2">
+            <Select
+              value={usarFechasPersonalizadas ? 'personalizado' : periodo}
+              onChange={handlePeriodoChange}
+              options={opcionesPeriodo}
+              className="w-44"
+            />
+            {usarFechasPersonalizadas && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMostrarFechasPersonalizadas(true)}
+                className="gap-1"
+              >
+                <Calendar className="w-4 h-4" />
+                Cambiar fechas
+              </Button>
+            )}
+          </div>
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -259,6 +309,49 @@ export default function ReportesDashboard() {
           </div>
         </>
       )}
+
+      {/* Modal de fechas personalizadas */}
+      <Modal
+        open={mostrarFechasPersonalizadas}
+        onClose={handleCancelarFechas}
+        title="Seleccionar Periodo Personalizado"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Inicio
+              </label>
+              <Input
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Fin
+              </label>
+              <Input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={handleCancelarFechas}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleAplicarFechas}
+              disabled={!fechaInicio || !fechaFin}
+            >
+              Aplicar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
