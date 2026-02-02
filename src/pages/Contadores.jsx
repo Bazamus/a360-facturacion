@@ -616,10 +616,20 @@ function ContadorEditar() {
 
   const handleSubmit = async (data) => {
     try {
-      await updateMutation.mutateAsync({ id, ...data })
+      console.log('=== ACTUALIZANDO CONTADOR ===')
+      console.log('ID contador:', id)
+      console.log('Datos a enviar:', data)
+      
+      const result = await updateMutation.mutateAsync({ id, ...data })
+      
+      console.log('=== RESULTADO ACTUALIZACIÓN ===')
+      console.log('Resultado:', result)
+      
       toast.success('Contador actualizado')
       navigate(`/contadores/${id}`)
     } catch (error) {
+      console.error('=== ERROR ACTUALIZACIÓN ===')
+      console.error('Error:', error)
       toast.error(error.message)
     }
   }

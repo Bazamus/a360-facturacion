@@ -52,8 +52,17 @@ export function ContadorForm({ contador, onSubmit, loading }) {
     setValue('ubicacion_id', '')
   }
 
+  const handleFormSubmit = (data) => {
+    console.log('=== DATOS DEL FORMULARIO ===')
+    console.log('Datos completos:', data)
+    console.log('ubicacion_id:', data.ubicacion_id)
+    console.log('comunidadId (state):', comunidadId)
+    console.log('agrupacionId (state):', agrupacionId)
+    onSubmit(data)
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Identificación */}
       <div>
         <h3 className="text-sm font-medium text-gray-900 mb-4">Identificación</h3>
