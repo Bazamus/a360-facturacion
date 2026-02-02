@@ -130,6 +130,7 @@ DECLARE
   v_deleted_conceptos INTEGER;
   v_deleted_facturas_borrador INTEGER;
   v_deleted_facturas_lineas INTEGER;
+  v_deleted_importaciones_detalle INTEGER;
   v_deleted_contadores INTEGER;
   v_deleted_ubicaciones_clientes INTEGER;
   v_deleted_clientes INTEGER;
@@ -180,8 +181,8 @@ BEGIN
   GET DIAGNOSTICS v_deleted_lecturas = ROW_COUNT;
   RAISE NOTICE '✓ Lecturas borradas: %', v_deleted_lecturas;
 
-  -- 4. Borrar conceptos de los contadores de la comunidad
-  DELETE FROM conceptos
+  -- 4. Borrar relaciones contadores_conceptos de la comunidad
+  DELETE FROM contadores_conceptos
   WHERE contador_id IN (
     SELECT cont.id
     FROM contadores cont
@@ -190,9 +191,21 @@ BEGIN
     WHERE a.comunidad_id = v_comunidad_id
   );
   GET DIAGNOSTICS v_deleted_conceptos = ROW_COUNT;
-  RAISE NOTICE '✓ Conceptos borrados: %', v_deleted_conceptos;
+  RAISE NOTICE '✓ Relaciones contadores_conceptos borradas: %', v_deleted_conceptos;
 
-  -- 5. Borrar contadores de la comunidad
+  -- 5. Borrar registros de importaciones_detalle (tienen FK a contadores)
+  DELETE FROM importaciones_detalle
+  WHERE contador_id IN (
+    SELECT cont.id
+    FROM contadores cont
+    JOIN ubicaciones u ON u.id = cont.ubicacion_id
+    JOIN agrupaciones a ON a.id = u.agrupacion_id
+    WHERE a.comunidad_id = v_comunidad_id
+  );
+  GET DIAGNOSTICS v_deleted_importaciones_detalle = ROW_COUNT;
+  RAISE NOTICE '✓ Registros de importaciones_detalle borrados: %', v_deleted_importaciones_detalle;
+
+  -- 6. Borrar contadores de la comunidad
   DELETE FROM contadores
   WHERE ubicacion_id IN (
     SELECT u.id
@@ -214,7 +227,7 @@ BEGIN
   GET DIAGNOSTICS v_deleted_ubicaciones_clientes = ROW_COUNT;
   RAISE NOTICE '✓ Relaciones ubicaciones_clientes borradas: %', v_deleted_ubicaciones_clientes;
 
-  -- 7. Borrar clientes que solo pertenecen a esta comunidad
+  -- 8. Borrar clientes que solo pertenecen a esta comunidad
   DELETE FROM clientes
   WHERE id IN (
     SELECT DISTINCT c.id
@@ -244,7 +257,7 @@ BEGIN
   GET DIAGNOSTICS v_deleted_ubicaciones = ROW_COUNT;
   RAISE NOTICE '✓ Ubicaciones borradas: %', v_deleted_ubicaciones;
 
-  -- 9. Borrar agrupaciones de la comunidad
+  -- 10. Borrar agrupaciones de la comunidad
   DELETE FROM agrupaciones
   WHERE comunidad_id = v_comunidad_id;
   GET DIAGNOSTICS v_deleted_agrupaciones = ROW_COUNT;
@@ -258,7 +271,8 @@ BEGIN
   RAISE NOTICE 'Líneas facturas: %', v_deleted_facturas_lineas;
   RAISE NOTICE 'Facturas borrador: %', v_deleted_facturas_borrador;
   RAISE NOTICE 'Lecturas: %', v_deleted_lecturas;
-  RAISE NOTICE 'Conceptos: %', v_deleted_conceptos;
+  RAISE NOTICE 'Relaciones contadores_conceptos: %', v_deleted_conceptos;
+  RAISE NOTICE 'Importaciones_detalle: %', v_deleted_importaciones_detalle;
   RAISE NOTICE 'Contadores: %', v_deleted_contadores;
   RAISE NOTICE 'Relaciones ubicaciones_clientes: %', v_deleted_ubicaciones_clientes;
   RAISE NOTICE 'Clientes: %', v_deleted_clientes;
