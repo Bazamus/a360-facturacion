@@ -72,6 +72,9 @@ export default function GenerarReporte() {
   const datos = useMemo(() => {
     switch (tipo) {
       case 'consumos':
+        console.log('Consumos Query Data:', consumosQuery.data)
+        console.log('Consumos Query isLoading:', consumosQuery.isLoading)
+        console.log('Consumos Query error:', consumosQuery.error)
         return consumosQuery.data || []
       case 'facturacion':
         return facturacionQuery.data?.data || []
@@ -80,7 +83,7 @@ export default function GenerarReporte() {
       default:
         return []
     }
-  }, [tipo, consumosQuery.data, facturacionQuery.data, morosidadQuery.data])
+  }, [tipo, consumosQuery.data, facturacionQuery.data, morosidadQuery.data, consumosQuery.isLoading, consumosQuery.error])
 
   const totales = useMemo(() => {
     if (tipo === 'facturacion') return facturacionQuery.data?.totales
@@ -198,7 +201,10 @@ export default function GenerarReporte() {
     { value: 'año_actual', label: 'Año actual' }
   ]
 
-  const handleGenerarVistaPrevia = () => {
+  const handleGenerarVistaPrevia = async () => {
+    console.log('Generando vista previa para tipo:', tipo)
+    console.log('Filtros:', filtros)
+    
     setProgressModal({
       isOpen: true,
       progress: 30,
@@ -207,7 +213,10 @@ export default function GenerarReporte() {
       tipo: 'generar'
     })
 
-    // Simular progreso
+    // Habilitar vista previa inmediatamente para que el query se active
+    setVistaPrevia(true)
+
+    // Simular progreso visual
     setTimeout(() => {
       setProgressModal(prev => ({ ...prev, progress: 60, mensaje: 'Procesando información...' }))
     }, 500)
@@ -217,7 +226,6 @@ export default function GenerarReporte() {
     }, 1000)
 
     setTimeout(() => {
-      setVistaPrevia(true)
       setProgressModal(prev => ({ ...prev, progress: 100, isCompleted: true }))
       setTimeout(() => {
         setProgressModal({ isOpen: false, progress: 0, mensaje: '', isCompleted: false, tipo: 'generar' })
@@ -485,7 +493,7 @@ export default function GenerarReporte() {
       )}
 
       {/* Resultados - Otros Reportes */}
-      {vistaPrevia && tipo !== 'comparativo' && (
+      {vistaPrevia && tipo !== 'comparativo' && tipo !== 'cashflow' && tipo !== 'envios' && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">

@@ -107,29 +107,40 @@ export function useEvolucionFacturacion(año) {
 export function useReporteConsumos(params = {}) {
   const { comunidadId, fechaInicio, fechaFin, enabled = true } = params
 
+  console.log('useReporteConsumos params:', { comunidadId, fechaInicio, fechaFin, enabled })
+  console.log('Query will be enabled:', enabled && !!(fechaInicio && fechaFin))
+
   return useQuery({
     queryKey: ['reporte-consumos', comunidadId, fechaInicio, fechaFin],
     queryFn: async () => {
+      console.log('Ejecutando query de consumos...')
       let query = supabase
         .from('v_reporte_consumos_vivienda')
         .select('*')
         .order('fecha_lectura', { ascending: false })
 
       if (comunidadId) {
+        console.log('Filtrando por comunidad:', comunidadId)
         query = query.eq('comunidad_id', comunidadId)
       }
 
       if (fechaInicio) {
+        console.log('Filtrando desde:', fechaInicio)
         query = query.gte('fecha_lectura', fechaInicio)
       }
 
       if (fechaFin) {
+        console.log('Filtrando hasta:', fechaFin)
         query = query.lte('fecha_lectura', fechaFin)
       }
 
       const { data, error } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error('Error en query de consumos:', error)
+        throw error
+      }
+      console.log('Datos de consumos obtenidos:', data?.length, 'registros')
       return data || []
     },
     enabled: enabled && !!(fechaInicio && fechaFin)
