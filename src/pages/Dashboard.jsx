@@ -8,6 +8,7 @@ import {
   ArrowDownRight,
   Calendar
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { LoadingSpinner } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
@@ -52,6 +53,7 @@ const statusColors = {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate()
   const { estadisticas, loading, error } = useEstadisticas()
 
   // Generar stats dinámicamente desde las estadísticas
@@ -62,7 +64,8 @@ export function DashboardPage() {
       icon: Building2,
       change: estadisticas.comunidades.cambio > 0 ? `+${estadisticas.comunidades.cambio}` : estadisticas.comunidades.cambio.toString(),
       changeType: estadisticas.comunidades.cambio >= 0 ? 'positive' : 'negative',
-      description: 'activas'
+      description: 'activas',
+      href: '/comunidades'
     },
     {
       name: 'Clientes',
@@ -70,7 +73,8 @@ export function DashboardPage() {
       icon: Users,
       change: estadisticas.clientes.cambio > 0 ? `+${estadisticas.clientes.cambio}` : estadisticas.clientes.cambio.toString(),
       changeType: estadisticas.clientes.cambio >= 0 ? 'positive' : 'negative',
-      description: 'registrados'
+      description: 'registrados',
+      href: '/clientes'
     },
     {
       name: 'Contadores',
@@ -78,7 +82,8 @@ export function DashboardPage() {
       icon: Gauge,
       change: estadisticas.contadores.cambio > 0 ? `+${estadisticas.contadores.cambio}` : estadisticas.contadores.cambio.toString(),
       changeType: estadisticas.contadores.cambio >= 0 ? 'positive' : 'negative',
-      description: 'instalados'
+      description: 'instalados',
+      href: '/contadores'
     },
     {
       name: 'Facturado (mes)',
@@ -86,7 +91,8 @@ export function DashboardPage() {
       icon: Receipt,
       change: estadisticas.facturado.cambio > 0 ? `+${estadisticas.facturado.cambio}%` : `${estadisticas.facturado.cambio}%`,
       changeType: estadisticas.facturado.cambio >= 0 ? 'positive' : 'negative',
-      description: 'vs. mes anterior'
+      description: 'vs. mes anterior',
+      href: '/facturacion/facturas'
     },
   ]
 
@@ -110,10 +116,16 @@ export function DashboardPage() {
       {/* Estadísticas */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
-          <Card key={stat.name} accent hover>
+          <Card 
+            key={stat.name} 
+            accent 
+            hover 
+            onClick={() => navigate(stat.href)}
+            className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-100"
+          >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 shadow-soft">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 shadow-soft transition-transform duration-300 group-hover:scale-110">
                   <stat.icon className="h-6 w-6 text-primary-600" />
                 </div>
                 <div className={`flex items-center text-sm font-medium ${
