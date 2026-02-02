@@ -39,10 +39,11 @@ BEGIN
   FROM facturas
   WHERE contador_id = p_contador_id;
   
-  -- Contar conceptos con datos (lecturas > 0)
+  -- Contar conceptos ACTIVOS con datos (lecturas > 0)
   SELECT COUNT(*) INTO v_num_conceptos_con_datos
   FROM contadores_conceptos
   WHERE contador_id = p_contador_id
+    AND activo = true
     AND (lectura_inicial > 0 OR lectura_actual > 0);
   
   -- Determinar si es eliminable
@@ -54,7 +55,7 @@ BEGIN
     v_motivo := 'El contador tiene ' || v_num_facturas || ' factura(s) asociada(s)';
   ELSIF v_num_conceptos_con_datos > 0 THEN
     v_eliminable := false;
-    v_motivo := 'El contador tiene ' || v_num_conceptos_con_datos || ' concepto(s) con lecturas';
+    v_motivo := 'El contador tiene ' || v_num_conceptos_con_datos || ' concepto(s) activo(s) con lecturas';
   ELSE
     v_eliminable := true;
     v_motivo := 'El contador puede ser eliminado de forma segura';
@@ -193,7 +194,7 @@ SELECT
   (SELECT COUNT(*) FROM facturas WHERE contador_id = c.id) AS num_facturas,
   (SELECT COUNT(*) FROM contadores_conceptos WHERE contador_id = c.id) AS num_conceptos,
   (SELECT COUNT(*) FROM contadores_conceptos 
-   WHERE contador_id = c.id AND (lectura_inicial > 0 OR lectura_actual > 0)
+   WHERE contador_id = c.id AND activo = true AND (lectura_inicial > 0 OR lectura_actual > 0)
   ) AS num_conceptos_con_datos,
   
   -- Es eliminable
@@ -202,6 +203,7 @@ SELECT
     WHEN EXISTS (SELECT 1 FROM facturas WHERE contador_id = c.id) THEN false
     WHEN EXISTS (SELECT 1 FROM contadores_conceptos 
                  WHERE contador_id = c.id 
+                 AND activo = true
                  AND (lectura_inicial > 0 OR lectura_actual > 0)) THEN false
     ELSE true
   END AS es_eliminable,
@@ -212,7 +214,8 @@ SELECT
     WHEN EXISTS (SELECT 1 FROM facturas WHERE contador_id = c.id) THEN 'Tiene facturas'
     WHEN EXISTS (SELECT 1 FROM contadores_conceptos 
                  WHERE contador_id = c.id 
-                 AND (lectura_inicial > 0 OR lectura_actual > 0)) THEN 'Tiene conceptos con datos'
+                 AND activo = true
+                 AND (lectura_inicial > 0 OR lectura_actual > 0)) THEN 'Tiene conceptos activos con datos'
     ELSE 'Eliminable'
   END AS motivo_no_eliminable
 
