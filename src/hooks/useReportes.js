@@ -231,6 +231,150 @@ export function useReporteMorosidad(params = {}) {
   })
 }
 
+/**
+ * Hook para reporte comparativo entre dos periodos
+ */
+export function useReporteComparativo(periodo1 = {}, periodo2 = {}) {
+  const queryKey = [
+    'reporte-comparativo', 
+    periodo1.fechaInicio, 
+    periodo1.fechaFin,
+    periodo2.fechaInicio, 
+    periodo2.fechaFin
+  ]
+
+  return useQuery({
+    queryKey,
+    queryFn: async () => {
+      // Métricas del periodo 1
+      const [facturacion1, cobro1, consumo1] = await Promise.all([
+        supabase.rpc('get_metricas_facturacion', {
+          p_fecha_inicio: periodo1.fechaInicio,
+          p_fecha_fin: periodo1.fechaFin
+        }),
+        supabase.rpc('get_metricas_cobro', {
+          p_fecha_inicio: periodo1.fechaInicio,
+          p_fecha_fin: periodo1.fechaFin
+        }),
+        supabase.rpc('get_metricas_consumo', {
+          p_fecha_inicio: periodo1.fechaInicio,
+          p_fecha_fin: periodo1.fechaFin
+        })
+      ])
+
+      // Métricas del periodo 2
+      const [facturacion2, cobro2, consumo2] = await Promise.all([
+        supabase.rpc('get_metricas_facturacion', {
+          p_fecha_inicio: periodo2.fechaInicio,
+          p_fecha_fin: periodo2.fechaFin
+        }),
+        supabase.rpc('get_metricas_cobro', {
+          p_fecha_inicio: periodo2.fechaInicio,
+          p_fecha_fin: periodo2.fechaFin
+        }),
+        supabase.rpc('get_metricas_consumo', {
+          p_fecha_inicio: periodo2.fechaInicio,
+          p_fecha_fin: periodo2.fechaFin
+        })
+      ])
+
+      return {
+        periodo1: {
+          facturacion: facturacion1.data,
+          cobro: cobro1.data,
+          consumo: consumo1.data
+        },
+        periodo2: {
+          facturacion: facturacion2.data,
+          cobro: cobro2.data,
+          consumo: consumo2.data
+        }
+      }
+    },
+    enabled: !!(periodo1.fechaInicio && periodo1.fechaFin && periodo2.fechaInicio && periodo2.fechaFin)
+  })
+}
+
+/**
+ * Hook para reporte de cash flow
+ */
+export function useReporteCashFlow(params = {}) {
+  const { comunidadId, meses = 12, enabled = true } = params
+
+  return useQuery({
+    queryKey: ['reporte-cashflow', comunidadId, meses],
+    queryFn: async () => {
+      const fechaInicio = new Date()
+      fechaInicio.setMonth(fechaInicio.getMonth() - meses)
+
+      let query = supabase
+        .from(comunidadId ? 'v_reporte_cashflow_comunidad' : 'v_reporte_cashflow')
+        .select('*')
+        .gte('mes', fechaInicio.toISOString().split('T')[0])
+        .order('mes', { ascending: false })
+
+      if (comunidadId) {
+        query = query.eq('comunidad_id', comunidadId)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      return data || []
+    },
+    enabled
+  })
+}
+
+/**
+ * Hook para proyección de cobros
+ */
+export function useProyeccionCobros(params = {}) {
+  const { diasHorizonte = 90, enabled = true } = params
+
+  return useQuery({
+    queryKey: ['proyeccion-cobros', diasHorizonte],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('get_proyeccion_cobros', {
+          p_dias_horizonte: diasHorizonte
+        })
+
+      if (error) throw error
+
+      return data || []
+    },
+    enabled
+  })
+}
+
+/**
+ * Hook para evolución de envíos
+ */
+export function useEvolucionEnvios(params = {}) {
+  const { meses = 12, enabled = true } = params
+
+  return useQuery({
+    queryKey: ['evolucion-envios', meses],
+    queryFn: async () => {
+      const fechaInicio = new Date()
+      fechaInicio.setMonth(fechaInicio.getMonth() - meses)
+
+      const { data, error } = await supabase
+        .from('v_envios_evolucion_mensual')
+        .select('*')
+        .gte('mes', fechaInicio.toISOString().split('T')[0])
+        .order('mes', { ascending: true })
+
+      if (error) throw error
+
+      return data || []
+    },
+    enabled
+  })
+}
+
 // =====================================================
 // MUTATIONS - EXPORTACIÓN
 // =====================================================

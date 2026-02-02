@@ -1,16 +1,25 @@
 import { useState, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, BarChart3, Download } from 'lucide-react'
-import { Button, Select } from '../components/ui'
+import { Button, Select, Card } from '../components/ui'
 import { ReporteFiltros, ExportButtons } from '../features/reportes/components'
+import { ReporteComparativo } from '../features/reportes/templates/ReporteComparativo'
+import { ReporteCashFlow } from '../features/reportes/templates/ReporteCashFlow'
+import { ReporteEnvios } from '../features/reportes/templates/ReporteEnvios'
 import { DataTable } from '../components/ui'
 import { 
   useReporteConsumos, 
   useReporteFacturacion, 
   useReporteMorosidad,
+  useReporteComparativo,
+  useReporteCashFlow,
+  useProyeccionCobros,
+  useEvolucionEnvios,
   useExportarExcel,
-  useExportarCSV
+  useExportarCSV,
+  calcularRangoFechas
 } from '../hooks/useReportes'
+import { useEnviosStats } from '../hooks/useEnvios'
 import { useToast } from '../components/ui/Toast'
 import { descargarReportePDF } from '../features/reportes/services/pdfService'
 
@@ -28,6 +37,10 @@ export default function GenerarReporte() {
     estado: ''
   })
   const [vistaPrevia, setVistaPrevia] = useState(false)
+  
+  // Para reporte comparativo
+  const [periodo1Selector, setPeriodo1Selector] = useState('mes_anterior')
+  const [periodo2Selector, setPeriodo2Selector] = useState('mes_actual')
 
   // Queries
   const consumosQuery = useReporteConsumos({
@@ -147,10 +160,35 @@ export default function GenerarReporte() {
     }
   }, [tipo])
 
+  // Queries para reporte comparativo
+  const periodo1Rango = calcularRangoFechas(periodo1Selector)
+  const periodo2Rango = calcularRangoFechas(periodo2Selector)
+  const comparativoQuery = useReporteComparativo(periodo1Rango, periodo2Rango)
+
+  // Queries para Cash Flow
+  const cashFlowQuery = useReporteCashFlow({
+    comunidadId: filtros.comunidadId,
+    meses: 12,
+    enabled: vistaPrevia && tipo === 'cashflow'
+  })
+  const proyeccionQuery = useProyeccionCobros({
+    diasHorizonte: 90,
+    enabled: vistaPrevia && tipo === 'cashflow'
+  })
+
   const opcionesTipo = [
     { value: 'consumos', label: 'Consumos' },
     { value: 'facturacion', label: 'Facturación' },
-    { value: 'morosidad', label: 'Morosidad' }
+    { value: 'morosidad', label: 'Morosidad' },
+    { value: 'comparativo', label: 'Comparativa Temporal' },
+    { value: 'cashflow', label: 'Cash Flow' }
+  ]
+
+  const opcionesPeriodo = [
+    { value: 'mes_actual', label: 'Mes actual' },
+    { value: 'mes_anterior', label: 'Mes anterior' },
+    { value: 'trimestre', label: 'Último trimestre' },
+    { value: 'año_actual', label: 'Año actual' }
   ]
 
   const handleGenerarVistaPrevia = () => {
@@ -264,24 +302,91 @@ export default function GenerarReporte() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Filtros
-        </h2>
-        <ReporteFiltros 
-          filtros={filtros} 
-          onChange={setFiltros} 
-          tipo={tipo}
-        />
-        <div className="mt-4 flex justify-end">
-          <Button onClick={handleGenerarVistaPrevia}>
-            Generar Vista Previa
-          </Button>
+      {tipo === 'comparativo' ? (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Seleccionar Periodos a Comparar
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Periodo 1
+              </label>
+              <Select
+                value={periodo1Selector}
+                onChange={(e) => setPeriodo1Selector(e.target.value)}
+                options={opcionesPeriodo}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Periodo 2
+              </label>
+              <Select
+                value={periodo2Selector}
+                onChange={(e) => setPeriodo2Selector(e.target.value)}
+                options={opcionesPeriodo}
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={handleGenerarVistaPrevia}>
+              Generar Comparativa
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Filtros
+          </h2>
+          <ReporteFiltros 
+            filtros={filtros} 
+            onChange={setFiltros} 
+            tipo={tipo}
+          />
+          <div className="mt-4 flex justify-end">
+            <Button onClick={handleGenerarVistaPrevia}>
+              Generar Vista Previa
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Resultados */}
-      {vistaPrevia && (
+      {/* Resultados - Reporte Comparativo */}
+      {vistaPrevia && tipo === 'comparativo' && (
+        <ReporteComparativo
+          periodo1={{
+            label: opcionesPeriodo.find(p => p.value === periodo1Selector)?.label,
+            ...periodo1Rango
+          }}
+          periodo2={{
+            label: opcionesPeriodo.find(p => p.value === periodo2Selector)?.label,
+            ...periodo2Rango
+          }}
+          datos1={comparativoQuery.data?.periodo1}
+          datos2={comparativoQuery.data?.periodo2}
+        />
+      )}
+
+      {/* Resultados - Cash Flow */}
+      {vistaPrevia && tipo === 'cashflow' && (
+        <ReporteCashFlow
+          datos={cashFlowQuery.data || []}
+          proyeccion={proyeccionQuery.data || []}
+        />
+      )}
+
+      {/* Resultados - Estadísticas de Envíos */}
+      {vistaPrevia && tipo === 'envios' && (
+        <ReporteEnvios
+          stats={statsEnviosQuery.data || {}}
+          evolucion={evolucionEnviosQuery.data || []}
+        />
+      )}
+
+      {/* Resultados - Otros Reportes */}
+      {vistaPrevia && tipo !== 'comparativo' && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
