@@ -157,7 +157,7 @@ BEGIN
     SELECT cont.id
     FROM contadores cont
     JOIN ubicaciones u ON u.id = cont.ubicacion_id
-    JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+    JOIN agrupaciones a ON a.id = u.agrupacion_id
     WHERE a.comunidad_id = v_comunidad_id
   );
   GET DIAGNOSTICS v_deleted_lecturas = ROW_COUNT;
@@ -169,7 +169,7 @@ BEGIN
     SELECT cont.id
     FROM contadores cont
     JOIN ubicaciones u ON u.id = cont.ubicacion_id
-    JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+    JOIN agrupaciones a ON a.id = u.agrupacion_id
     WHERE a.comunidad_id = v_comunidad_id
   );
   GET DIAGNOSTICS v_deleted_conceptos = ROW_COUNT;
@@ -197,7 +197,7 @@ BEGIN
   WHERE ubicacion_id IN (
     SELECT u.id
     FROM ubicaciones u
-    JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+    JOIN agrupaciones a ON a.id = u.agrupacion_id
     WHERE a.comunidad_id = v_comunidad_id
   );
   GET DIAGNOSTICS v_deleted_contadores = ROW_COUNT;
@@ -208,7 +208,7 @@ BEGIN
   WHERE ubicacion_id IN (
     SELECT u.id
     FROM ubicaciones u
-    JOIN agrupaciones a ON a.agrupacion_id = u.agrupacion_id
+    JOIN agrupaciones a ON a.id = u.agrupacion_id
     WHERE a.comunidad_id = v_comunidad_id
   );
   GET DIAGNOSTICS v_deleted_ubicaciones_clientes = ROW_COUNT;
