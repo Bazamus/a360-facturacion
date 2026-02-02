@@ -12,7 +12,7 @@ CREATE OR REPLACE VIEW v_reporte_cashflow AS
 SELECT 
   DATE_TRUNC('month', f.fecha_factura)::DATE as mes,
   TO_CHAR(DATE_TRUNC('month', f.fecha_factura), 'YYYY-MM') as mes_texto,
-  TO_CHAR(DATE_TRUNC('month', f.fecha_factura), 'TMMonth YYYY', 'es_ES') as mes_nombre,
+  TO_CHAR(DATE_TRUNC('month', f.fecha_factura), 'TMMonth YYYY') as mes_nombre,
   COUNT(*) as num_facturas,
   SUM(f.total) as total_facturado,
   SUM(f.base_imponible) as base_imponible,
@@ -47,7 +47,7 @@ SELECT
   c.nombre as comunidad,
   c.codigo as codigo_comunidad,
   DATE_TRUNC('month', f.fecha_factura)::DATE as mes,
-  TO_CHAR(DATE_TRUNC('month', f.fecha_factura), 'TMMonth YYYY', 'es_ES') as mes_nombre,
+  TO_CHAR(DATE_TRUNC('month', f.fecha_factura), 'TMMonth YYYY') as mes_nombre,
   COUNT(*) as num_facturas,
   SUM(f.total) as total_facturado,
   SUM(CASE WHEN f.estado = 'pagada' THEN f.total ELSE 0 END) as total_cobrado,

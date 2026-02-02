@@ -11,7 +11,7 @@
 CREATE OR REPLACE VIEW v_envios_evolucion_mensual AS
 SELECT 
   DATE_TRUNC('month', e.created_at)::DATE as mes,
-  TO_CHAR(DATE_TRUNC('month', e.created_at), 'TMMonth YYYY', 'es_ES') as mes_nombre,
+  TO_CHAR(DATE_TRUNC('month', e.created_at), 'TMMonth YYYY') as mes_nombre,
   COUNT(*) as total_enviados,
   COUNT(CASE WHEN e.estado IN ('enviado', 'entregado', 'abierto') THEN 1 END) as total_entregados,
   COUNT(CASE WHEN e.estado = 'abierto' THEN 1 END) as total_abiertos,
