@@ -1,8 +1,16 @@
 -- =====================================================
 -- SCRIPT DE BORRADO SEGURO PARA COMUNIDAD
 -- =====================================================
--- Comunidad: 570 262 VIV GETAFE II
+-- Comunidad: 262 VIV GETAFE II
+-- ID: 98000df8-eecf-4ae1-9301-041c19fb2a4e
 -- 
+-- Datos a borrar según preview:
+-- - 4 agrupaciones
+-- - 262 ubicaciones
+-- - 258 contadores
+-- - 744 lecturas
+-- - 248 facturas borrador
+--
 -- Este script borra:
 -- 1. Clientes asociados a la comunidad
 -- 2. Contadores de la comunidad
@@ -10,6 +18,12 @@
 --
 -- IMPORTANTE: Ejecutar PRIMERO la sección PREVIEW
 -- =====================================================
+
+-- ID de la comunidad (usar directamente en lugar de buscar por nombre)
+DO $$ 
+BEGIN
+  PERFORM '98000df8-eecf-4ae1-9301-041c19fb2a4e'::UUID;
+END $$;
 
 -- =====================================================
 -- PASO 1: PREVIEW - VER QUÉ SE VA A BORRAR
@@ -22,11 +36,7 @@ SELECT
   nombre,
   created_at
 FROM comunidades
-WHERE nombre ILIKE '%570 262 VIV GETAFE II%'
-  OR nombre = '570 262 VIV GETAFE II';
-
--- IMPORTANTE: Copia el ID de la comunidad que aparece arriba
--- y úsalo en las siguientes consultas reemplazando 'COMUNIDAD_ID_AQUI'
+WHERE id = '98000df8-eecf-4ae1-9301-041c19fb2a4e';
 
 -- Vista previa: Agrupaciones que se verán afectadas
 SELECT 
@@ -37,9 +47,7 @@ SELECT
 FROM agrupaciones a
 LEFT JOIN ubicaciones u ON u.agrupacion_id = a.id
 LEFT JOIN contadores cont ON cont.ubicacion_id = u.id
-WHERE a.comunidad_id = (
-  SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
-)
+WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
 GROUP BY a.id, a.nombre;
 
 -- Vista previa: Clientes que se borrarán
@@ -54,9 +62,7 @@ FROM clientes c
 JOIN ubicaciones_clientes uc ON uc.cliente_id = c.id
 JOIN ubicaciones u ON u.id = uc.ubicacion_id
 JOIN agrupaciones a ON a.id = u.agrupacion_id
-WHERE a.comunidad_id = (
-  SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
-);
+WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e';
 
 -- Vista previa: Contadores que se borrarán
 SELECT 
@@ -69,9 +75,7 @@ FROM contadores cont
 JOIN ubicaciones u ON u.id = cont.ubicacion_id
 JOIN agrupaciones a ON a.id = u.agrupacion_id
 LEFT JOIN lecturas l ON l.contador_id = cont.id
-WHERE a.comunidad_id = (
-  SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
-)
+WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
 GROUP BY cont.id, cont.numero_serie, u.nombre, a.nombre;
 
 -- Vista previa: Facturas en borrador que se borrarán
@@ -83,9 +87,7 @@ SELECT
   f.total,
   f.estado
 FROM facturas f
-WHERE f.comunidad_id = (
-  SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
-)
+WHERE f.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
 AND f.estado = 'borrador';
 
 -- Resumen de lo que se borrará
@@ -95,21 +97,21 @@ SELECT
    JOIN ubicaciones_clientes uc ON uc.cliente_id = c.id
    JOIN ubicaciones u ON u.id = uc.ubicacion_id
    JOIN agrupaciones a ON a.id = u.agrupacion_id
-   WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
+   WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
   ) AS total_clientes,
   (SELECT COUNT(*) FROM contadores cont
    JOIN ubicaciones u ON u.id = cont.ubicacion_id
    JOIN agrupaciones a ON a.id = u.agrupacion_id
-   WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
+   WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
   ) AS total_contadores,
   (SELECT COUNT(*) FROM lecturas l
    JOIN contadores cont ON cont.id = l.contador_id
    JOIN ubicaciones u ON u.id = cont.ubicacion_id
    JOIN agrupaciones a ON a.id = u.agrupacion_id
-   WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
+   WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
   ) AS total_lecturas,
   (SELECT COUNT(*) FROM facturas f
-   WHERE f.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
+   WHERE f.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
    AND f.estado = 'borrador'
   ) AS total_facturas_borrador;
 
@@ -120,12 +122,10 @@ SELECT
 -- Revisa el PREVIEW arriba antes de ejecutar
 -- =====================================================
 
--- Descomenta las siguientes líneas SOLO cuando estés seguro de borrar
-
-/*
 DO $$
 DECLARE
-  v_comunidad_id UUID;
+  v_comunidad_id UUID := '98000df8-eecf-4ae1-9301-041c19fb2a4e';
+  v_comunidad_nombre VARCHAR;
   v_deleted_lecturas INTEGER;
   v_deleted_conceptos INTEGER;
   v_deleted_facturas_borrador INTEGER;
@@ -136,17 +136,20 @@ DECLARE
   v_deleted_ubicaciones INTEGER;
   v_deleted_agrupaciones INTEGER;
 BEGIN
-  -- Obtener ID de la comunidad
-  SELECT id INTO v_comunidad_id
+  -- Verificar que la comunidad existe
+  SELECT nombre INTO v_comunidad_nombre
   FROM comunidades
-  WHERE nombre ILIKE '%570 262 VIV GETAFE II%'
-  LIMIT 1;
+  WHERE id = v_comunidad_id;
 
-  IF v_comunidad_id IS NULL THEN
-    RAISE EXCEPTION 'No se encontró la comunidad "570 262 VIV GETAFE II"';
+  IF v_comunidad_nombre IS NULL THEN
+    RAISE EXCEPTION 'No se encontró la comunidad con ID: %', v_comunidad_id;
   END IF;
 
-  RAISE NOTICE 'Iniciando borrado para comunidad ID: %', v_comunidad_id;
+  RAISE NOTICE '====================================';
+  RAISE NOTICE 'Iniciando borrado para comunidad:';
+  RAISE NOTICE 'ID: %', v_comunidad_id;
+  RAISE NOTICE 'Nombre: %', v_comunidad_nombre;
+  RAISE NOTICE '====================================';
 
   -- 1. Borrar lecturas de los contadores de la comunidad
   DELETE FROM lecturas
@@ -273,33 +276,28 @@ EXCEPTION
     RAISE NOTICE 'El borrado fue revertido (ROLLBACK)';
     RAISE EXCEPTION '%', SQLERRM; -- Re-lanzar el error para hacer ROLLBACK
 END $$;
-*/
 
 -- =====================================================
 -- PASO 3: VERIFICACIÓN POST-BORRADO
 -- =====================================================
 -- Ejecuta esto DESPUÉS del borrado para verificar
 
-/*
 SELECT 
   'VERIFICACIÓN POST-BORRADO' AS seccion,
-  (SELECT COUNT(*) FROM agrupaciones WHERE comunidad_id = (
-    SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1
-  )) AS agrupaciones_restantes,
+  (SELECT COUNT(*) FROM agrupaciones WHERE comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e') AS agrupaciones_restantes,
   (SELECT COUNT(*) FROM ubicaciones u
    JOIN agrupaciones a ON a.id = u.agrupacion_id
-   WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
+   WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
   ) AS ubicaciones_restantes,
   (SELECT COUNT(*) FROM contadores cont
    JOIN ubicaciones u ON u.id = cont.ubicacion_id
    JOIN agrupaciones a ON a.id = u.agrupacion_id
-   WHERE a.comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
+   WHERE a.comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
   ) AS contadores_restantes,
   (SELECT COUNT(*) FROM facturas
-   WHERE comunidad_id = (SELECT id FROM comunidades WHERE nombre ILIKE '%570 262 VIV GETAFE II%' LIMIT 1)
+   WHERE comunidad_id = '98000df8-eecf-4ae1-9301-041c19fb2a4e'
    AND estado = 'borrador'
   ) AS facturas_borrador_restantes;
-*/
 
 -- =====================================================
 -- NOTAS IMPORTANTES
