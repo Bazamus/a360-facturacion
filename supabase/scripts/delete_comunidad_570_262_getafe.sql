@@ -151,7 +151,24 @@ BEGIN
   RAISE NOTICE 'Nombre: %', v_comunidad_nombre;
   RAISE NOTICE '====================================';
 
-  -- 1. Borrar lecturas de los contadores de la comunidad
+  -- 1. Borrar líneas de facturas en borrador (tienen FK a lecturas)
+  DELETE FROM facturas_lineas
+  WHERE factura_id IN (
+    SELECT id FROM facturas
+    WHERE comunidad_id = v_comunidad_id
+    AND estado = 'borrador'
+  );
+  GET DIAGNOSTICS v_deleted_facturas_lineas = ROW_COUNT;
+  RAISE NOTICE '✓ Líneas de facturas borradas: %', v_deleted_facturas_lineas;
+
+  -- 2. Borrar facturas en estado borrador
+  DELETE FROM facturas
+  WHERE comunidad_id = v_comunidad_id
+  AND estado = 'borrador';
+  GET DIAGNOSTICS v_deleted_facturas_borrador = ROW_COUNT;
+  RAISE NOTICE '✓ Facturas borrador borradas: %', v_deleted_facturas_borrador;
+
+  -- 3. Borrar lecturas de los contadores de la comunidad
   DELETE FROM lecturas
   WHERE contador_id IN (
     SELECT cont.id
@@ -163,7 +180,7 @@ BEGIN
   GET DIAGNOSTICS v_deleted_lecturas = ROW_COUNT;
   RAISE NOTICE '✓ Lecturas borradas: %', v_deleted_lecturas;
 
-  -- 2. Borrar conceptos de los contadores de la comunidad
+  -- 4. Borrar conceptos de los contadores de la comunidad
   DELETE FROM conceptos
   WHERE contador_id IN (
     SELECT cont.id
@@ -174,23 +191,6 @@ BEGIN
   );
   GET DIAGNOSTICS v_deleted_conceptos = ROW_COUNT;
   RAISE NOTICE '✓ Conceptos borrados: %', v_deleted_conceptos;
-
-  -- 3. Borrar líneas de facturas en borrador
-  DELETE FROM facturas_lineas
-  WHERE factura_id IN (
-    SELECT id FROM facturas
-    WHERE comunidad_id = v_comunidad_id
-    AND estado = 'borrador'
-  );
-  GET DIAGNOSTICS v_deleted_facturas_lineas = ROW_COUNT;
-  RAISE NOTICE '✓ Líneas de facturas borradas: %', v_deleted_facturas_lineas;
-
-  -- 4. Borrar facturas en estado borrador
-  DELETE FROM facturas
-  WHERE comunidad_id = v_comunidad_id
-  AND estado = 'borrador';
-  GET DIAGNOSTICS v_deleted_facturas_borrador = ROW_COUNT;
-  RAISE NOTICE '✓ Facturas borrador borradas: %', v_deleted_facturas_borrador;
 
   -- 5. Borrar contadores de la comunidad
   DELETE FROM contadores
@@ -255,11 +255,12 @@ BEGIN
   RAISE NOTICE '====================================';
   RAISE NOTICE 'BORRADO COMPLETADO EXITOSAMENTE';
   RAISE NOTICE '====================================';
+  RAISE NOTICE 'Líneas facturas: %', v_deleted_facturas_lineas;
+  RAISE NOTICE 'Facturas borrador: %', v_deleted_facturas_borrador;
   RAISE NOTICE 'Lecturas: %', v_deleted_lecturas;
   RAISE NOTICE 'Conceptos: %', v_deleted_conceptos;
-  RAISE NOTICE 'Facturas borrador: %', v_deleted_facturas_borrador;
-  RAISE NOTICE 'Líneas facturas: %', v_deleted_facturas_lineas;
   RAISE NOTICE 'Contadores: %', v_deleted_contadores;
+  RAISE NOTICE 'Relaciones ubicaciones_clientes: %', v_deleted_ubicaciones_clientes;
   RAISE NOTICE 'Clientes: %', v_deleted_clientes;
   RAISE NOTICE 'Ubicaciones: %', v_deleted_ubicaciones;
   RAISE NOTICE 'Agrupaciones: %', v_deleted_agrupaciones;
