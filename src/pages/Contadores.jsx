@@ -103,6 +103,25 @@ function ContadoresList() {
     refetch()
     setShowImportModal(false)
   }
+  
+  const handleClickEliminar = (contador) => {
+    setContadorAEliminar(contador)
+    setShowEliminarModal(true)
+  }
+  
+  const handleConfirmarEliminar = async () => {
+    if (!contadorAEliminar) return
+    
+    try {
+      const result = await eliminarContador.mutateAsync(contadorAEliminar.id)
+      toast.success(`Contador ${contadorAEliminar.numero_serie} eliminado correctamente`)
+      setShowEliminarModal(false)
+      setContadorAEliminar(null)
+      refetch()
+    } catch (error) {
+      toast.error(`Error: ${error.message}`)
+    }
+  }
 
   const columns = [
     {
