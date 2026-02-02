@@ -12,6 +12,7 @@ import {
   useExportarCSV
 } from '../hooks/useReportes'
 import { useToast } from '../components/ui/Toast'
+import { descargarReportePDF } from '../features/reportes/services/pdfService'
 
 export default function GenerarReporte() {
   const navigate = useNavigate()
@@ -69,36 +70,77 @@ export default function GenerarReporte() {
 
   const isLoading = consumosQuery.isLoading || facturacionQuery.isLoading || morosidadQuery.isLoading
 
-  // Columnas según tipo
+  // Columnas según tipo para DataTable
   const columnas = useMemo(() => {
     switch (tipo) {
       case 'consumos':
         return [
-          { key: 'fecha_lectura', label: 'Fecha', render: (v) => new Date(v).toLocaleDateString('es-ES') },
-          { key: 'ubicacion', label: 'Ubicación' },
-          { key: 'concepto', label: 'Concepto' },
-          { key: 'consumo', label: 'Consumo', className: 'text-right' },
-          { key: 'cliente', label: 'Cliente' },
-          { key: 'comunidad', label: 'Comunidad' }
+          { 
+            key: 'fecha_lectura', 
+            header: 'Fecha', 
+            render: (value) => new Date(value).toLocaleDateString('es-ES')
+          },
+          { key: 'ubicacion', header: 'Ubicación' },
+          { key: 'concepto', header: 'Concepto' },
+          { 
+            key: 'consumo', 
+            header: 'Consumo', 
+            cellClassName: 'text-right',
+            render: (value) => `${parseFloat(value || 0).toFixed(3)} m³`
+          },
+          { key: 'cliente', header: 'Cliente' },
+          { key: 'comunidad', header: 'Comunidad' }
         ]
       case 'facturacion':
         return [
-          { key: 'numero_completo', label: 'Nº Factura' },
-          { key: 'fecha_factura', label: 'Fecha', render: (v) => new Date(v).toLocaleDateString('es-ES') },
-          { key: 'cliente_nombre', label: 'Cliente' },
-          { key: 'base_imponible', label: 'Base', className: 'text-right', render: (v) => `${parseFloat(v).toFixed(2)} €` },
-          { key: 'importe_iva', label: 'IVA', className: 'text-right', render: (v) => `${parseFloat(v).toFixed(2)} €` },
-          { key: 'total', label: 'Total', className: 'text-right font-medium', render: (v) => `${parseFloat(v).toFixed(2)} €` },
-          { key: 'estado', label: 'Estado' }
+          { key: 'numero_completo', header: 'Nº Factura' },
+          { 
+            key: 'fecha_factura', 
+            header: 'Fecha', 
+            render: (value) => new Date(value).toLocaleDateString('es-ES') 
+          },
+          { key: 'cliente_nombre', header: 'Cliente' },
+          { 
+            key: 'base_imponible', 
+            header: 'Base', 
+            cellClassName: 'text-right',
+            render: (value) => `${parseFloat(value || 0).toFixed(2)} €` 
+          },
+          { 
+            key: 'importe_iva', 
+            header: 'IVA', 
+            cellClassName: 'text-right',
+            render: (value) => `${parseFloat(value || 0).toFixed(2)} €` 
+          },
+          { 
+            key: 'total', 
+            header: 'Total', 
+            cellClassName: 'text-right font-medium',
+            render: (value) => `${parseFloat(value || 0).toFixed(2)} €` 
+          },
+          { key: 'estado', header: 'Estado' }
         ]
       case 'morosidad':
         return [
-          { key: 'cliente', label: 'Cliente' },
-          { key: 'nif', label: 'NIF' },
-          { key: 'comunidad', label: 'Comunidad' },
-          { key: 'num_facturas_pendientes', label: 'Facturas', className: 'text-center' },
-          { key: 'importe_pendiente', label: 'Pendiente', className: 'text-right', render: (v) => `${parseFloat(v).toFixed(2)} €` },
-          { key: 'dias_mora_max', label: 'Días Mora', className: 'text-center' }
+          { key: 'cliente', header: 'Cliente' },
+          { key: 'nif', header: 'NIF' },
+          { key: 'comunidad', header: 'Comunidad' },
+          { 
+            key: 'num_facturas_pendientes', 
+            header: 'Facturas', 
+            cellClassName: 'text-center' 
+          },
+          { 
+            key: 'importe_pendiente', 
+            header: 'Pendiente', 
+            cellClassName: 'text-right',
+            render: (value) => `${parseFloat(value || 0).toFixed(2)} €` 
+          },
+          { 
+            key: 'dias_mora_max', 
+            header: 'Días Mora', 
+            cellClassName: 'text-center' 
+          }
         ]
       default:
         return []
@@ -147,6 +189,34 @@ export default function GenerarReporte() {
       showToast('CSV exportado correctamente', 'success')
     } catch (error) {
       showToast(error.message, 'error')
+    }
+  }
+
+  const handleExportPDF = async () => {
+    if (datos.length === 0) {
+      showToast('No hay datos para exportar', 'error')
+      return
+    }
+
+    try {
+      const tipoNombre = tipo.charAt(0).toUpperCase() + tipo.slice(1)
+      const periodo = filtros.fechaInicio && filtros.fechaFin
+        ? `${new Date(filtros.fechaInicio).toLocaleDateString('es-ES')} - ${new Date(filtros.fechaFin).toLocaleDateString('es-ES')}`
+        : 'Todos los periodos'
+
+      await descargarReportePDF({
+        titulo: `Reporte de ${tipoNombre}`,
+        subtitulo: `Sistema de Facturación A360`,
+        periodo,
+        datos,
+        columnas,
+        totales: totales ? Object.values(totales) : null
+      }, `Reporte_${tipo}_${new Date().toISOString().split('T')[0]}.pdf`)
+
+      showToast('PDF generado correctamente', 'success')
+    } catch (error) {
+      console.error('Error al generar PDF:', error)
+      showToast('Error al generar PDF: ' + error.message, 'error')
     }
   }
 
@@ -220,6 +290,7 @@ export default function GenerarReporte() {
             <ExportButtons
               onExportExcel={handleExportExcel}
               onExportCSV={handleExportCSV}
+              onExportPDF={handleExportPDF}
               disabled={datos.length === 0}
               isLoading={exportarExcel.isPending || exportarCSV.isPending}
             />
@@ -267,45 +338,14 @@ export default function GenerarReporte() {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto" />
-            </div>
-          ) : datos.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              No hay datos para los filtros seleccionados
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {columnas.map(col => (
-                      <th key={col.key} className={`px-4 py-3 text-left font-medium text-gray-600 ${col.className || ''}`}>
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {datos.slice(0, 100).map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      {columnas.map(col => (
-                        <td key={col.key} className={`px-4 py-3 ${col.className || ''}`}>
-                          {col.render ? col.render(row[col.key], row) : row[col.key]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {datos.length > 100 && (
-                <div className="p-4 text-center text-sm text-gray-500 bg-gray-50">
-                  Mostrando 100 de {datos.length} registros. Exporta a Excel/CSV para ver todos.
-                </div>
-              )}
-            </div>
-          )}
+          <DataTable
+            columns={columnas}
+            data={datos}
+            loading={isLoading}
+            emptyMessage="No hay datos para los filtros seleccionados"
+            pageSize={50}
+            sortable={true}
+          />
         </div>
       )}
     </div>

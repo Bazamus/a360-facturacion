@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   BarChart3, 
@@ -7,19 +7,24 @@ import {
   FileText, 
   Users, 
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Mail,
+  Gauge,
+  Building2
 } from 'lucide-react'
-import { Button, Select } from '../components/ui'
+import { Button, Select, Card } from '../components/ui'
 import { 
   MetricasCard, 
   GraficoComunidades, 
   GraficoEvolucion 
 } from '../features/reportes/components'
+import { PieChart } from '../features/reportes/components/charts'
 import { 
   useDashboardMetricas, 
   useEvolucionFacturacion,
   calcularRangoFechas 
 } from '../hooks/useReportes'
+import { useEnviosStats } from '../hooks/useEnvios'
 
 export default function ReportesDashboard() {
   const navigate = useNavigate()
@@ -28,6 +33,18 @@ export default function ReportesDashboard() {
   const rangoFechas = calcularRangoFechas(periodo)
   const { data: metricas, isLoading, refetch } = useDashboardMetricas(rangoFechas)
   const { data: evolucion = [] } = useEvolucionFacturacion()
+  const { data: statsEnvios } = useEnviosStats()
+
+  // Datos para gráfico de distribución de estados
+  const datosEstados = useMemo(() => {
+    if (!metricas?.facturacion) return []
+    
+    return [
+      { name: 'Emitidas', value: metricas.facturacion.num_facturas || 0 },
+      { name: 'Cobradas', value: metricas.cobro?.num_cobradas || 0 },
+      { name: 'Pendientes', value: metricas.cobro?.num_pendientes || 0 }
+    ].filter(item => item.value > 0)
+  }, [metricas])
 
   const opcionesPeriodo = [
     { value: 'mes_actual', label: 'Mes actual' },
@@ -68,8 +85,8 @@ export default function ReportesDashboard() {
         </div>
       ) : (
         <>
-          {/* Métricas principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Métricas principales - 6 tarjetas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <MetricasCard
               titulo="Facturado"
               valor={metricas?.facturacion?.total_facturado || 0}
@@ -98,14 +115,28 @@ export default function ReportesDashboard() {
               icono={Users}
               color="amber"
             />
+            <MetricasCard
+              titulo="Lecturas"
+              valor={metricas?.consumo?.total_lecturas || 0}
+              formato="numero"
+              icono={Gauge}
+              color="indigo"
+            />
+            <MetricasCard
+              titulo="Emails Enviados"
+              valor={statsEnvios?.total_enviados || 0}
+              formato="numero"
+              icono={Mail}
+              color="pink"
+            />
           </div>
 
           {/* Gráficos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Facturación por comunidad */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Facturación por Comunidad
+                Top 5 Comunidades
               </h2>
               <GraficoComunidades datos={metricas?.topComunidades || []} />
             </div>
@@ -116,6 +147,20 @@ export default function ReportesDashboard() {
                 Evolución Mensual
               </h2>
               <GraficoEvolucion datos={evolucion} />
+            </div>
+
+            {/* Distribución de Estados */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Distribución de Facturas
+              </h2>
+              {datosEstados.length > 0 ? (
+                <PieChart data={datosEstados} height={280} />
+              ) : (
+                <div className="flex items-center justify-center h-64 text-gray-400">
+                  No hay datos disponibles
+                </div>
+              )}
             </div>
           </div>
 

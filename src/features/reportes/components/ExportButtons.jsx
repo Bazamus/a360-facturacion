@@ -1,4 +1,5 @@
-import { FileSpreadsheet, FileText, Download } from 'lucide-react'
+import { useState } from 'react'
+import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react'
 import { Button } from '../../../components/ui'
 
 export function ExportButtons({ 
@@ -6,18 +7,35 @@ export function ExportButtons({
   onExportCSV, 
   onExportPDF,
   isLoading = false,
-  disabled = false 
+  disabled = false,
+  showPDF = true
 }) {
+  const [exportingPDF, setExportingPDF] = useState(false)
+
+  const handlePDFClick = async () => {
+    if (!onExportPDF) return
+    setExportingPDF(true)
+    try {
+      await onExportPDF()
+    } finally {
+      setExportingPDF(false)
+    }
+  }
+
   return (
     <div className="flex items-center gap-2">
       <Button
         variant="outline"
         size="sm"
         onClick={onExportExcel}
-        disabled={disabled || isLoading}
+        disabled={disabled || isLoading || exportingPDF}
         className="gap-1"
       >
-        <FileSpreadsheet className="w-4 h-4" />
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <FileSpreadsheet className="w-4 h-4" />
+        )}
         Excel
       </Button>
       
@@ -25,22 +43,30 @@ export function ExportButtons({
         variant="outline"
         size="sm"
         onClick={onExportCSV}
-        disabled={disabled || isLoading}
+        disabled={disabled || isLoading || exportingPDF}
         className="gap-1"
       >
-        <FileText className="w-4 h-4" />
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <FileText className="w-4 h-4" />
+        )}
         CSV
       </Button>
       
-      {onExportPDF && (
+      {showPDF && onExportPDF && (
         <Button
           variant="outline"
           size="sm"
-          onClick={onExportPDF}
-          disabled={disabled || isLoading}
+          onClick={handlePDFClick}
+          disabled={disabled || isLoading || exportingPDF}
           className="gap-1"
         >
-          <Download className="w-4 h-4" />
+          {exportingPDF ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4" />
+          )}
           PDF
         </Button>
       )}
