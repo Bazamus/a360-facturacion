@@ -160,6 +160,14 @@ export {
   useUpdateConfiguracionSEPA
 } from './useRemesas'
 
+// Envíos Atascados
+export {
+  useDetectarEnviosAtascados,
+  useLimpiarEnviosAtascados,
+  useEnviosEnProceso,
+  useCancelarEnvio
+} from './useEnviosAtascados'
+
 // Reportes y Dashboard
 export {
   useDashboardMetricas,
