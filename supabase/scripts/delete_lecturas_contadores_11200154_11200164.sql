@@ -22,6 +22,7 @@ DECLARE
     v_contador1_nombre VARCHAR;
     v_contador2_nombre VARCHAR;
     v_total_lecturas INTEGER;
+    rec RECORD;
 BEGIN
     RAISE NOTICE '================================================';
     RAISE NOTICE 'VERIFICACIÓN DE CONTADORES Y LECTURAS';

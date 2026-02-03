@@ -154,7 +154,6 @@ END $$;
 -- =====================================================
 -- Descomenta este bloque para ejecutar el borrado real
 
-/*
 DO $$
 DECLARE
     v_comunidad_id UUID := '98000df8-eecf-4ae1-9301-041c19fb2a4e';
@@ -209,7 +208,6 @@ END $$;
 -- =====================================================
 -- Descomenta este bloque para verificar después del borrado
 
-/*
 DO $$
 DECLARE
     v_comunidad_id UUID := '98000df8-eecf-4ae1-9301-041c19fb2a4e';
