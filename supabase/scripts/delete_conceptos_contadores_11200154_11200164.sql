@@ -45,20 +45,22 @@ BEGIN
                 c.codigo,
                 c.nombre,
                 cc.lectura_inicial,
-                cc.fecha_inicial,
+                cc.fecha_lectura_inicial,
                 cc.lectura_actual,
+                cc.fecha_lectura_actual,
                 cc.activo
             FROM contadores_conceptos cc
             JOIN conceptos c ON c.id = cc.concepto_id
             WHERE cc.contador_id = v_contador1_id
             ORDER BY c.nombre
         ) LOOP
-            RAISE NOTICE '  - % (%): Inicial: % (%) | Actual: % | Activo: %',
+            RAISE NOTICE '  - % (%): Inicial: % (%) | Actual: % (%) | Activo: %',
                 rec.codigo,
                 rec.nombre,
                 rec.lectura_inicial,
-                rec.fecha_inicial,
+                rec.fecha_lectura_inicial,
                 rec.lectura_actual,
+                rec.fecha_lectura_actual,
                 rec.activo;
         END LOOP;
         
@@ -87,20 +89,22 @@ BEGIN
                 c.codigo,
                 c.nombre,
                 cc.lectura_inicial,
-                cc.fecha_inicial,
+                cc.fecha_lectura_inicial,
                 cc.lectura_actual,
+                cc.fecha_lectura_actual,
                 cc.activo
             FROM contadores_conceptos cc
             JOIN conceptos c ON c.id = cc.concepto_id
             WHERE cc.contador_id = v_contador2_id
             ORDER BY c.nombre
         ) LOOP
-            RAISE NOTICE '  - % (%): Inicial: % (%) | Actual: % | Activo: %',
+            RAISE NOTICE '  - % (%): Inicial: % (%) | Actual: % (%) | Activo: %',
                 rec.codigo,
                 rec.nombre,
                 rec.lectura_inicial,
-                rec.fecha_inicial,
+                rec.fecha_lectura_inicial,
                 rec.lectura_actual,
+                rec.fecha_lectura_actual,
                 rec.activo;
         END LOOP;
         
