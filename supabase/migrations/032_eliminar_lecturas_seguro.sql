@@ -189,8 +189,9 @@ DECLARE
 BEGIN
   -- Contar total de lecturas de esta importación
   SELECT COUNT(*) INTO v_total_lecturas
-  FROM lecturas
-  WHERE importacion_id = p_importacion_id;
+  FROM lecturas l
+  JOIN importaciones_detalle id ON id.id = l.importacion_detalle_id
+  WHERE id.importacion_id = p_importacion_id;
 
   IF v_total_lecturas = 0 THEN
     RETURN QUERY SELECT
@@ -211,9 +212,10 @@ BEGIN
       l.lectura_valor,
       l.fecha_lectura
     FROM lecturas l
+    JOIN importaciones_detalle id ON id.id = l.importacion_detalle_id
     JOIN contadores c ON c.id = l.contador_id
     JOIN conceptos con ON con.id = l.concepto_id
-    WHERE l.importacion_id = p_importacion_id
+    WHERE id.importacion_id = p_importacion_id
     ORDER BY l.created_at
   LOOP
     -- Intentar eliminar cada lectura
@@ -248,7 +250,7 @@ BEGIN
 
   -- Si todas las lecturas fueron eliminadas, marcar la importación como cancelada
   IF v_lecturas_no_eliminables = 0 THEN
-    UPDATE importaciones_lecturas
+    UPDATE importaciones
     SET
       estado = 'cancelado',
       updated_at = now()
