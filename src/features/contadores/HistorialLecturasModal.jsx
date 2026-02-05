@@ -3,11 +3,12 @@ import { X, Trash2, AlertTriangle } from 'lucide-react'
 import { useLecturas, useEliminarLectura } from '@/hooks/useLecturas'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { toast } from 'sonner'
+import { useToast } from '@/components/ui/Toast'
 import { formatDate } from '@/lib/utils'
 
 export function HistorialLecturasModal({ open, onClose, contadorId, concepto }) {
   const [confirmModal, setConfirmModal] = useState({ open: false, lectura: null })
+  const toast = useToast()
 
   // Cargar lecturas del contador-concepto
   const { data: lecturas, isLoading } = useLecturas({
@@ -29,18 +30,13 @@ export function HistorialLecturasModal({ open, onClose, contadorId, concepto }) 
     try {
       const result = await eliminarLectura.mutateAsync(lectura.id)
 
-      toast.success(
-        `Lectura eliminada correctamente`,
-        {
-          description: result.lectura_actual_nueva !== null
-            ? `Lectura actual restaurada a: ${result.lectura_actual_nueva} ${concepto?.unidad_medida || 'm³'} (${formatDate(result.fecha_lectura_actual_nueva)})`
-            : 'Lectura actual restaurada a: lectura inicial'
-        }
-      )
+      const mensaje = result.lectura_actual_nueva !== null
+        ? `Lectura eliminada. Lectura actual restaurada a: ${result.lectura_actual_nueva} ${concepto?.unidad_medida || 'm³'} (${formatDate(result.fecha_lectura_actual_nueva)})`
+        : 'Lectura eliminada. Lectura actual restaurada a lectura inicial'
+
+      toast.success(mensaje)
     } catch (error) {
-      toast.error('Error al eliminar lectura', {
-        description: error.message
-      })
+      toast.error(`Error al eliminar lectura: ${error.message}`)
     }
   }
 

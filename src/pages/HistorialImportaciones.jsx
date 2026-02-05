@@ -5,7 +5,7 @@ import { Button, Card, EmptyState, LoadingSpinner, Badge } from '@/components/ui
 import { useImportaciones, useEliminarImportacionCompleta } from '@/hooks/useLecturas'
 import { useComunidades } from '@/hooks/useComunidades'
 import { formatDateTime } from '@/lib/utils'
-import { toast } from 'sonner'
+import { useToast } from '@/components/ui/Toast'
 
 const estadoBadges = {
   pendiente: { variant: 'default', label: 'Pendiente' },
@@ -17,6 +17,7 @@ const estadoBadges = {
 
 export default function HistorialImportaciones() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [comunidadId, setComunidadId] = useState('')
 
   const { data: comunidades } = useComunidades({ activa: true })
@@ -51,23 +52,14 @@ export default function HistorialImportaciones() {
 
       if (result.lecturas_no_eliminables > 0) {
         toast.success(
-          `${result.lecturas_eliminadas} lecturas eliminadas`,
-          {
-            description: `${result.lecturas_no_eliminables} lecturas no se pudieron eliminar (facturadas)`
-          }
+          `${result.lecturas_eliminadas} lecturas eliminadas. ` +
+          `${result.lecturas_no_eliminables} no se pudieron eliminar (facturadas)`
         )
       } else {
-        toast.success(
-          `${result.lecturas_eliminadas} lecturas eliminadas correctamente`,
-          {
-            description: 'Todas las lecturas de la importación fueron eliminadas'
-          }
-        )
+        toast.success(`${result.lecturas_eliminadas} lecturas eliminadas correctamente`)
       }
     } catch (error) {
-      toast.error('Error al eliminar importación', {
-        description: error.message
-      })
+      toast.error(`Error al eliminar importación: ${error.message}`)
     }
   }
 
