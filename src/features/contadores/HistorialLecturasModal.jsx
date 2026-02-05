@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { X, Trash2, AlertTriangle } from 'lucide-react'
 import { useLecturas, useEliminarLectura } from '@/hooks/useLecturas'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Button, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { formatDate } from '@/lib/utils'
 
