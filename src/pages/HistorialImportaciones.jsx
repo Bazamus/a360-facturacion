@@ -122,22 +122,19 @@ export default function HistorialImportaciones() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Fecha / Comunidad
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Comunidad
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Archivo
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Filas
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24 sticky right-0 bg-gray-50">
                     Acciones
                   </th>
                 </tr>
@@ -145,85 +142,86 @@ export default function HistorialImportaciones() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {importaciones.map((imp) => {
                   const estadoConfig = estadoBadges[imp.estado] || estadoBadges.pendiente
-                  
+
                   return (
                     <tr key={imp.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-900">
-                            {formatDateTime(imp.fecha_subida)}
-                          </span>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span className="text-xs text-gray-900">
+                              {formatDateTime(imp.fecha_subida)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 ml-5">
+                            <span className="text-xs font-medium text-gray-700">
+                              {imp.comunidad_codigo}
+                            </span>
+                            <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                              {imp.comunidad_nombre}
+                            </span>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">
-                            {imp.comunidad_nombre}
-                          </span>
-                          <span className="text-xs text-gray-500 ml-2">
-                            {imp.comunidad_codigo}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-900 truncate max-w-xs block">
+                      <td className="px-3 py-3">
+                        <span
+                          className="text-xs text-gray-900 truncate block max-w-[200px]"
+                          title={imp.nombre_archivo}
+                        >
                           {imp.nombre_archivo}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-900">{imp.total_filas}</span>
+                      <td className="px-3 py-3 text-center">
+                        <div className="text-xs">
+                          <span className="font-medium text-gray-900 block">{imp.total_filas}</span>
                           {imp.estado !== 'pendiente' && (
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              <span className="text-green-600">{imp.filas_validas} ✓</span>
+                            <div className="text-[10px] text-gray-500 mt-0.5 flex items-center justify-center gap-1">
+                              <span className="text-green-600">{imp.filas_validas}✓</span>
                               {imp.filas_con_alertas > 0 && (
-                                <span className="text-amber-600 ml-1">{imp.filas_con_alertas} ⚠</span>
+                                <span className="text-amber-600">{imp.filas_con_alertas}⚠</span>
                               )}
                               {imp.filas_error > 0 && (
-                                <span className="text-red-600 ml-1">{imp.filas_error} ✗</span>
+                                <span className="text-red-600">{imp.filas_error}✗</span>
                               )}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <Badge variant={estadoConfig.variant}>
+                      <td className="px-3 py-3 text-center">
+                        <Badge variant={estadoConfig.variant} className="text-[10px] px-2 py-0.5">
                           {estadoConfig.label}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-3 py-3 text-right sticky right-0 bg-white">
+                        <div className="flex items-center justify-end gap-1">
                           {imp.estado === 'validado' && (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleVerDetalle(imp)}
+                              className="text-xs px-2 py-1"
                             >
-                              <Play className="w-4 h-4 mr-1" />
+                              <Play className="w-3 h-3 mr-1" />
                               Continuar
                             </Button>
                           )}
                           {imp.estado === 'confirmado' && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
+                              <button
                                 onClick={() => handleVerDetalle(imp)}
                                 title="Ver detalles"
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                               >
                                 <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
+                              </button>
+                              <button
                                 onClick={() => handleEliminarImportacion(imp)}
                                 disabled={eliminarImportacion.isPending}
                                 title="Eliminar lecturas (solo no facturadas)"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
                               >
                                 <Trash2 className="w-4 h-4" />
-                              </Button>
+                              </button>
                             </>
                           )}
                         </div>
