@@ -6,6 +6,7 @@ import { useImportaciones, useEliminarImportacionCompleta } from '@/hooks/useLec
 import { useComunidades } from '@/hooks/useComunidades'
 import { formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
+import { ResumenImportacionModal } from './ResumenImportacionModal'
 
 const estadoBadges = {
   pendiente: { variant: 'default', label: 'Pendiente' },
@@ -19,6 +20,7 @@ export default function HistorialImportaciones() {
   const navigate = useNavigate()
   const toast = useToast()
   const [comunidadId, setComunidadId] = useState('')
+  const [resumenModal, setResumenModal] = useState({ open: false, importacionId: null })
 
   const { data: comunidades } = useComunidades({ activa: true })
   const { data: importaciones, isLoading } = useImportaciones({
@@ -34,8 +36,10 @@ export default function HistorialImportaciones() {
   const handleVerDetalle = (importacion) => {
     if (importacion.estado === 'validado') {
       navigate(`/lecturas/validar/${importacion.id}`)
+    } else if (importacion.estado === 'confirmado' || importacion.estado === 'cancelado') {
+      // Mostrar modal de resumen para importaciones confirmadas o canceladas
+      setResumenModal({ open: true, importacionId: importacion.id })
     }
-    // Para otros estados, podríamos mostrar un modal de resumen
   }
 
   const handleEliminarImportacion = async (importacion) => {
@@ -256,6 +260,13 @@ export default function HistorialImportaciones() {
           </span>
         </div>
       </Card>
+
+      {/* Modal de resumen */}
+      <ResumenImportacionModal
+        open={resumenModal.open}
+        onClose={() => setResumenModal({ open: false, importacionId: null })}
+        importacionId={resumenModal.importacionId}
+      />
     </div>
   )
 }
