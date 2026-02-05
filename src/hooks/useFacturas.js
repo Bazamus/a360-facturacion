@@ -498,10 +498,20 @@ export function useHistoricoConsumo(contadorId, conceptoId, meses = 6) {
 // =====================================================
 
 export function useEstadisticasFacturacion(options = {}) {
-  const { comunidadId, periodoInicio, periodoFin } = options
+  const {
+    comunidadId,
+    periodoInicio,
+    periodoFin,
+    fechaDesde,
+    fechaHasta
+  } = options
+
+  // Soportar ambos nombres de parámetros
+  const fechaInicio = periodoInicio || fechaDesde
+  const fechaFin = periodoFin || fechaHasta
 
   return useQuery({
-    queryKey: ['estadisticas-facturacion', { comunidadId, periodoInicio, periodoFin }],
+    queryKey: ['estadisticas-facturacion', { comunidadId, fechaInicio, fechaFin }],
     queryFn: async () => {
       let query = supabase
         .from('facturas')
@@ -511,12 +521,12 @@ export function useEstadisticasFacturacion(options = {}) {
         query = query.eq('comunidad_id', comunidadId)
       }
 
-      if (periodoInicio) {
-        query = query.gte('fecha_factura', periodoInicio)
+      if (fechaInicio) {
+        query = query.gte('fecha_factura', fechaInicio)
       }
 
-      if (periodoFin) {
-        query = query.lte('fecha_factura', periodoFin)
+      if (fechaFin) {
+        query = query.lte('fecha_factura', fechaFin)
       }
 
       const { data, error } = await query

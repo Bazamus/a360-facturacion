@@ -58,7 +58,12 @@ export default function Facturas() {
     sortBy,
     sortDirection
   })
-  const { data: stats } = useEstadisticasFacturacion(filters)
+  // Estadísticas sin filtro de estado (para mostrar siempre todos los conteos)
+  const { data: stats } = useEstadisticasFacturacion({
+    comunidadId: filters.comunidadId,
+    fechaDesde: filters.fechaDesde,
+    fechaHasta: filters.fechaHasta
+  })
   
   // Extraer datos y total de la respuesta
   const facturas = facturasResult?.data || facturasResult || []
