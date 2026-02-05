@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Eye, Play, Download, Calendar, Folder } from 'lucide-react'
+import { Plus, Eye, Play, Download, Calendar, Folder, Trash2 } from 'lucide-react'
 import { Button, Card, EmptyState, LoadingSpinner, Badge } from '@/components/ui'
-import { useImportaciones } from '@/hooks/useLecturas'
+import { useImportaciones, useEliminarImportacionCompleta } from '@/hooks/useLecturas'
 import { useComunidades } from '@/hooks/useComunidades'
 import { formatDateTime } from '@/lib/utils'
+import { toast } from 'sonner'
 
 const estadoBadges = {
   pendiente: { variant: 'default', label: 'Pendiente' },
@@ -19,10 +20,11 @@ export default function HistorialImportaciones() {
   const [comunidadId, setComunidadId] = useState('')
 
   const { data: comunidades } = useComunidades({ activa: true })
-  const { data: importaciones, isLoading } = useImportaciones({ 
+  const { data: importaciones, isLoading } = useImportaciones({
     comunidadId: comunidadId || undefined,
-    limit: 50 
+    limit: 50
   })
+  const eliminarImportacion = useEliminarImportacionCompleta()
 
   const handleNuevaImportacion = () => {
     navigate('/lecturas/importar')
@@ -33,6 +35,40 @@ export default function HistorialImportaciones() {
       navigate(`/lecturas/validar/${importacion.id}`)
     }
     // Para otros estados, podríamos mostrar un modal de resumen
+  }
+
+  const handleEliminarImportacion = async (importacion) => {
+    const confirmar = window.confirm(
+      `¿Eliminar TODAS las lecturas de esta importación?\n\n` +
+      `Importación: ${importacion.nombre_archivo}\n` +
+      `Solo se eliminarán lecturas NO facturadas.`
+    )
+
+    if (!confirmar) return
+
+    try {
+      const result = await eliminarImportacion.mutateAsync(importacion.id)
+
+      if (result.lecturas_no_eliminables > 0) {
+        toast.success(
+          `${result.lecturas_eliminadas} lecturas eliminadas`,
+          {
+            description: `${result.lecturas_no_eliminables} lecturas no se pudieron eliminar (facturadas)`
+          }
+        )
+      } else {
+        toast.success(
+          `${result.lecturas_eliminadas} lecturas eliminadas correctamente`,
+          {
+            description: 'Todas las lecturas de la importación fueron eliminadas'
+          }
+        )
+      }
+    } catch (error) {
+      toast.error('Error al eliminar importación', {
+        description: error.message
+      })
+    }
   }
 
   return (
@@ -177,13 +213,26 @@ export default function HistorialImportaciones() {
                             </Button>
                           )}
                           {imp.estado === 'confirmado' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleVerDetalle(imp)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleVerDetalle(imp)}
+                                title="Ver detalles"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleEliminarImportacion(imp)}
+                                disabled={eliminarImportacion.isPending}
+                                title="Eliminar lecturas (solo no facturadas)"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>

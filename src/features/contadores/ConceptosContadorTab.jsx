@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { Plus, Trash2, Edit2 } from 'lucide-react'
+import { Plus, Trash2, Edit2, Eye } from 'lucide-react'
 import { useConceptos, useAsignarConcepto, useDesasignarConcepto } from '@/hooks'
 import { Button, Modal, Input, Select, FormField, Badge, EmptyState } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { formatNumber, formatDate } from '@/lib/utils'
 import { EditarLecturaInicialModal } from './EditarLecturaInicialModal'
+import { HistorialLecturasModal } from './HistorialLecturasModal'
 
 export function ConceptosContadorTab({ contador }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [contadorConceptoEditar, setContadorConceptoEditar] = useState(null)
+  const [historialModal, setHistorialModal] = useState({ open: false, concepto: null })
   const { data: conceptosDisponibles } = useConceptos()
   const asignarMutation = useAsignarConcepto()
   const desasignarMutation = useDesasignarConcepto()
@@ -133,6 +135,13 @@ export function ConceptosContadorTab({ contador }) {
 
               <div className="flex gap-1">
                 <button
+                  onClick={() => setHistorialModal({ open: true, concepto: cc.concepto })}
+                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                  title="Ver historial de lecturas"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                <button
                   onClick={() => handleEditar(cc)}
                   className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
                   title="Editar lectura inicial"
@@ -215,6 +224,14 @@ export function ConceptosContadorTab({ contador }) {
         open={editModalOpen}
         onClose={handleCloseEditModal}
         contadorConcepto={contadorConceptoEditar}
+      />
+
+      {/* Modal para ver historial de lecturas */}
+      <HistorialLecturasModal
+        open={historialModal.open}
+        onClose={() => setHistorialModal({ open: false, concepto: null })}
+        contadorId={contador.id}
+        concepto={historialModal.concepto}
       />
     </div>
   )

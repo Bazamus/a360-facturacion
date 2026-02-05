@@ -435,6 +435,87 @@ export function useMediaConsumo(contadorId, conceptoId) {
   })
 }
 
+// =====================================================
+// Hooks para Eliminación de Lecturas
+// =====================================================
+
+export function useVerificarLecturaEliminable(lecturaId) {
+  return useQuery({
+    queryKey: ['verificar-lectura-eliminable', lecturaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('verificar_lectura_eliminable', {
+          p_lectura_id: lecturaId
+        })
+
+      if (error) throw error
+      return data?.[0] || null
+    },
+    enabled: !!lecturaId
+  })
+}
+
+export function useEliminarLectura() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: async (lecturaId) => {
+      const { data, error } = await supabase
+        .rpc('eliminar_lectura_segura', {
+          p_lectura_id: lecturaId,
+          p_user_id: user?.id
+        })
+
+      if (error) throw error
+
+      const result = data?.[0]
+      if (!result?.success) {
+        throw new Error(result?.message || 'Error al eliminar lectura')
+      }
+
+      return result
+    },
+    onSuccess: () => {
+      // Invalidar queries relevantes
+      queryClient.invalidateQueries({ queryKey: ['lecturas'] })
+      queryClient.invalidateQueries({ queryKey: ['contadores'] })
+      queryClient.invalidateQueries({ queryKey: ['ultima-lectura'] })
+    }
+  })
+}
+
+export function useEliminarImportacionCompleta() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: async (importacionId) => {
+      const { data, error } = await supabase
+        .rpc('eliminar_importacion_completa', {
+          p_importacion_id: importacionId,
+          p_user_id: user?.id
+        })
+
+      if (error) throw error
+
+      const result = data?.[0]
+      if (!result?.success) {
+        throw new Error(result?.mensaje || 'Error al eliminar importación')
+      }
+
+      return result
+    },
+    onSuccess: () => {
+      // Invalidar queries relevantes
+      queryClient.invalidateQueries({ queryKey: ['importaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['importaciones-detalle'] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas'] })
+      queryClient.invalidateQueries({ queryKey: ['contadores'] })
+    }
+  })
+}
+
 
 
 
