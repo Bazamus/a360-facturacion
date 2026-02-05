@@ -180,12 +180,6 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFont('helvetica', 'normal')
   doc.text(`Desde: ${formatDate(factura.periodo_inicio)}`, periodoX + 5, y + 18)
   doc.text(`Hasta: ${formatDate(factura.periodo_fin)}`, periodoX + 5, y + 26)
-  
-  if (factura.es_periodo_parcial) {
-    doc.setFontSize(8)
-    doc.setTextColor(...COLORS.danger)
-    doc.text('(Periodo parcial)', periodoX + 5, y + 34)
-  }
 
   y += boxHeight + 10
 
