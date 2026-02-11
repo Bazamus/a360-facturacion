@@ -110,6 +110,13 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
               maxLength={9}
               error={errors.nif}
             />
+            <button
+              type="button"
+              onClick={() => setValue('nif', 'B00000000')}
+              className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+            >
+              Sin NIF/CIF - Asignar provisional
+            </button>
           </FormField>
 
           <FormField label="Tipo" error={errors.tipo?.message} required>
