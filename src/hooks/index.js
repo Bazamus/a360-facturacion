@@ -185,6 +185,7 @@ export {
 // Comentarios Internos (Notas)
 export {
   useComentarios,
+  useAllComentarios,
   useCreateComentario,
   useUpdateComentario,
   useDeleteComentario

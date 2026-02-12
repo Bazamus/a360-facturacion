@@ -30,6 +30,40 @@ export function useComentarios(entidadTipo, entidadId) {
 }
 
 /**
+ * Obtener TODOS los comentarios (vista central) con filtros opcionales
+ * @param {Object} filtros - { entidadTipo, prioridad, etiqueta, search }
+ */
+export function useAllComentarios(filtros = {}) {
+  return useQuery({
+    queryKey: ['comentarios-all', filtros],
+    queryFn: async () => {
+      let query = supabase
+        .from('v_comentarios_central')
+        .select('*')
+        .order('fijado', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (filtros.entidadTipo) {
+        query = query.eq('entidad_tipo', filtros.entidadTipo)
+      }
+      if (filtros.prioridad) {
+        query = query.eq('prioridad', filtros.prioridad)
+      }
+      if (filtros.etiqueta) {
+        query = query.eq('etiqueta', filtros.etiqueta)
+      }
+      if (filtros.search) {
+        query = query.or(`contenido.ilike.%${filtros.search}%,entidad_nombre.ilike.%${filtros.search}%`)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+      return data
+    }
+  })
+}
+
+/**
  * Crear un nuevo comentario
  */
 export function useCreateComentario() {
@@ -50,6 +84,7 @@ export function useCreateComentario() {
       queryClient.invalidateQueries({
         queryKey: ['comentarios', data.entidad_tipo, data.entidad_id]
       })
+      queryClient.invalidateQueries({ queryKey: ['comentarios-all'] })
     }
   })
 }
@@ -76,6 +111,7 @@ export function useUpdateComentario() {
       queryClient.invalidateQueries({
         queryKey: ['comentarios', data.entidad_tipo, data.entidad_id]
       })
+      queryClient.invalidateQueries({ queryKey: ['comentarios-all'] })
     }
   })
 }
@@ -100,6 +136,7 @@ export function useDeleteComentario() {
       queryClient.invalidateQueries({
         queryKey: ['comentarios', data.entidadTipo, data.entidadId]
       })
+      queryClient.invalidateQueries({ queryKey: ['comentarios-all'] })
     }
   })
 }

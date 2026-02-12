@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Modal, Button, FormField, Select, Textarea } from '@/components/ui'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useCreateComentario, useUpdateComentario } from '@/hooks/useComentarios'
+import { useClientes } from '@/hooks/useClientes'
+import { useComunidades } from '@/hooks/useComunidades'
 import { useToast } from '@/components/ui/Toast'
 
 const ETIQUETAS = [
@@ -28,9 +30,9 @@ const ESTADOS = [
 export function NuevoComentarioModal({
   open,
   onClose,
-  entidadTipo,
-  entidadId,
-  comentario = null  // Si se pasa, es edición
+  entidadTipo: entidadTipoProp,
+  entidadId: entidadIdProp,
+  comentario = null  // Si se pasa, es edicion
 }) {
   const { user, profile } = useAuth()
   const toast = useToast()
@@ -39,13 +41,53 @@ export function NuevoComentarioModal({
 
   const esEdicion = !!comentario
 
+  // Modo global: si no se pasan entidadTipo/entidadId, mostrar selectores
+  const modoGlobal = !entidadTipoProp && !entidadIdProp && !esEdicion
+
   // Estado del formulario
   const [contenido, setContenido] = useState('')
   const [etiqueta, setEtiqueta] = useState('')
   const [prioridad, setPrioridad] = useState('normal')
   const [estado, setEstado] = useState('abierto')
 
-  // Cargar datos si es edición
+  // Estado para selector de entidad (modo global)
+  const [tipoEntidad, setTipoEntidad] = useState('cliente')
+  const [entidadSeleccionada, setEntidadSeleccionada] = useState('')
+  const [busquedaEntidad, setBusquedaEntidad] = useState('')
+
+  // Datos para selectores
+  const { data: clientes } = useClientes({ enabled: modoGlobal && tipoEntidad === 'cliente' })
+  const { data: comunidades } = useComunidades({ enabled: modoGlobal && tipoEntidad === 'comunidad' })
+
+  // Lista filtrada de entidades
+  const entidades = useMemo(() => {
+    let lista = []
+    if (tipoEntidad === 'cliente' && clientes) {
+      lista = clientes.map(c => ({
+        id: c.id,
+        label: `${c.nombre} ${c.apellidos}`,
+        extra: c.codigo_cliente || c.nif
+      }))
+    } else if (tipoEntidad === 'comunidad' && comunidades) {
+      lista = comunidades.map(c => ({
+        id: c.id,
+        label: c.nombre,
+        extra: c.codigo
+      }))
+    }
+
+    if (busquedaEntidad) {
+      const search = busquedaEntidad.toLowerCase()
+      lista = lista.filter(e =>
+        e.label.toLowerCase().includes(search) ||
+        (e.extra && e.extra.toLowerCase().includes(search))
+      )
+    }
+
+    return lista
+  }, [tipoEntidad, clientes, comunidades, busquedaEntidad])
+
+  // Cargar datos si es edicion
   useEffect(() => {
     if (comentario) {
       setContenido(comentario.contenido || '')
@@ -57,14 +99,31 @@ export function NuevoComentarioModal({
       setEtiqueta('')
       setPrioridad('normal')
       setEstado('abierto')
+      setEntidadSeleccionada('')
+      setBusquedaEntidad('')
     }
   }, [comentario, open])
+
+  // Reset entidad seleccionada al cambiar tipo
+  useEffect(() => {
+    setEntidadSeleccionada('')
+    setBusquedaEntidad('')
+  }, [tipoEntidad])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (!contenido.trim()) {
       toast.error('El contenido es obligatorio')
+      return
+    }
+
+    // Determinar entidadTipo y entidadId
+    const finalEntidadTipo = modoGlobal ? tipoEntidad : entidadTipoProp
+    const finalEntidadId = modoGlobal ? entidadSeleccionada : entidadIdProp
+
+    if (modoGlobal && !finalEntidadId) {
+      toast.error('Selecciona una entidad')
       return
     }
 
@@ -80,8 +139,8 @@ export function NuevoComentarioModal({
         toast.success('Nota actualizada')
       } else {
         await createMutation.mutateAsync({
-          entidad_tipo: entidadTipo,
-          entidad_id: entidadId,
+          entidad_tipo: finalEntidadTipo,
+          entidad_id: finalEntidadId,
           usuario_id: user.id,
           contenido: contenido.trim(),
           etiqueta: etiqueta || null,
@@ -126,6 +185,68 @@ export function NuevoComentarioModal({
           </div>
         </div>
 
+        {/* Selector de entidad (solo en modo global) */}
+        {modoGlobal && (
+          <div className="space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Asociar a</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Tipo">
+                <Select value={tipoEntidad} onChange={(e) => setTipoEntidad(e.target.value)}>
+                  <option value="cliente">Cliente</option>
+                  <option value="comunidad">Comunidad</option>
+                </Select>
+              </FormField>
+
+              <FormField label={tipoEntidad === 'cliente' ? 'Cliente' : 'Comunidad'}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={busquedaEntidad}
+                    onChange={(e) => {
+                      setBusquedaEntidad(e.target.value)
+                      setEntidadSeleccionada('')
+                    }}
+                    placeholder={`Buscar ${tipoEntidad}...`}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </FormField>
+            </div>
+
+            {/* Lista de resultados */}
+            {(busquedaEntidad || entidadSeleccionada) && (
+              <div className="max-h-32 overflow-y-auto border rounded-lg bg-white">
+                {entidades.length === 0 ? (
+                  <p className="text-xs text-gray-400 p-2 text-center">Sin resultados</p>
+                ) : (
+                  entidades.slice(0, 20).map(ent => (
+                    <button
+                      key={ent.id}
+                      type="button"
+                      onClick={() => {
+                        setEntidadSeleccionada(ent.id)
+                        setBusquedaEntidad(ent.label)
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b last:border-b-0 ${
+                        entidadSeleccionada === ent.id ? 'bg-primary-50 text-primary-700 font-medium' : ''
+                      }`}
+                    >
+                      {ent.label}
+                      {ent.extra && <span className="text-xs text-gray-400 ml-2">({ent.extra})</span>}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {entidadSeleccionada && (
+              <p className="text-xs text-green-600 font-medium">
+                Seleccionado: {entidades.find(e => e.id === entidadSeleccionada)?.label || busquedaEntidad}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Contenido */}
         <FormField label="Contenido" required>
           <Textarea
@@ -136,7 +257,7 @@ export function NuevoComentarioModal({
           />
         </FormField>
 
-        {/* Clasificación */}
+        {/* Clasificacion */}
         <div className="grid grid-cols-3 gap-3">
           <FormField label="Etiqueta">
             <Select value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)}>

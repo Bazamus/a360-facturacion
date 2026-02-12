@@ -22,7 +22,8 @@ import {
   Landmark,
   Plus,
   PieChart,
-  ArrowUpDown
+  ArrowUpDown,
+  StickyNote
 } from 'lucide-react'
 
 const navigation = [
@@ -69,6 +70,7 @@ const navigation = [
       { name: 'Generar', href: '/reportes/generar', icon: FileText },
     ]
   },
+  { name: 'Notas', href: '/notas', icon: StickyNote },
   { name: 'Configuración', href: '/configuracion', icon: Settings },
 ]
 

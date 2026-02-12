@@ -14,6 +14,7 @@ import { ReportesPage } from '@/pages/Reportes'
 import { RemesasPage } from '@/pages/RemesasRouter'
 import { ConfiguracionPage } from '@/pages/Configuracion'
 import { ImportarExportarPage } from '@/pages/ImportarExportar'
+import { NotasPage } from '@/pages/Notas'
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
           <Route path="facturacion/*" element={<FacturacionPage />} />
           <Route path="remesas/*" element={<RemesasPage />} />
           <Route path="reportes/*" element={<ReportesPage />} />
+          <Route path="notas" element={<NotasPage />} />
           <Route path="configuracion/*" element={<ConfiguracionPage />} />
         </Route>
         
