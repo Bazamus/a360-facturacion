@@ -28,6 +28,12 @@ import { ComunidadForm } from '@/features/comunidades/ComunidadForm'
 import { AgrupacionesTab } from '@/features/comunidades/AgrupacionesTab'
 import { UbicacionesTab } from '@/features/comunidades/UbicacionesTab'
 import { PreciosTab } from '@/features/comunidades/PreciosTab'
+import { ComunidadClientesTab } from '@/features/comunidades/ComunidadClientesTab'
+import { ComunidadContadoresTab } from '@/features/comunidades/ComunidadContadoresTab'
+import { ComunidadFacturasTab } from '@/features/comunidades/ComunidadFacturasTab'
+import { useClientes } from '@/hooks/useClientes'
+import { useContadores } from '@/hooks/useContadores'
+import { useFacturas } from '@/hooks/useFacturas'
 import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
 
@@ -337,6 +343,13 @@ function ComunidadNueva() {
 function ComunidadDetail() {
   const { id } = useParams()
   const { data: comunidad, isLoading, error } = useComunidad(id)
+  const { data: clientesComunidad } = useClientes({ comunidadId: id })
+  const { data: contadoresComunidad } = useContadores({ comunidadId: id })
+  const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 500 })
+
+  const numClientes = clientesComunidad?.length || 0
+  const numContadores = contadoresComunidad?.length || 0
+  const numFacturas = Array.isArray(facturasComunidad) ? facturasComunidad.length : 0
 
   if (isLoading) return <LoadingSpinner />
   if (error) return <div className="text-red-600">Error: {error.message}</div>
@@ -382,6 +395,15 @@ function ComunidadDetail() {
             <TabsTrigger value="ubicaciones">
               {comunidad.nombre_ubicacion}s
             </TabsTrigger>
+            <TabsTrigger value="clientes">
+              Clientes{numClientes > 0 ? ` (${numClientes})` : ''}
+            </TabsTrigger>
+            <TabsTrigger value="contadores">
+              Contadores{numContadores > 0 ? ` (${numContadores})` : ''}
+            </TabsTrigger>
+            <TabsTrigger value="facturas">
+              Facturas{numFacturas > 0 ? ` (${numFacturas})` : ''}
+            </TabsTrigger>
             <TabsTrigger value="precios">Precios</TabsTrigger>
           </TabsList>
 
@@ -395,6 +417,18 @@ function ComunidadDetail() {
 
           <TabsContent value="ubicaciones" className="p-6">
             <UbicacionesTab comunidad={comunidad} />
+          </TabsContent>
+
+          <TabsContent value="clientes" className="p-6">
+            <ComunidadClientesTab comunidad={comunidad} />
+          </TabsContent>
+
+          <TabsContent value="contadores" className="p-6">
+            <ComunidadContadoresTab comunidad={comunidad} />
+          </TabsContent>
+
+          <TabsContent value="facturas" className="p-6">
+            <ComunidadFacturasTab comunidad={comunidad} />
           </TabsContent>
 
           <TabsContent value="precios" className="p-6">

@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
     "claude-mem@thedotmack": true
-  }
+  },
+  "plansDirectory": ".claude/plans"
 }
