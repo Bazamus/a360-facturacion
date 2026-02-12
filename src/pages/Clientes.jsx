@@ -37,6 +37,8 @@ import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
 import { FacturasEmbedded } from '@/features/facturacion/components/FacturasEmbedded'
 import { useFacturas } from '@/hooks/useFacturas'
+import { ComentariosTab } from '@/features/comentarios/ComentariosTab'
+import { useComentarios } from '@/hooks/useComentarios'
 
 export function ClientesPage() {
   return (
@@ -446,8 +448,11 @@ function ClienteDetail() {
   const { id } = useParams()
   const { data: cliente, isLoading, error } = useCliente(id)
   const { data: facturasCliente } = useFacturas({ clienteId: id, limit: 500 })
+  const { data: notasCliente } = useComentarios('cliente', id)
 
   const numFacturas = Array.isArray(facturasCliente) ? facturasCliente.length : 0
+  const numNotas = notasCliente?.length || 0
+  const notasAbiertas = notasCliente?.filter(n => n.estado !== 'resuelto').length || 0
 
   if (isLoading) return <LoadingSpinner />
   if (error) return <div className="text-red-600">Error: {error.message}</div>
@@ -496,6 +501,9 @@ function ClienteDetail() {
             <TabsTrigger value="facturas">
               Facturas{numFacturas > 0 ? ` (${numFacturas})` : ''}
             </TabsTrigger>
+            <TabsTrigger value="notas">
+              Notas{notasAbiertas > 0 ? ` (${notasAbiertas})` : numNotas > 0 ? ` (${numNotas})` : ''}
+            </TabsTrigger>
             <TabsTrigger value="bancarios">Datos Bancarios</TabsTrigger>
           </TabsList>
 
@@ -509,6 +517,10 @@ function ClienteDetail() {
 
           <TabsContent value="facturas" className="p-6">
             <FacturasEmbedded clienteId={id} showComunidad={true} />
+          </TabsContent>
+
+          <TabsContent value="notas" className="p-6">
+            <ComentariosTab entidadTipo="cliente" entidadId={id} />
           </TabsContent>
 
           <TabsContent value="bancarios" className="p-6">

@@ -31,9 +31,11 @@ import { PreciosTab } from '@/features/comunidades/PreciosTab'
 import { ComunidadClientesTab } from '@/features/comunidades/ComunidadClientesTab'
 import { ComunidadContadoresTab } from '@/features/comunidades/ComunidadContadoresTab'
 import { ComunidadFacturasTab } from '@/features/comunidades/ComunidadFacturasTab'
+import { ComentariosTab } from '@/features/comentarios/ComentariosTab'
 import { useClientes } from '@/hooks/useClientes'
 import { useContadores } from '@/hooks/useContadores'
 import { useFacturas } from '@/hooks/useFacturas'
+import { useComentarios } from '@/hooks/useComentarios'
 import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
 
@@ -346,10 +348,13 @@ function ComunidadDetail() {
   const { data: clientesComunidad } = useClientes({ comunidadId: id })
   const { data: contadoresComunidad } = useContadores({ comunidadId: id })
   const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 500 })
+  const { data: notasComunidad } = useComentarios('comunidad', id)
 
   const numClientes = clientesComunidad?.length || 0
   const numContadores = contadoresComunidad?.length || 0
   const numFacturas = Array.isArray(facturasComunidad) ? facturasComunidad.length : 0
+  const numNotas = notasComunidad?.length || 0
+  const notasAbiertas = notasComunidad?.filter(n => n.estado !== 'resuelto').length || 0
 
   if (isLoading) return <LoadingSpinner />
   if (error) return <div className="text-red-600">Error: {error.message}</div>
@@ -404,6 +409,9 @@ function ComunidadDetail() {
             <TabsTrigger value="facturas">
               Facturas{numFacturas > 0 ? ` (${numFacturas})` : ''}
             </TabsTrigger>
+            <TabsTrigger value="notas">
+              Notas{notasAbiertas > 0 ? ` (${notasAbiertas})` : numNotas > 0 ? ` (${numNotas})` : ''}
+            </TabsTrigger>
             <TabsTrigger value="precios">Precios</TabsTrigger>
           </TabsList>
 
@@ -429,6 +437,10 @@ function ComunidadDetail() {
 
           <TabsContent value="facturas" className="p-6">
             <ComunidadFacturasTab comunidad={comunidad} />
+          </TabsContent>
+
+          <TabsContent value="notas" className="p-6">
+            <ComentariosTab entidadTipo="comunidad" entidadId={id} />
           </TabsContent>
 
           <TabsContent value="precios" className="p-6">

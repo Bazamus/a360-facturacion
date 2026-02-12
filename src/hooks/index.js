@@ -182,6 +182,14 @@ export {
   useDuplicarConfiguracion
 } from './useReportesConfig'
 
+// Comentarios Internos (Notas)
+export {
+  useComentarios,
+  useCreateComentario,
+  useUpdateComentario,
+  useDeleteComentario
+} from './useComentarios'
+
 // Reportes y Dashboard
 export {
   useDashboardMetricas,
