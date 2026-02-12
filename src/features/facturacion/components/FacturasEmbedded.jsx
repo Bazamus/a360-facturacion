@@ -51,7 +51,7 @@ export function FacturasEmbedded({
         .from('facturas')
         .select(`
           *,
-          comunidad:comunidades(id, nombre, codigo, cif, direccion, cp, ciudad, provincia),
+          comunidad:comunidades(id, nombre, codigo),
           ubicacion:ubicaciones(id, nombre),
           contador:contadores(id, numero_serie),
           cliente:clientes(id, codigo_cliente, nombre, apellidos, nif, email, telefono, direccion_correspondencia, cp_correspondencia, ciudad_correspondencia, provincia_correspondencia, iban)
