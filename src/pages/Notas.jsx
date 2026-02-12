@@ -60,8 +60,9 @@ export function NotasPage() {
     urgentes: listaNotas.filter(n => n.prioridad === 'urgente' && n.estado !== 'resuelto').length
   }), [listaNotas])
 
-  // Permisos
-  const canModify = (nota) => nota.usuario_id === user?.id || isAdmin
+  // Permisos: todos pueden mover/cambiar estado, solo autor o admin edita contenido/elimina
+  const canModify = () => true
+  const canEditDelete = (nota) => nota.usuario_id === user?.id || isAdmin
 
   // Acciones
   const handleEdit = (nota) => {
@@ -252,6 +253,7 @@ export function NotasPage() {
           onDelete={(nota) => setComentarioEliminar(nota)}
           onTogglePin={handleTogglePin}
           canModify={canModify}
+          canEditDelete={canEditDelete}
         />
       ) : (
         <NotasListView
@@ -260,6 +262,7 @@ export function NotasPage() {
           onDelete={(nota) => setComentarioEliminar(nota)}
           onTogglePin={handleTogglePin}
           canModify={canModify}
+          canEditDelete={canEditDelete}
         />
       )}
 

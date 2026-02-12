@@ -36,7 +36,7 @@ function SortHeader({ field, currentSort, currentDirection, onSort, children, al
   )
 }
 
-export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canModify }) {
+export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canModify, canEditDelete }) {
   const toast = useToast()
   const updateMutation = useUpdateComentario()
   const [sortBy, setSortBy] = useState('created_at')
@@ -195,49 +195,52 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
 
                   {/* Acciones */}
                   <td className="px-3 py-3 whitespace-nowrap">
-                    {canModify(nota) && (
-                      <div className="flex items-center justify-center gap-1">
-                        {/* Cambio rapido de estado */}
-                        <div className="relative">
-                          <button
-                            onClick={() => setMenuAbierto(menuAbierto === nota.id ? null : nota.id)}
-                            className="text-xs text-gray-500 hover:text-gray-700 px-1.5 py-1 rounded hover:bg-gray-100"
-                            title="Cambiar estado"
-                          >
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
-                          {menuAbierto === nota.id && (
-                            <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-[130px]">
-                              {Object.entries(ESTADO_CONFIG).map(([key, conf]) => (
-                                <button
-                                  key={key}
-                                  onClick={() => handleCambiarEstado(nota, key)}
-                                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${nota.estado === key ? 'font-medium' : ''}`}
-                                >
-                                  <span className={`inline-block w-2 h-2 rounded-full mr-2 ${conf.dotColor}`} />
-                                  {conf.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
+                    <div className="flex items-center justify-center gap-1">
+                      {/* Cambio rapido de estado - disponible para todos */}
+                      <div className="relative">
                         <button
-                          onClick={() => onEdit?.(nota)}
-                          className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
-                          title="Editar"
+                          onClick={() => setMenuAbierto(menuAbierto === nota.id ? null : nota.id)}
+                          className="text-xs text-gray-500 hover:text-gray-700 px-1.5 py-1 rounded hover:bg-gray-100"
+                          title="Cambiar estado"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <ChevronDown className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => onDelete?.(nota)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {menuAbierto === nota.id && (
+                          <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-[130px]">
+                            {Object.entries(ESTADO_CONFIG).map(([key, conf]) => (
+                              <button
+                                key={key}
+                                onClick={() => handleCambiarEstado(nota, key)}
+                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${nota.estado === key ? 'font-medium' : ''}`}
+                              >
+                                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${conf.dotColor}`} />
+                                {conf.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
+
+                      {/* Editar y Eliminar - solo autor o admin */}
+                      {(canEditDelete ? canEditDelete(nota) : canModify(nota)) && (
+                        <>
+                          <button
+                            onClick={() => onEdit?.(nota)}
+                            className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
+                            title="Editar"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDelete?.(nota)}
+                            className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )

@@ -9,7 +9,7 @@ const COLUMNAS = [
   { key: 'resuelto', headerBg: 'bg-green-50 border-green-200', dotColor: 'bg-green-400' }
 ]
 
-export function NotasKanban({ notas = [], onEdit, onDelete, onTogglePin, canModify }) {
+export function NotasKanban({ notas = [], onEdit, onDelete, onTogglePin, canModify, canEditDelete }) {
   const toast = useToast()
   const updateMutation = useUpdateComentario()
   const [dragOverColumn, setDragOverColumn] = useState(null)
@@ -105,7 +105,7 @@ export function NotasKanban({ notas = [], onEdit, onDelete, onTogglePin, canModi
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onTogglePin={onTogglePin}
-                    canModify={canModify(nota)}
+                    canModify={canEditDelete ? canEditDelete(nota) : canModify(nota)}
                     draggable={canModify(nota)}
                   />
                 ))
