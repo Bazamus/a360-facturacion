@@ -1,11 +1,14 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, FileText, Mail, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download } from 'lucide-react'
+import { Eye, FileText, Mail, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, Loader2 } from 'lucide-react'
 import { Button, Card, Badge, Select, Input } from '@/components/ui'
 import { EstadoBadge } from './EstadoBadge'
 import { formatCurrency, formatDate } from '../utils/calculos'
 import { useFacturas } from '@/hooks/useFacturas'
 import { Link } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { descargarFacturaPDF } from '@/features/facturacion/pdf'
+import { useToast } from '@/components/ui/Toast'
 
 // Header ordenable
 function SortHeader({ field, currentSort, currentDirection, onSort, children, align = 'left' }) {
@@ -34,6 +37,56 @@ export function FacturasEmbedded({
   showComunidad = false
 }) {
   const navigate = useNavigate()
+  const toast = useToast()
+
+  // Estado para descarga PDF
+  const [descargandoPDF, setDescargandoPDF] = useState(null)
+
+  // Descargar PDF directamente
+  const handleDescargarPDF = async (factura) => {
+    setDescargandoPDF(factura.id)
+    try {
+      // Obtener datos completos de la factura
+      const { data: facturaCompleta, error: errFactura } = await supabase
+        .from('facturas')
+        .select(`
+          *,
+          comunidad:comunidades(id, nombre, codigo, cif, direccion, cp, ciudad, provincia),
+          ubicacion:ubicaciones(id, nombre),
+          contador:contadores(id, numero_serie),
+          cliente:clientes(id, codigo_cliente, nombre, apellidos, nif, email, telefono, direccion_correspondencia, cp_correspondencia, ciudad_correspondencia, provincia_correspondencia, iban)
+        `)
+        .eq('id', factura.id)
+        .single()
+
+      if (errFactura) throw errFactura
+
+      // Obtener líneas
+      const { data: lineas, error: errLineas } = await supabase
+        .from('facturas_lineas')
+        .select(`*, concepto:conceptos(id, codigo, nombre, unidad_medida)`)
+        .eq('factura_id', factura.id)
+        .order('orden')
+
+      if (errLineas) throw errLineas
+
+      // Obtener histórico consumo
+      const { data: historico, error: errHist } = await supabase
+        .from('facturas_consumo_historico')
+        .select('*')
+        .eq('factura_id', factura.id)
+        .order('orden')
+
+      if (errHist) throw errHist
+
+      descargarFacturaPDF(facturaCompleta, lineas || [], historico || [])
+    } catch (error) {
+      console.error('Error descargando PDF:', error)
+      toast.error('Error al descargar PDF')
+    } finally {
+      setDescargandoPDF(null)
+    }
+  }
 
   // Filtros
   const [estado, setEstado] = useState('')
@@ -294,10 +347,14 @@ export function FacturasEmbedded({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/facturacion/facturas/${factura.id}`)}
-                            title="Ver / Descargar PDF"
+                            onClick={() => handleDescargarPDF(factura)}
+                            title="Descargar PDF"
+                            disabled={descargandoPDF === factura.id}
                           >
-                            <FileText className="w-4 h-4" />
+                            {descargandoPDF === factura.id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Download className="w-4 h-4" />
+                            }
                           </Button>
                         )}
 

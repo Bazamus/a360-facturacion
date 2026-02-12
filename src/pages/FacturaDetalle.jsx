@@ -159,7 +159,7 @@ export default function FacturaDetalle({ showPdf = false }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/facturacion/facturas')}>
+          <Button variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver
           </Button>
