@@ -60,9 +60,9 @@ export function NotasPage() {
     urgentes: listaNotas.filter(n => n.prioridad === 'urgente' && n.estado !== 'resuelto').length
   }), [listaNotas])
 
-  // Permisos: todos pueden mover/cambiar estado, solo autor o admin edita contenido/elimina
+  // Permisos: todos los usuarios autenticados pueden gestionar notas (herramienta colaborativa)
   const canModify = () => true
-  const canEditDelete = (nota) => nota.usuario_id === user?.id || isAdmin
+  const canEditDelete = () => true
 
   // Acciones
   const handleEdit = (nota) => {
