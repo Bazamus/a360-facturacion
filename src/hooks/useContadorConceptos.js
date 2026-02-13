@@ -63,6 +63,59 @@ export function useEditarLecturaInicial() {
 }
 
 /**
+ * Hook para validar si una lectura actual puede ser corregida
+ */
+export function useValidarCorreccionLecturaActual(contadorConceptoId) {
+  return useQuery({
+    queryKey: ['validar-correccion-lectura-actual', contadorConceptoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('validar_correccion_lectura_actual', {
+          p_contador_concepto_id: contadorConceptoId
+        })
+      
+      if (error) throw error
+      return data?.[0] || { puede_corregir: false, razon_bloqueo: 'Error al validar' }
+    },
+    enabled: !!contadorConceptoId,
+    staleTime: 30000
+  })
+}
+
+/**
+ * Hook para corregir la lectura actual con auditoría
+ */
+export function useCorregirLecturaActual() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ contadorConceptoId, nuevaLectura, motivo }) => {
+      const { data, error } = await supabase
+        .rpc('corregir_lectura_actual', {
+          p_contador_concepto_id: contadorConceptoId,
+          p_nueva_lectura: nuevaLectura,
+          p_motivo: motivo || null
+        })
+      
+      if (error) throw error
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Error al corregir lectura actual')
+      }
+      
+      return data
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['contador'] })
+      queryClient.invalidateQueries({ queryKey: ['contadores'] })
+      queryClient.invalidateQueries({ queryKey: ['facturas'] })
+      queryClient.invalidateQueries({ queryKey: ['validar-correccion-lectura-actual', variables.contadorConceptoId] })
+      queryClient.invalidateQueries({ queryKey: ['historial-contador-concepto', variables.contadorConceptoId] })
+    }
+  })
+}
+
+/**
  * Hook para obtener el historial de cambios de un contador_concepto
  */
 export function useHistorialContadorConcepto(contadorConceptoId) {

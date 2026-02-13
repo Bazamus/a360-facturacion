@@ -1,16 +1,19 @@
 import { useState } from 'react'
-import { Plus, Trash2, Edit2, Eye } from 'lucide-react'
+import { Plus, Trash2, Edit2, Eye, RefreshCw } from 'lucide-react'
 import { useConceptos, useAsignarConcepto, useDesasignarConcepto } from '@/hooks'
 import { Button, Modal, Input, Select, FormField, Badge, EmptyState } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { formatNumber, formatDate } from '@/lib/utils'
 import { EditarLecturaInicialModal } from './EditarLecturaInicialModal'
+import { CorregirLecturaActualModal } from './CorregirLecturaActualModal'
 import { HistorialLecturasModal } from './HistorialLecturasModal'
 
 export function ConceptosContadorTab({ contador }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [correccionModalOpen, setCorreccionModalOpen] = useState(false)
   const [contadorConceptoEditar, setContadorConceptoEditar] = useState(null)
+  const [contadorConceptoCorregir, setContadorConceptoCorregir] = useState(null)
   const [historialModal, setHistorialModal] = useState({ open: false, concepto: null })
   const { data: conceptosDisponibles } = useConceptos()
   const asignarMutation = useAsignarConcepto()
@@ -64,6 +67,16 @@ export function ConceptosContadorTab({ contador }) {
   const handleCloseEditModal = () => {
     setEditModalOpen(false)
     setContadorConceptoEditar(null)
+  }
+
+  const handleCorregir = (contadorConcepto) => {
+    setContadorConceptoCorregir(contadorConcepto)
+    setCorreccionModalOpen(true)
+  }
+
+  const handleCloseCorreccionModal = () => {
+    setCorreccionModalOpen(false)
+    setContadorConceptoCorregir(null)
   }
 
   return (
@@ -148,6 +161,16 @@ export function ConceptosContadorTab({ contador }) {
                 >
                   <Edit2 className="h-4 w-4" />
                 </button>
+                {/* Botón corregir lectura actual - solo visible cuando hay lecturas registradas */}
+                {parseFloat(cc.lectura_actual) !== parseFloat(cc.lectura_inicial) || cc.fecha_lectura_actual !== cc.fecha_lectura_inicial ? (
+                  <button
+                    onClick={() => handleCorregir(cc)}
+                    className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded"
+                    title="Corregir lectura actual"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
+                ) : null}
                 <button
                   onClick={() => handleDesasignar(cc.concepto?.id)}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
@@ -224,6 +247,13 @@ export function ConceptosContadorTab({ contador }) {
         open={editModalOpen}
         onClose={handleCloseEditModal}
         contadorConcepto={contadorConceptoEditar}
+      />
+
+      {/* Modal para corregir lectura actual */}
+      <CorregirLecturaActualModal
+        open={correccionModalOpen}
+        onClose={handleCloseCorreccionModal}
+        contadorConcepto={contadorConceptoCorregir}
       />
 
       {/* Modal para ver historial de lecturas */}
