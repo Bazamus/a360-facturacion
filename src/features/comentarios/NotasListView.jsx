@@ -84,8 +84,8 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
   }
 
   return (
-    <Card className="overflow-hidden">
-      <div className="overflow-x-auto">
+    <Card className="overflow-visible">
+      <div className="overflow-x-auto overflow-y-visible">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
