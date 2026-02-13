@@ -6,6 +6,17 @@ import { cn } from '@/lib/utils'
 
 export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true'
+  })
+
+  const toggleCollapse = () => {
+    setCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem('sidebar-collapsed', String(next))
+      return next
+    })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -17,12 +28,21 @@ export function MainLayout() {
       />
       
       {/* Sidebar desktop */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
-        <Sidebar />
+      <div className={cn(
+        'hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300',
+        collapsed ? 'lg:w-[72px]' : 'lg:w-64'
+      )}>
+        <Sidebar 
+          collapsed={collapsed} 
+          onToggleCollapse={toggleCollapse} 
+        />
       </div>
 
       {/* Contenido principal */}
-      <div className="lg:pl-64">
+      <div className={cn(
+        'transition-all duration-300',
+        collapsed ? 'lg:pl-[72px]' : 'lg:pl-64'
+      )}>
         <Header onMenuClick={() => setSidebarOpen(true)} />
         
         <main className="py-6">
@@ -34,9 +54,3 @@ export function MainLayout() {
     </div>
   )
 }
-
-
-
-
-
-

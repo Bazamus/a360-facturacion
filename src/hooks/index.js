@@ -186,6 +186,7 @@ export {
 export {
   useComentarios,
   useAllComentarios,
+  useNotasCount,
   useCreateComentario,
   useUpdateComentario,
   useDeleteComentario

@@ -30,6 +30,27 @@ export function useComentarios(entidadTipo, entidadId) {
 }
 
 /**
+ * Obtener el conteo de notas activas (abiertas + en progreso)
+ * Hook ligero para el badge del sidebar
+ */
+export function useNotasCount() {
+  return useQuery({
+    queryKey: ['notas-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('comentarios')
+        .select('*', { count: 'exact', head: true })
+        .in('estado', ['abierto', 'en_progreso'])
+
+      if (error) throw error
+      return count || 0
+    },
+    refetchInterval: 30000, // Refrescar cada 30 segundos
+    staleTime: 15000,
+  })
+}
+
+/**
  * Obtener TODOS los comentarios (vista central) con filtros opcionales
  * @param {Object} filtros - { entidadTipo, prioridad, etiqueta, search }
  */
