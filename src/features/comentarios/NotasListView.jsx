@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Pin, Pencil, Trash2, ChevronDown, Users, Building2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Card } from '@/components/ui'
@@ -42,6 +42,34 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
   const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
   const [menuAbierto, setMenuAbierto] = useState(null)
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
+  const menuBtnRef = useRef({})
+
+  // Cerrar menu al hacer scroll o click fuera
+  useEffect(() => {
+    if (!menuAbierto) return
+    const handleClose = () => setMenuAbierto(null)
+    window.addEventListener('scroll', handleClose, true)
+    window.addEventListener('click', handleClose, true)
+    return () => {
+      window.removeEventListener('scroll', handleClose, true)
+      window.removeEventListener('click', handleClose, true)
+    }
+  }, [menuAbierto])
+
+  const handleOpenMenu = (e, notaId) => {
+    e.stopPropagation()
+    if (menuAbierto === notaId) {
+      setMenuAbierto(null)
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuPos({
+      top: rect.top - 4,
+      left: rect.right - 130
+    })
+    setMenuAbierto(notaId)
+  }
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -84,8 +112,8 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
   }
 
   return (
-    <Card className="overflow-visible">
-      <div className="overflow-x-auto overflow-y-visible">
+    <Card className="overflow-hidden">
+      <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
@@ -197,29 +225,13 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
                   <td className="px-3 py-3 whitespace-nowrap">
                     <div className="flex items-center justify-center gap-1">
                       {/* Cambio rapido de estado - disponible para todos */}
-                      <div className="relative">
-                        <button
-                          onClick={() => setMenuAbierto(menuAbierto === nota.id ? null : nota.id)}
-                          className="text-xs text-gray-500 hover:text-gray-700 px-1.5 py-1 rounded hover:bg-gray-100"
-                          title="Cambiar estado"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                        {menuAbierto === nota.id && (
-                          <div className="absolute right-0 bottom-full mb-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-[130px]">
-                            {Object.entries(ESTADO_CONFIG).map(([key, conf]) => (
-                              <button
-                                key={key}
-                                onClick={() => handleCambiarEstado(nota, key)}
-                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${nota.estado === key ? 'font-medium' : ''}`}
-                              >
-                                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${conf.dotColor}`} />
-                                {conf.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        onClick={(e) => handleOpenMenu(e, nota.id)}
+                        className="text-xs text-gray-500 hover:text-gray-700 px-1.5 py-1 rounded hover:bg-gray-100"
+                        title="Cambiar estado"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
 
                       {/* Editar y Eliminar - solo autor o admin */}
                       {(canEditDelete ? canEditDelete(nota) : canModify(nota)) && (
@@ -248,6 +260,29 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
           </tbody>
         </table>
       </div>
+
+      {/* Dropdown de estado - posicion fija fuera del flujo de la tabla */}
+      {menuAbierto && (
+        <div
+          className="fixed bg-white border rounded-lg shadow-lg py-1 z-50 min-w-[130px]"
+          style={{ top: menuPos.top, left: menuPos.left, transform: 'translateY(-100%)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {Object.entries(ESTADO_CONFIG).map(([key, conf]) => {
+            const nota = notas.find(n => n.id === menuAbierto)
+            return (
+              <button
+                key={key}
+                onClick={() => nota && handleCambiarEstado(nota, key)}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${nota?.estado === key ? 'font-medium' : ''}`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${conf.dotColor}`} />
+                {conf.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </Card>
   )
 }
