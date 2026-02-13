@@ -49,11 +49,17 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
   useEffect(() => {
     if (!menuAbierto) return
     const handleClose = () => setMenuAbierto(null)
+    const handleClickOutside = (e) => {
+      // No cerrar si el click es dentro del dropdown
+      const dropdown = document.getElementById('estado-dropdown')
+      if (dropdown && dropdown.contains(e.target)) return
+      setMenuAbierto(null)
+    }
     window.addEventListener('scroll', handleClose, true)
-    window.addEventListener('click', handleClose, true)
+    window.addEventListener('mousedown', handleClickOutside)
     return () => {
       window.removeEventListener('scroll', handleClose, true)
-      window.removeEventListener('click', handleClose, true)
+      window.removeEventListener('mousedown', handleClickOutside)
     }
   }, [menuAbierto])
 
@@ -262,27 +268,29 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
       </div>
 
       {/* Dropdown de estado - posicion fija fuera del flujo de la tabla */}
-      {menuAbierto && (
-        <div
-          className="fixed bg-white border rounded-lg shadow-lg py-1 z-50 min-w-[130px]"
-          style={{ top: menuPos.top, left: menuPos.left, transform: 'translateY(-100%)' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {Object.entries(ESTADO_CONFIG).map(([key, conf]) => {
-            const nota = notas.find(n => n.id === menuAbierto)
-            return (
+      {menuAbierto && (() => {
+        const notaActiva = notas.find(n => n.id === menuAbierto)
+        return (
+          <div
+            id="estado-dropdown"
+            className="fixed bg-white border rounded-lg shadow-lg py-1 z-50 min-w-[130px]"
+            style={{ top: menuPos.top, left: menuPos.left, transform: 'translateY(-100%)' }}
+          >
+            {Object.entries(ESTADO_CONFIG).map(([key, conf]) => (
               <button
                 key={key}
-                onClick={() => nota && handleCambiarEstado(nota, key)}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${nota?.estado === key ? 'font-medium' : ''}`}
+                onClick={() => {
+                  if (notaActiva) handleCambiarEstado(notaActiva, key)
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${notaActiva?.estado === key ? 'font-medium' : ''}`}
               >
                 <span className={`inline-block w-2 h-2 rounded-full mr-2 ${conf.dotColor}`} />
                 {conf.label}
               </button>
-            )
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )
+      })()}
     </Card>
   )
 }
