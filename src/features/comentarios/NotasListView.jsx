@@ -206,7 +206,7 @@ export function NotasListView({ notas = [], onEdit, onDelete, onTogglePin, canMo
                           <ChevronDown className="w-3.5 h-3.5" />
                         </button>
                         {menuAbierto === nota.id && (
-                          <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-[130px]">
+                          <div className="absolute right-0 bottom-full mb-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-[130px]">
                             {Object.entries(ESTADO_CONFIG).map(([key, conf]) => (
                               <button
                                 key={key}

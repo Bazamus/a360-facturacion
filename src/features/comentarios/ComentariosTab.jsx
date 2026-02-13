@@ -321,7 +321,7 @@ export function ComentariosTab({ entidadTipo, entidadId }) {
                             <ChevronDown className="w-3 h-3" />
                           </button>
                           {menuAbierto === comentario.id && (
-                            <div className="absolute left-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
+                            <div className="absolute left-0 bottom-full mb-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
                               {Object.entries(ESTADO_CONFIG).map(([key, conf]) => (
                                 <button
                                   key={key}
