@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand/Logo'
 import { useNotasCount } from '@/hooks/useComentarios'
+import { useAuth } from '@/features/auth/AuthContext'
 import {
   LayoutDashboard,
   Building2,
@@ -26,7 +27,13 @@ import {
   ArrowUpDown,
   StickyNote,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  MessageSquare,
+  Wrench,
+  Calendar,
+  ClipboardList,
+  BookTemplate,
+  Sliders,
 } from 'lucide-react'
 
 // =====================================================
@@ -83,6 +90,32 @@ const sections = [
     ]
   },
   {
+    label: 'CRM / SAT',
+    requiredRoles: ['admin', 'tecnico', 'encargado'],
+    items: [
+      {
+        name: 'Comunicaciones',
+        href: '/comunicaciones',
+        icon: MessageSquare,
+        children: [
+          { name: 'Dashboard', href: '/comunicaciones', icon: MessageSquare },
+          { name: 'Plantillas', href: '/comunicaciones/plantillas', icon: BookTemplate },
+          { name: 'Canales', href: '/comunicaciones/configuracion', icon: Sliders },
+        ]
+      },
+      {
+        name: 'SAT',
+        href: '/sat',
+        icon: Wrench,
+        children: [
+          { name: 'Intervenciones', href: '/sat/intervenciones', icon: ClipboardList },
+          { name: 'Contratos', href: '/sat/contratos', icon: FileText },
+        ]
+      },
+      { name: 'Calendario', href: '/calendario', icon: Calendar },
+    ]
+  },
+  {
     label: 'ANÁLISIS Y SISTEMA',
     items: [
       {
@@ -118,6 +151,7 @@ function getActiveGroup(pathname) {
 export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) {
   const location = useLocation()
   const { data: notasCount } = useNotasCount()
+  const { profile } = useAuth()
 
   // Acordeón: solo un grupo expandido a la vez
   const [expandedGroup, setExpandedGroup] = useState(() => getActiveGroup(location.pathname))
@@ -364,7 +398,12 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
       {/* Navegación con secciones */}
       <nav className="flex flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-y-3">
-          {sections.map((section, sIdx) => (
+          {sections
+            .filter(section => {
+              if (!section.requiredRoles) return true
+              return section.requiredRoles.includes(profile?.rol)
+            })
+            .map((section, sIdx) => (
             <div key={section.label}>
               {/* Etiqueta de sección */}
               {isCollapsed ? (
@@ -415,7 +454,7 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
         {!isCollapsed && (
           <div className="mt-2 pt-3 border-t border-primary-600/50">
             <p className="text-[10px] text-primary-400 text-center">
-              v1.0.0 · A360 Servicios Energéticos
+              v2.0.0 · A360 Servicios Energéticos
             </p>
           </div>
         )}

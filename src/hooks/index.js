@@ -194,6 +194,23 @@ export {
   useDeleteComentario
 } from './useComentarios'
 
+// Permisos CRM
+export {
+  usePermisoCRM
+} from './usePermisosCRM'
+
+// Comunicaciones CRM
+export {
+  useComunicaciones,
+  useComunicacionesStats,
+  useRegistrarComunicacion,
+  usePlantillas,
+  useCreatePlantilla,
+  useUpdatePlantilla,
+  useCanalesConfig,
+  useUpdateCanalConfig
+} from './useComunicaciones'
+
 // Reportes y Dashboard
 export {
   useDashboardMetricas,

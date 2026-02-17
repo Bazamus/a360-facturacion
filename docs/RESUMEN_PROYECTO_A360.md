@@ -6,9 +6,9 @@
 |-------|-------|
 | **Cliente** | A360 Servicios Energéticos S.L. |
 | **Proyecto** | Sistema de Facturación Energética |
-| **Versión** | 1.0.0 |
+| **Versión** | 2.0.0 |
 | **Fecha Inicio** | Diciembre 2025 |
-| **Estado** | ✅ 5 Fases Completadas |
+| **Estado** | ✅ 5 Fases Facturacion Completadas + CRM/SAT en desarrollo |
 
 ---
 
@@ -523,9 +523,71 @@ Se han creado datos de demo ejecutando `supabase/seeds/001_datos_demo.sql`:
 
 ---
 
+## 🔄 Expansion CRM/SAT (Version 2.0)
+
+### Objetivo
+
+Transformar la aplicacion de facturacion en un sistema CRM/SAT completo que incluya gestion de comunicaciones (WhatsApp), servicio de asistencia tecnica, portal de cliente, y asistente IA.
+
+### Principio de Seguridad
+
+La expansion se realiza **sin modificar el comportamiento existente**. Solo se crean tablas, funciones y vistas nuevas. El unico cambio en datos existentes es ampliar el constraint de `profiles.rol` para permitir nuevos roles (`tecnico`, `encargado`, `cliente`).
+
+### Fases CRM
+
+| Fase | Nombre | Tablas Nuevas | Impacto en Produccion | Estado |
+|------|--------|---------------|----------------------|--------|
+| CRM 0 | Cimientos Seguros | 1 | Minimo (1 constraint) | ✅ Completada |
+| CRM 1 | Comunicaciones y WhatsApp | 3 | Nulo | ✅ Completada (frontend + SQL + VPS) |
+| CRM 2 | SAT - Asistencia Tecnica | 5 | Nulo | Pendiente |
+| CRM 3 | Portal de Cliente | 2 | Nulo | Pendiente |
+| CRM 4 | IA y Chatbot | 2 | Nulo | Pendiente |
+
+**Total: 13 tablas nuevas, 0 tablas existentes alteradas (excepto 1 constraint)**
+
+### Estado actual CRM (Febrero 2026)
+
+**Infraestructura VPS (EasyPanel) desplegada y operativa:**
+- Evolution API v2.3.7 - conectado a WhatsApp via QR
+- Chatwoot - inbox A360_Chat funcionando, recibiendo/enviando mensajes
+- n8n - pendiente configurar workflows de sync con Supabase
+- Integracion nativa Evolution API <-> Chatwoot: operativa
+
+**Siguiente paso:** Configurar workflow n8n (Evolution -> Supabase) + iniciar CRM Fase 2 (SAT)
+
+### Stack Adicional (VPS)
+
+| Servicio | Funcion |
+|----------|---------|
+| Evolution API | Motor WhatsApp (API REST, open-source, integracion nativa con Chatwoot) |
+| Chatwoot | Plataforma omnicanal (inbox, live chat, AI Captain) |
+| n8n | Orquestador de workflows |
+| Redis | Cache para Chatwoot |
+| PostgreSQL (dedicado) | BD separada para Chatwoot |
+
+### Nuevos Roles
+
+| Rol | Acceso |
+|-----|--------|
+| `admin` | Facturacion completa + CRM completo |
+| `usuario` | Facturacion completa (sin cambios) |
+| `tecnico` | Intervenciones propias, calendario, mobile-first |
+| `encargado` | Supervision SAT, calendario global |
+| `cliente` | Portal: facturas, contratos, citas, chat |
+
+### PRDs CRM
+
+- `/docs/PRD/PRD-CRM-Fase0-Cimientos.md` - Roles, auth, rutas, sidebar
+- `/docs/PRD/PRD-CRM-Fase1-Comunicaciones.md` - Evolution API, Chatwoot, n8n, WhatsApp
+- `/docs/PRD/PRD-CRM-Fase2-SAT.md` - Intervenciones, citas, contratos, materiales
+- `/docs/PRD/PRD-CRM-Fase3-PortalCliente.md` - Portal web para clientes
+- `/docs/PRD/PRD-CRM-Fase4-IA-Chatbot.md` - Chatwoot Captain, base conocimiento
+
+---
+
 ## 📚 Documentación Adicional
 
-- `/docs/PRD/` - Documentos de requisitos por fase
+- `/docs/PRD/` - Documentos de requisitos por fase (Facturacion + CRM)
 - `/docs/PLAN_DESARROLLO.md` - Plan de desarrollo original
 - `/docs/EJEMPLO_EXCEL_LECTURAS.md` - Formato de Excel para importación
 - `/docs/DATOS_DEMO_IMPORTACION.md` - Datos de prueba
@@ -542,7 +604,7 @@ Se han creado datos de demo ejecutando `supabase/seeds/001_datos_demo.sql`:
 
 ---
 
-*Documento generado: Diciembre 2025*
-*Versión del sistema: 1.0.0*
+*Documento actualizado: Febrero 2026*
+*Version del sistema: 2.0.0*
 
 

@@ -163,7 +163,16 @@ export function AuthProvider({ children }) {
     signUp,
     signOut,
     isAuthenticated: !!user,
-    isAdmin: profile?.rol === 'admin'
+    isAdmin: profile?.rol === 'admin',
+    // Helpers CRM - roles adicionales
+    isTecnico: profile?.rol === 'tecnico',
+    isEncargado: profile?.rol === 'encargado',
+    isCliente: profile?.rol === 'cliente',
+    hasRole: (...roles) => roles.includes(profile?.rol),
+    canAccessCRM: ['admin', 'tecnico', 'encargado'].includes(profile?.rol),
+    canAccessSAT: ['admin', 'tecnico', 'encargado'].includes(profile?.rol),
+    canAccessPortal: profile?.rol === 'cliente',
+    canAccessFacturacion: ['admin', 'usuario'].includes(profile?.rol),
   }
 
   return (

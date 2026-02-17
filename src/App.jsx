@@ -15,6 +15,11 @@ import { RemesasPage } from '@/pages/RemesasRouter'
 import { ConfiguracionPage } from '@/pages/Configuracion'
 import { ImportarExportarPage } from '@/pages/ImportarExportar'
 import { NotasPage } from '@/pages/Notas'
+import { RoleProtectedRoute } from '@/features/auth/RoleProtectedRoute'
+import { ComunicacionesPage } from '@/pages/Comunicaciones'
+import { SATPage } from '@/pages/SAT'
+import { CalendarioPage } from '@/pages/Calendario'
+import { PortalPage } from '@/pages/Portal'
 
 function App() {
   return (
@@ -45,6 +50,28 @@ function App() {
           <Route path="reportes/*" element={<ReportesPage />} />
           <Route path="notas" element={<NotasPage />} />
           <Route path="configuracion/*" element={<ConfiguracionPage />} />
+
+          {/* Rutas CRM / SAT - protegidas por rol */}
+          <Route path="comunicaciones/*" element={
+            <RoleProtectedRoute roles={['admin', 'encargado']}>
+              <ComunicacionesPage />
+            </RoleProtectedRoute>
+          } />
+          <Route path="sat/*" element={
+            <RoleProtectedRoute roles={['admin', 'tecnico', 'encargado']}>
+              <SATPage />
+            </RoleProtectedRoute>
+          } />
+          <Route path="calendario/*" element={
+            <RoleProtectedRoute roles={['admin', 'tecnico', 'encargado']}>
+              <CalendarioPage />
+            </RoleProtectedRoute>
+          } />
+          <Route path="portal/*" element={
+            <RoleProtectedRoute roles={['admin', 'cliente']}>
+              <PortalPage />
+            </RoleProtectedRoute>
+          } />
         </Route>
         
         {/* Ruta por defecto */}
