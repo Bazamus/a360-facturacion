@@ -295,11 +295,7 @@ export default function GenerarFacturas() {
             const precioTF = precios?.find(p => p.concepto_id === conceptoTF.id)
 
             if (precioTF) {
-              const esParcial = diasPeriodo < diasMes
-              const cantidadTF = esParcial ? Math.round((diasPeriodo / diasMes) * 10000) / 10000 : 1
-              const subtotalTF = esParcial
-                ? Math.round((precioTF.precio_unitario * diasPeriodo / diasMes) * 100) / 100
-                : precioTF.precio_unitario
+              const subtotalTF = Math.round(precioTF.precio_unitario * 100) / 100
 
               baseImponible += subtotalTF
 
@@ -310,7 +306,7 @@ export default function GenerarFacturas() {
                 concepto_nombre: conceptoTF.nombre,
                 unidad_medida: conceptoTF.unidad_medida || 'unidad',
                 es_termino_fijo: true,
-                cantidad: cantidadTF,
+                cantidad: 1,
                 precio_unitario: precioTF.precio_unitario,
                 subtotal: subtotalTF,
                 orden: orden++
