@@ -30,6 +30,7 @@ import {
   getMetodoPagoLabel
 } from '@/features/facturacion/utils/calculos'
 import { ordenarLineasFactura } from '@/features/facturacion/utils/ordenConceptos'
+import { formatPrecio } from '@/utils/precision'
 import {
   useFactura,
   useFacturaLineas,
@@ -432,7 +433,7 @@ export default function FacturaDetalle({ showPdf = false }) {
                     {formatCantidad(linea.cantidad, linea.unidad_medida, linea.es_termino_fijo ? 2 : 4)}
                   </td>
                   <td className="px-6 py-4 text-right whitespace-nowrap">
-                    {formatCurrency(linea.precio_unitario)}
+                    {formatPrecio(linea.precio_unitario, linea.concepto_codigo)}
                   </td>
                   <td className="px-6 py-4 text-right whitespace-nowrap font-medium">
                     {formatCurrency(linea.subtotal)}

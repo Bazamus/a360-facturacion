@@ -4,8 +4,8 @@
 export const PRECISION_POR_CONCEPTO = {
   'CAL': 5,   // Calefacción - 5 decimales (0.12459 €/Kcal)
   'CLI': 5,   // Climatización - 5 decimales (0.14657 €/Frig)
-  'ACS': 3,   // Agua Caliente Sanitaria - 3 decimales (5.563 €/m³)
-  'TF': 3,    // Término Fijo - 3 decimales (17.230 €/unidad)
+  'ACS': 2,   // Agua Caliente Sanitaria - 2 decimales (5.65 €/m³)
+  'TF': 2,    // Término Fijo - 2 decimales (8.97 €/unidad)
   'MANT': 3   // Mantenimiento - 3 decimales (término fijo)
 }
 
