@@ -31,6 +31,14 @@ const CANAL_COLORS = {
   sms: 'bg-gray-100 text-gray-700',
 }
 
+const CANAL_ACCENT = {
+  whatsapp: 'bg-green-500',
+  email: 'bg-blue-500',
+  telefono: 'bg-orange-500',
+  chat: 'bg-purple-500',
+  sms: 'bg-gray-400',
+}
+
 const ESTADO_VARIANTS = {
   recibido: 'warning',
   leido: 'info',
@@ -164,32 +172,45 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
             {mensajes.map((msg) => {
               const Icon = CANAL_ICONS[msg.canal] || MessageSquare
               const hasConversation = !!msg.chatwoot_conversation_id
+              const hasCliente = !!msg.cliente_id
               const displayName =
                 msg.cliente_nombre ||
                 msg.remitente_nombre ||
                 msg.remitente_telefono ||
                 'Desconocido'
 
+              function handleClienteClick() {
+                if (hasCliente) {
+                  navigate(`/clientes/${msg.cliente_id}`)
+                } else {
+                  navigate('/clientes')
+                }
+              }
+
               return (
                 <div
                   key={msg.id}
-                  className="flex flex-col rounded-lg border border-gray-100 overflow-hidden transition-colors hover:border-gray-200"
+                  className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-gray-300"
                 >
-                  {/* Cuerpo — solo informativo */}
-                  <div className="flex items-start gap-3 p-3">
+                  {/* Franja de color del canal */}
+                  <div className={`h-1 ${CANAL_ACCENT[msg.canal] || 'bg-gray-400'}`} />
+
+                  {/* Cuerpo */}
+                  <div className="flex items-start gap-3 px-4 pt-3 pb-2">
                     {/* Icono de canal */}
                     <div
-                      className={`flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg ${
+                      className={`flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-lg ${
                         CANAL_COLORS[msg.canal] || 'bg-gray-100 text-gray-700'
                       }`}
                     >
-                      <Icon className="h-5 w-5" />
+                      <Icon className="h-4 w-4" />
                     </div>
 
                     {/* Contenido */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-medium text-gray-900 truncate">
+                      {/* Fila superior: nombre + estado + dirección */}
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <span className="text-sm font-semibold text-gray-900 truncate">
                           {displayName}
                         </span>
                         <Badge
@@ -199,61 +220,76 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
                           {msg.estado}
                         </Badge>
                         {msg.direccion === 'entrante' ? (
-                          <ArrowDownLeft className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                          <span className="flex items-center gap-0.5 text-[10px] font-medium text-blue-600">
+                            <ArrowDownLeft className="h-3 w-3" />
+                            Entrante
+                          </span>
                         ) : (
-                          <ArrowUpRight className="h-3 w-3 text-green-500 flex-shrink-0" />
+                          <span className="flex items-center gap-0.5 text-[10px] font-medium text-green-600">
+                            <ArrowUpRight className="h-3 w-3" />
+                            Saliente
+                          </span>
                         )}
                       </div>
 
-                      <p className="text-xs text-gray-600 line-clamp-2">
+                      {/* Mensaje */}
+                      <p className="text-xs text-gray-600 line-clamp-2 bg-gray-50 rounded-md px-2.5 py-1.5 border border-gray-100">
                         {msg.contenido || '(sin contenido)'}
                       </p>
 
+                      {/* Teléfono */}
                       {msg.remitente_telefono && (
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-1">
+                        <span className="text-[11px] text-gray-400 flex items-center gap-1 mt-1.5">
                           <Phone className="h-3 w-3" />
                           {msg.remitente_telefono}
+                          {!hasCliente && (
+                            <span className="ml-1 text-amber-500 font-medium">(sin vincular)</span>
+                          )}
                         </span>
                       )}
                     </div>
 
                     {/* Hora */}
-                    <div className="flex-shrink-0 text-[11px] text-gray-400 whitespace-nowrap">
+                    <div className="flex-shrink-0 text-[11px] text-gray-400 whitespace-nowrap pt-0.5">
                       {formatTimeAgo(msg.created_at)}
                     </div>
                   </div>
 
                   {/* Barra de acciones */}
-                  <div className="flex border-t border-gray-100 divide-x divide-gray-100">
+                  <div className="flex gap-2 px-3 pb-3 pt-1">
                     {/* Botón Chatwoot */}
                     <button
                       onClick={() => handleMessageClick(msg)}
                       title={
                         hasConversation
                           ? `Abrir conversación #${msg.chatwoot_conversation_id} en Chatwoot`
-                          : 'Abrir Chatwoot (sin conversación vinculada)'
+                          : 'Abrir lista de conversaciones en Chatwoot'
                       }
-                      className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                      className={`flex flex-1 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
                         hasConversation
-                          ? 'text-primary-600 hover:bg-primary-50'
-                          : 'text-gray-400 hover:bg-gray-50'
+                          ? 'bg-primary-600 text-white hover:bg-primary-700'
+                          : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                       }`}
                     >
-                      <ExternalLink className="h-3.5 w-3.5" />
+                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                       {hasConversation
-                        ? `Conversación #${msg.chatwoot_conversation_id}`
+                        ? `Conv. #${msg.chatwoot_conversation_id}`
                         : 'Ver en Chatwoot'}
                     </button>
 
-                    {/* Botón ficha cliente — solo si está vinculado */}
-                    {msg.cliente_id && (
+                    {/* Botón cliente — siempre visible si hay teléfono o cliente_id */}
+                    {(hasCliente || msg.remitente_telefono) && (
                       <button
-                        onClick={() => navigate(`/clientes/${msg.cliente_id}`)}
-                        title={`Ver ficha de ${displayName}`}
-                        className="flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors"
+                        onClick={handleClienteClick}
+                        title={hasCliente ? `Ver ficha de ${displayName}` : 'Ir a lista de clientes'}
+                        className={`flex flex-1 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                          hasCliente
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-primary-700'
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                        }`}
                       >
-                        <User className="h-3.5 w-3.5" />
-                        Ver ficha cliente
+                        <User className="h-3.5 w-3.5 flex-shrink-0" />
+                        {hasCliente ? 'Ver ficha' : 'Buscar cliente'}
                       </button>
                     )}
                   </div>
