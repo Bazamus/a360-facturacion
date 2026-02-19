@@ -43,21 +43,46 @@ export function useClientes(options = {}) {
         query = query.eq('estado_id', estadoId)
       }
 
+      // Filtrado server-side por comunidad (evita el límite de 1000 filas de Supabase)
+      if (comunidadId) {
+        const { data: agrupData, error: errAgrup } = await supabase
+          .from('agrupaciones')
+          .select('id')
+          .eq('comunidad_id', comunidadId)
+
+        if (errAgrup) throw errAgrup
+
+        const agrupacionIds = agrupData?.map(a => a.id) || []
+        if (agrupacionIds.length === 0) return []
+
+        const { data: ubicData, error: errUbic } = await supabase
+          .from('ubicaciones')
+          .select('id')
+          .in('agrupacion_id', agrupacionIds)
+
+        if (errUbic) throw errUbic
+
+        const ubicacionIds = ubicData?.map(u => u.id) || []
+        if (ubicacionIds.length === 0) return []
+
+        const { data: ucData, error: errUc } = await supabase
+          .from('ubicaciones_clientes')
+          .select('cliente_id')
+          .in('ubicacion_id', ubicacionIds)
+
+        if (errUc) throw errUc
+
+        const clienteIds = [...new Set(ucData?.map(uc => uc.cliente_id).filter(Boolean))]
+        if (clienteIds.length === 0) return []
+
+        query = query.in('id', clienteIds)
+      }
+
       const { data, error } = await query
 
       if (error) throw error
 
-      // Filtrar por comunidad si se especifica
-      let result = data
-      if (comunidadId) {
-        result = data.filter(cliente => 
-          cliente.ubicaciones_clientes.some(uc => 
-            uc.ubicacion?.agrupacion?.comunidad?.id === comunidadId
-          )
-        )
-      }
-
-      return result
+      return data
     }
   })
 }

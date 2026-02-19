@@ -1,13 +1,21 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Gauge, Search, X } from 'lucide-react'
+import { Gauge, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, Badge, EmptyState } from '@/components/ui'
 import { useContadores } from '@/hooks/useContadores'
+
+const PAGE_SIZE = 50
 
 export function ComunidadContadoresTab({ comunidad }) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
   const { data: contadores, isLoading } = useContadores({ comunidadId: comunidad.id })
+
+  // Reset página cuando cambia el filtro de búsqueda
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
 
   // Filtrar por busqueda local
   const contadoresFiltrados = useMemo(() => {
@@ -24,6 +32,13 @@ export function ComunidadContadoresTab({ comunidad }) {
     )
   }, [contadores, search])
 
+  const totalItems = contadoresFiltrados.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
+  const contadoresPagina = contadoresFiltrados.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -35,10 +50,11 @@ export function ComunidadContadoresTab({ comunidad }) {
 
   return (
     <div className="space-y-4">
-      {/* Resumen + Busqueda */}
+      {/* Resumen + Búsqueda */}
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-gray-500">
-          {contadores?.length || 0} contador{contadores?.length !== 1 ? 'es' : ''} en esta comunidad
+          {totalItems} contador{totalItems !== 1 ? 'es' : ''} en esta comunidad
+          {search && contadores && totalItems !== contadores.length ? ` (filtrado de ${contadores.length})` : ''}
         </p>
 
         <div className="relative max-w-xs w-full">
@@ -85,7 +101,7 @@ export function ComunidadContadoresTab({ comunidad }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {contadoresFiltrados.map(contador => (
+                {contadoresPagina.map(contador => (
                   <tr
                     key={contador.id}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
@@ -132,6 +148,34 @@ export function ComunidadContadoresTab({ comunidad }) {
               </tbody>
             </table>
           </div>
+
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+              <p className="text-sm text-gray-600">
+                Mostrando {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalItems)} de {totalItems}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded border border-gray-300 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 py-1 text-sm text-gray-700">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded border border-gray-300 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
     </div>

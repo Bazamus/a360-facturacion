@@ -1,12 +1,15 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { Building2, Plus, Eye, Edit2, MoreVertical, Upload, Download, FileSpreadsheet, ChevronDown } from 'lucide-react'
-import { 
-  useComunidades, 
-  useComunidad, 
-  useCreateComunidad, 
+import {
+  useComunidades,
+  useComunidad,
+  useCreateComunidad,
   useUpdateComunidad,
-  useDeleteComunidad 
+  useDeleteComunidad,
+  useAgrupaciones,
+  useUbicacionesByComunidad,
+  usePrecios
 } from '@/hooks'
 import { 
   Button, 
@@ -38,6 +41,7 @@ import { useFacturas } from '@/hooks/useFacturas'
 import { useComentarios } from '@/hooks/useComentarios'
 import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
+import { exportarComunidadExcel } from '@/lib/exportComunidadExcel'
 
 export function ComunidadesPage() {
   return (
@@ -344,11 +348,17 @@ function ComunidadNueva() {
 
 function ComunidadDetail() {
   const { id } = useParams()
+  const toast = useToast()
+  const [isExporting, setIsExporting] = useState(false)
+
   const { data: comunidad, isLoading, error } = useComunidad(id)
   const { data: clientesComunidad } = useClientes({ comunidadId: id })
   const { data: contadoresComunidad } = useContadores({ comunidadId: id })
   const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 500 })
   const { data: notasComunidad } = useComentarios('comunidad', id)
+  const { data: agrupacionesComunidad } = useAgrupaciones(id)
+  const { data: ubicacionesComunidad } = useUbicacionesByComunidad(id)
+  const { data: preciosComunidad } = usePrecios(id)
 
   const numClientes = clientesComunidad?.length || 0
   const numContadores = contadoresComunidad?.length || 0
@@ -356,17 +366,38 @@ function ComunidadDetail() {
   const numNotas = notasComunidad?.length || 0
   const notasAbiertas = notasComunidad?.filter(n => n.estado !== 'resuelto').length || 0
 
+  const handleExportarExcel = useCallback(async () => {
+    setIsExporting(true)
+    try {
+      const fileName = exportarComunidadExcel({
+        comunidad,
+        agrupaciones: agrupacionesComunidad || [],
+        ubicaciones:  ubicacionesComunidad  || [],
+        clientes:     clientesComunidad     || [],
+        contadores:   contadoresComunidad   || [],
+        facturas:     Array.isArray(facturasComunidad) ? facturasComunidad : [],
+        notas:        notasComunidad        || [],
+        precios:      preciosComunidad      || [],
+      })
+      toast.success(`Exportado: ${fileName}`)
+    } catch (err) {
+      toast.error(`Error al exportar: ${err.message}`)
+    } finally {
+      setIsExporting(false)
+    }
+  }, [comunidad, agrupacionesComunidad, ubicacionesComunidad, clientesComunidad, contadoresComunidad, facturasComunidad, notasComunidad, preciosComunidad, toast])
+
   if (isLoading) return <LoadingSpinner />
   if (error) return <div className="text-red-600">Error: {error.message}</div>
   if (!comunidad) return <div>Comunidad no encontrada</div>
 
   return (
     <div>
-      <Breadcrumb 
+      <Breadcrumb
         items={[
           { label: 'Comunidades', href: '/comunidades' },
           { label: comunidad.nombre }
-        ]} 
+        ]}
         className="mb-4"
       />
 
@@ -382,12 +413,27 @@ function ComunidadDetail() {
             {comunidad.codigo} · {comunidad.direccion}, {comunidad.ciudad}
           </p>
         </div>
-        <Link to={`/comunidades/${id}/editar`}>
-          <Button variant="secondary">
-            <Edit2 className="h-4 w-4 mr-2" />
-            Editar
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportarExcel}
+            disabled={isExporting}
+            title="Exportar todos los datos a Excel"
+          >
+            {isExporting ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+            )}
+            Exportar Excel
           </Button>
-        </Link>
+          <Link to={`/comunidades/${id}/editar`}>
+            <Button variant="secondary">
+              <Edit2 className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
