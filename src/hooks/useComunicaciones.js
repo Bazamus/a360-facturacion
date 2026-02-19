@@ -3,17 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 // Consulta mensajes con paginación, búsqueda y filtros
+// Usa la vista v_comunicaciones_resumen que ya incluye datos de cliente aplanados
 // Retorna { data: [...], count: N } en lugar del array directamente
 export function useComunicaciones({ canal, estado, clienteId, search, page = 0, pageSize = 10 } = {}) {
   return useQuery({
     queryKey: ['comunicaciones', { canal, estado, clienteId, search, page, pageSize }],
     queryFn: async () => {
       let query = supabase
-        .from('comunicaciones')
-        .select(
-          `*, clientes!cliente_id(id, nombre, apellidos)`,
-          { count: 'exact' }
-        )
+        .from('v_comunicaciones_resumen')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
 
       if (canal) query = query.eq('canal', canal)
@@ -32,16 +30,7 @@ export function useComunicaciones({ canal, estado, clienteId, search, page = 0, 
       const { data, count, error } = await query
       if (error) throw error
 
-      // Aplanar el join de clientes para mantener shape esperado por los componentes
-      const flatData = (data ?? []).map(({ clientes: clienteJoin, ...msg }) => ({
-        ...msg,
-        cliente_id: clienteJoin?.id ?? msg.cliente_id ?? null,
-        cliente_nombre: clienteJoin
-          ? `${clienteJoin.nombre} ${clienteJoin.apellidos}`
-          : null,
-      }))
-
-      return { data: flatData, count: count ?? 0 }
+      return { data: data ?? [], count: count ?? 0 }
     },
     refetchInterval: 30000,
   })
