@@ -10,7 +10,8 @@
       "Bash(powershell -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\(''LOGO-A360.jpg''\\)\\)\")",
       "Bash(find:*)",
       "Bash(npx eslint:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(\"/c/Users/david-rey/Desktop/DAVID_CODE/ENER_FACTU/scripts/borrado_comunidades_errores_importacion.sql\":*)"
     ]
   },
   "enableAllProjectMcpServers": true,
