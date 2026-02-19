@@ -180,15 +180,13 @@ export function useUpdatePlantilla() {
 
 // Soft delete: marca plantilla como inactiva en lugar de eliminarla
 // Archiva un mensaje (estado='archivado') — desaparece de la lista de pendientes
+// Usa RPC SECURITY DEFINER para evitar conflictos con RLS en UPDATE directo
 export function useArchivarComunicacion() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (id) => {
-      const { error } = await supabase
-        .from('comunicaciones')
-        .update({ estado: 'archivado' })
-        .eq('id', id)
+      const { error } = await supabase.rpc('archivar_comunicacion', { p_id: id })
       if (error) throw error
     },
     onSuccess: () => {
