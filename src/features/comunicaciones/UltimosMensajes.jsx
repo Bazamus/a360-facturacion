@@ -164,96 +164,98 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
             {mensajes.map((msg) => {
               const Icon = CANAL_ICONS[msg.canal] || MessageSquare
               const hasConversation = !!msg.chatwoot_conversation_id
+              const displayName =
+                msg.cliente_nombre ||
+                msg.remitente_nombre ||
+                msg.remitente_telefono ||
+                'Desconocido'
+
               return (
                 <div
                   key={msg.id}
-                  title={
-                    hasConversation
-                      ? `Abrir conversación #${msg.chatwoot_conversation_id} en Chatwoot`
-                      : 'Sin conversación vinculada — se abrirá la lista de conversaciones'
-                  }
-                  className={`group relative flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                    hasConversation
-                      ? 'border-gray-100 hover:bg-primary-50 hover:border-primary-100'
-                      : 'border-gray-100 hover:bg-gray-50 hover:border-gray-200'
-                  }`}
-                  onClick={() => handleMessageClick(msg)}
+                  className="flex flex-col rounded-lg border border-gray-100 overflow-hidden transition-colors hover:border-gray-200"
                 >
-                  {/* Indicador de enlace: verde si tiene conversación, gris si no */}
-                  <ExternalLink
-                    className={`absolute top-2 right-2 h-3 w-3 transition-colors ${
-                      hasConversation
-                        ? 'text-transparent group-hover:text-primary-400'
-                        : 'text-gray-200 group-hover:text-gray-400'
-                    }`}
-                  />
-
-                  {/* Icono de canal */}
-                  <div
-                    className={`flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg ${
-                      CANAL_COLORS[msg.canal] || 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-
-                  {/* Contenido */}
-                  <div className="flex-1 min-w-0 pr-5">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      {msg.cliente_id ? (
-                        <button
-                          className="text-sm font-medium text-primary-600 hover:underline truncate"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/clientes/${msg.cliente_id}`)
-                          }}
-                        >
-                          {msg.cliente_nombre ||
-                            msg.remitente_nombre ||
-                            msg.remitente_telefono ||
-                            'Desconocido'}
-                        </button>
-                      ) : (
-                        <span className="text-sm font-medium text-gray-900 truncate">
-                          {msg.remitente_nombre || msg.remitente_telefono || 'Desconocido'}
-                        </span>
-                      )}
-                      <Badge
-                        variant={ESTADO_VARIANTS[msg.estado] || 'default'}
-                        className="text-[10px]"
-                      >
-                        {msg.estado}
-                      </Badge>
-                      {msg.direccion === 'entrante' ? (
-                        <ArrowDownLeft className="h-3 w-3 text-blue-500 flex-shrink-0" />
-                      ) : (
-                        <ArrowUpRight className="h-3 w-3 text-green-500 flex-shrink-0" />
-                      )}
+                  {/* Cuerpo — solo informativo */}
+                  <div className="flex items-start gap-3 p-3">
+                    {/* Icono de canal */}
+                    <div
+                      className={`flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg ${
+                        CANAL_COLORS[msg.canal] || 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
                     </div>
 
-                    <p className="text-xs text-gray-600 line-clamp-2">
-                      {msg.contenido || '(sin contenido)'}
-                    </p>
+                    {/* Contenido */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {displayName}
+                        </span>
+                        <Badge
+                          variant={ESTADO_VARIANTS[msg.estado] || 'default'}
+                          className="text-[10px]"
+                        >
+                          {msg.estado}
+                        </Badge>
+                        {msg.direccion === 'entrante' ? (
+                          <ArrowDownLeft className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                        ) : (
+                          <ArrowUpRight className="h-3 w-3 text-green-500 flex-shrink-0" />
+                        )}
+                      </div>
 
-                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-gray-600 line-clamp-2">
+                        {msg.contenido || '(sin contenido)'}
+                      </p>
+
                       {msg.remitente_telefono && (
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-1">
                           <Phone className="h-3 w-3" />
                           {msg.remitente_telefono}
                         </span>
                       )}
-                      {msg.cliente_id && (
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          Cliente vinculado
-                        </span>
-                      )}
+                    </div>
+
+                    {/* Hora */}
+                    <div className="flex-shrink-0 text-[11px] text-gray-400 whitespace-nowrap">
+                      {formatTimeAgo(msg.created_at)}
                     </div>
                   </div>
 
-                  {/* Hora */}
-                  <div className="flex-shrink-0 text-[11px] text-gray-400 whitespace-nowrap">
-                    {formatTimeAgo(msg.created_at)}
+                  {/* Barra de acciones */}
+                  <div className="flex border-t border-gray-100 divide-x divide-gray-100">
+                    {/* Botón Chatwoot */}
+                    <button
+                      onClick={() => handleMessageClick(msg)}
+                      title={
+                        hasConversation
+                          ? `Abrir conversación #${msg.chatwoot_conversation_id} en Chatwoot`
+                          : 'Abrir Chatwoot (sin conversación vinculada)'
+                      }
+                      className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                        hasConversation
+                          ? 'text-primary-600 hover:bg-primary-50'
+                          : 'text-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {hasConversation
+                        ? `Conversación #${msg.chatwoot_conversation_id}`
+                        : 'Ver en Chatwoot'}
+                    </button>
+
+                    {/* Botón ficha cliente — solo si está vinculado */}
+                    {msg.cliente_id && (
+                      <button
+                        onClick={() => navigate(`/clientes/${msg.cliente_id}`)}
+                        title={`Ver ficha de ${displayName}`}
+                        className="flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors"
+                      >
+                        <User className="h-3.5 w-3.5" />
+                        Ver ficha cliente
+                      </button>
+                    )}
                   </div>
                 </div>
               )
