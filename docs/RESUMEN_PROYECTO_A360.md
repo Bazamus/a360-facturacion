@@ -538,7 +538,7 @@ La expansion se realiza **sin modificar el comportamiento existente**. Solo se c
 | Fase | Nombre | Tablas Nuevas | Impacto en Produccion | Estado |
 |------|--------|---------------|----------------------|--------|
 | CRM 0 | Cimientos Seguros | 1 | Minimo (1 constraint) | ✅ Completada |
-| CRM 1 | Comunicaciones y WhatsApp | 3 | Nulo | ✅ Completada (frontend + SQL + VPS) |
+| CRM 1 | Comunicaciones y WhatsApp | 3 | Nulo | ✅ Completada (frontend + SQL + VPS + n8n workflows) |
 | CRM 2 | SAT - Asistencia Tecnica | 5 | Nulo | Pendiente |
 | CRM 3 | Portal de Cliente | 2 | Nulo | Pendiente |
 | CRM 4 | IA y Chatbot | 2 | Nulo | Pendiente |
@@ -550,10 +550,14 @@ La expansion se realiza **sin modificar el comportamiento existente**. Solo se c
 **Infraestructura VPS (EasyPanel) desplegada y operativa:**
 - Evolution API v2.3.7 - conectado a WhatsApp via QR
 - Chatwoot - inbox A360_Chat funcionando, recibiendo/enviando mensajes
-- n8n - pendiente configurar workflows de sync con Supabase
+- n8n v2.0.3 - 2 workflows configurados y operativos
 - Integracion nativa Evolution API <-> Chatwoot: operativa
 
-**Siguiente paso:** Configurar workflow n8n (Evolution -> Supabase) + iniciar CRM Fase 2 (SAT)
+**Workflows n8n operativos:**
+- Workflow 1: Evolution API -> Supabase (registro de mensajes WhatsApp en tabla `comunicaciones`)
+- Workflow 2: Supabase -> Chatwoot (sync clientes cada 6h con custom attributes)
+
+**Siguiente paso:** Dotar de funcionalidad plena al modulo Comunicaciones (Dashboard interactivo, Plantillas con envio real, Canales con activacion real) + iniciar CRM Fase 2 (SAT)
 
 ### Stack Adicional (VPS)
 

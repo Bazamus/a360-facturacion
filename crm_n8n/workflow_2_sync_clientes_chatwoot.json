@@ -1,0 +1,308 @@
+{
+  "name": "Sync Clientes Supabase → Chatwoot",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Cada 6 Horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/clientes?select=id,nombre,apellidos,nif,email,telefono,telefono_secundario,direccion_correspondencia,cp_correspondencia,ciudad_correspondencia,provincia_correspondencia,codigo_cliente,tipo,ubicaciones_clientes(es_actual,ubicaciones(nombre,agrupaciones(nombre,comunidades(nombre))))&ubicaciones_clientes.es_actual=eq.true",
+        "authentication": "none",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-clientes",
+      "name": "GET Clientes Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-clientes",
+      "name": "Loop Clientes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/search?q={{ encodeURIComponent($json.telefono || $json.email || '') }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "C2D4BxQadaEwN5wAwBaGHC6e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "search-chatwoot",
+      "name": "Buscar en Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 0],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const raw = item.json;\n  const payload = raw.payload || [];\n  const contactExists = payload.length > 0;\n  const chatwootId = contactExists ? payload[0].id : null;\n\n  const cliente = $('Loop Clientes').item.json;\n\n  var phoneNumber = null;\n  if (cliente.telefono) {\n    var phone = cliente.telefono.replace(/[^0-9]/g, '');\n    if (phone.length === 9) {\n      phoneNumber = '+34' + phone;\n    } else if (phone.startsWith('34') && phone.length === 11) {\n      phoneNumber = '+' + phone;\n    } else if (phone.length > 9) {\n      phoneNumber = '+' + phone;\n    } else {\n      phoneNumber = '+34' + phone;\n    }\n  }\n\n  var comunidadNombre = '';\n  var ubicacionNombre = '';\n  var uc = cliente.ubicaciones_clientes;\n  if (uc && Array.isArray(uc) && uc.length > 0) {\n    var rel = uc[0];\n    if (rel.ubicaciones) {\n      ubicacionNombre = rel.ubicaciones.nombre || '';\n      if (rel.ubicaciones.agrupaciones) {\n        var agr = rel.ubicaciones.agrupaciones;\n        comunidadNombre = agr.nombre || '';\n        if (agr.comunidades) {\n          comunidadNombre = agr.comunidades.nombre || '';\n        }\n      }\n    }\n  }\n\n  results.push({\n    json: {\n      contactExists: contactExists,\n      chatwootId: chatwootId,\n      name: (cliente.nombre || '') + ' ' + (cliente.apellidos || ''),\n      email: cliente.email || null,\n      phone_number: phoneNumber,\n      identifier: cliente.id || null,\n      additional_attributes: {\n        city: cliente.ciudad_correspondencia || '',\n        country: 'Spain',\n        country_code: 'ES',\n        state: cliente.provincia_correspondencia || ''\n      },\n      custom_attributes: {\n        nif: cliente.nif || '',\n        codigo_cliente: cliente.codigo_cliente || '',\n        telefono_secundario: cliente.telefono_secundario || '',\n        direccion: cliente.direccion_correspondencia || '',\n        codigo_postal: cliente.cp_correspondencia || '',\n        tipo_cliente: cliente.tipo || '',\n        comunidad: comunidadNombre,\n        ubicacion_vivienda: ubicacionNombre,\n        source: 'supabase_sync'\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "preparar-datos",
+      "name": "Preparar Contacto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "exists-check",
+              "leftValue": "={{ $json.contactExists }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-exists",
+      "name": "Existe en Chatwoot?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1220, 0]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/{{ $json.chatwootId }}",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.name, email: $json.email, phone_number: $json.phone_number, identifier: $json.identifier, additional_attributes: $json.additional_attributes, custom_attributes: $json.custom_attributes }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "C2D4BxQadaEwN5wAwBaGHC6e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-chatwoot",
+      "name": "UPDATE Contacto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, -120],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.name, email: $json.email, phone_number: $json.phone_number, identifier: $json.identifier, additional_attributes: $json.additional_attributes, custom_attributes: $json.custom_attributes }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "C2D4BxQadaEwN5wAwBaGHC6e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-chatwoot",
+      "name": "CREATE Contacto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 120],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada 6 Horas": {
+      "main": [
+        [
+          {
+            "node": "GET Clientes Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Clientes Supabase": {
+      "main": [
+        [
+          {
+            "node": "Loop Clientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Clientes": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Buscar en Chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar en Chatwoot": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contacto": {
+      "main": [
+        [
+          {
+            "node": "Existe en Chatwoot?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existe en Chatwoot?": {
+      "main": [
+        [
+          {
+            "node": "UPDATE Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CREATE Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UPDATE Contacto": {
+      "main": [
+        [
+          {
+            "node": "Loop Clientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREATE Contacto": {
+      "main": [
+        [
+          {
+            "node": "Loop Clientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "CRM"
+    },
+    {
+      "name": "Sync"
+    }
+  ]
+}

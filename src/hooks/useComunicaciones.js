@@ -1,23 +1,47 @@
+import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
-export function useComunicaciones({ canal, estado, clienteId, limit = 50 } = {}) {
+// Consulta mensajes con paginación, búsqueda y filtros
+// Retorna { data: [...], count: N } en lugar del array directamente
+export function useComunicaciones({ canal, estado, clienteId, search, page = 0, pageSize = 10 } = {}) {
   return useQuery({
-    queryKey: ['comunicaciones', { canal, estado, clienteId, limit }],
+    queryKey: ['comunicaciones', { canal, estado, clienteId, search, page, pageSize }],
     queryFn: async () => {
       let query = supabase
-        .from('v_comunicaciones_resumen')
-        .select('*')
+        .from('comunicaciones')
+        .select(
+          `*, clientes!cliente_id(id, nombre, apellidos)`,
+          { count: 'exact' }
+        )
         .order('created_at', { ascending: false })
-        .limit(limit)
 
       if (canal) query = query.eq('canal', canal)
       if (estado) query = query.eq('estado', estado)
       if (clienteId) query = query.eq('cliente_id', clienteId)
+      if (search) {
+        query = query.or(
+          `contenido.ilike.%${search}%,remitente_nombre.ilike.%${search}%,remitente_telefono.ilike.%${search}%`
+        )
+      }
 
-      const { data, error } = await query
+      const from = page * pageSize
+      const to = from + pageSize - 1
+      query = query.range(from, to)
+
+      const { data, count, error } = await query
       if (error) throw error
-      return data
+
+      // Aplanar el join de clientes para mantener shape esperado por los componentes
+      const flatData = (data ?? []).map(({ clientes: clienteJoin, ...msg }) => ({
+        ...msg,
+        cliente_id: clienteJoin?.id ?? msg.cliente_id ?? null,
+        cliente_nombre: clienteJoin
+          ? `${clienteJoin.nombre} ${clienteJoin.apellidos}`
+          : null,
+      }))
+
+      return { data: flatData, count: count ?? 0 }
     },
     refetchInterval: 30000,
   })
@@ -57,6 +81,52 @@ export function useRegistrarComunicacion() {
       queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
     }
   })
+}
+
+// Datos de tendencia temporal (mensajes por día) para el gráfico de línea
+// Retorna array de { fecha, total, entrantes, salientes } rellenando días sin actividad
+export function useComunicacionesTrend(fechaInicio, fechaFin) {
+  const { data: rawData, ...rest } = useQuery({
+    queryKey: ['comunicaciones-trend', fechaInicio, fechaFin],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('comunicaciones')
+        .select('created_at, canal, direccion')
+        .gte('created_at', fechaInicio)
+        .lte('created_at', `${fechaFin}T23:59:59`)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!(fechaInicio && fechaFin),
+  })
+
+  const trend = useMemo(() => {
+    if (!rawData || !fechaInicio || !fechaFin) return []
+
+    // Agregar por día
+    const byDay = {}
+    for (const msg of rawData) {
+      const day = msg.created_at.slice(0, 10) // 'YYYY-MM-DD'
+      if (!byDay[day]) byDay[day] = { fecha: day, total: 0, entrantes: 0, salientes: 0 }
+      byDay[day].total++
+      if (msg.direccion === 'entrante') byDay[day].entrantes++
+      else byDay[day].salientes++
+    }
+
+    // Rellenar días sin actividad para que el gráfico sea continuo
+    const result = []
+    const start = new Date(fechaInicio)
+    const end = new Date(fechaFin)
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const day = d.toISOString().slice(0, 10)
+      result.push(byDay[day] || { fecha: day, total: 0, entrantes: 0, salientes: 0 })
+    }
+    return result
+  }, [rawData, fechaInicio, fechaFin])
+
+  return { data: trend, ...rest }
 }
 
 export function usePlantillas(canal) {
@@ -112,6 +182,24 @@ export function useUpdatePlantilla() {
         .single()
       if (error) throw error
       return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plantillas-mensaje'] })
+    }
+  })
+}
+
+// Soft delete: marca plantilla como inactiva en lugar de eliminarla
+export function useDeletePlantilla() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase
+        .from('plantillas_mensaje')
+        .update({ activa: false })
+        .eq('id', id)
+      if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plantillas-mensaje'] })

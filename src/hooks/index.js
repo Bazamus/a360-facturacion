@@ -204,9 +204,11 @@ export {
   useComunicaciones,
   useComunicacionesStats,
   useRegistrarComunicacion,
+  useComunicacionesTrend,
   usePlantillas,
   useCreatePlantilla,
   useUpdatePlantilla,
+  useDeletePlantilla,
   useCanalesConfig,
   useUpdateCanalConfig
 } from './useComunicaciones'

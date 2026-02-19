@@ -1,0 +1,319 @@
+{
+  "name": "Evolution → Supabase Mensajes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-messages",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "evolution-messages",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const raw = item.json;\n  const body = raw.body || raw;\n  const event = body.event || '';\n  const data = body.data || {};\n\n  const eventosValidos = ['messages.upsert', 'send.message', 'messages.update'];\n  if (!eventosValidos.includes(event)) {\n    results.push({ json: { skip: true, event: event || 'desconocido' } });\n    continue;\n  }\n\n  if (event === 'messages.update') {\n    const updates = Array.isArray(data) ? data : [data];\n    const update = updates[0] || {};\n    const key = update.key || {};\n    const status = update.update ? update.update.status : null;\n\n    let estadoNuevo = null;\n    if (status === 3) estadoNuevo = 'entregado';\n    else if (status === 4) estadoNuevo = 'leido';\n    else if (status === 5) estadoNuevo = 'leido';\n\n    results.push({\n      json: {\n        tipo_evento: 'update',\n        external_id: key.id || '',\n        estado_nuevo: estadoNuevo,\n        skip: !estadoNuevo\n      }\n    });\n    continue;\n  }\n\n  const key = data.key || {};\n  const message = data.message || {};\n  const pushName = data.pushName || '';\n\n  let contenido = '';\n  let contenido_tipo = 'texto';\n\n  if (message.conversation) {\n    contenido = message.conversation;\n  } else if (message.extendedTextMessage && message.extendedTextMessage.text) {\n    contenido = message.extendedTextMessage.text;\n  } else if (message.imageMessage) {\n    contenido = message.imageMessage.caption || '[Imagen]';\n    contenido_tipo = 'imagen';\n  } else if (message.audioMessage) {\n    contenido = '[Audio]';\n    contenido_tipo = 'audio';\n  } else if (message.videoMessage) {\n    contenido = message.videoMessage.caption || '[Video]';\n    contenido_tipo = 'video';\n  } else if (message.documentMessage) {\n    contenido = message.documentMessage.fileName || '[Documento]';\n    contenido_tipo = 'documento';\n  } else if (message.locationMessage) {\n    contenido = '[Ubicacion: ' + message.locationMessage.degreesLatitude + ', ' + message.locationMessage.degreesLongitude + ']';\n    contenido_tipo = 'ubicacion';\n  } else {\n    contenido = '[Mensaje no soportado]';\n  }\n\n  const fromMe = key.fromMe === true;\n  const direccion = fromMe ? 'saliente' : 'entrante';\n\n  const remoteJid = key.remoteJid || '';\n  const telefono = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');\n\n  if (remoteJid.indexOf('@g.us') !== -1) {\n    results.push({ json: { skip: true, motivo: 'mensaje_grupo' } });\n    continue;\n  }\n\n  results.push({\n    json: {\n      tipo_evento: 'mensaje',\n      skip: false,\n      telefono: telefono,\n      contenido: contenido,\n      contenido_tipo: contenido_tipo,\n      direccion: direccion,\n      external_id: key.id || '',\n      remitente_nombre: pushName,\n      estado: fromMe ? 'enviado' : 'recibido'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "code-extraer",
+      "name": "Extraer Datos Mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-no-skip",
+      "name": "No Skip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tipo_evento }}",
+                    "rightValue": "mensaje",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Mensaje Nuevo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tipo_evento }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Actualizar Estado"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Descartado"
+        }
+      },
+      "id": "switch-tipo",
+      "name": "Tipo Evento",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [760, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/rpc/buscar_cliente_por_telefono",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_telefono: $json.telefono }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer REEMPLAZAR_CON_TU_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "buscar-cliente",
+      "name": "Buscar Cliente por Tel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, -120],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/comunicaciones",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  canal: 'whatsapp',\n  direccion: $('Extraer Datos Mensaje').item.json.direccion,\n  contenido: $('Extraer Datos Mensaje').item.json.contenido,\n  contenido_tipo: $('Extraer Datos Mensaje').item.json.contenido_tipo,\n  remitente_nombre: $('Extraer Datos Mensaje').item.json.remitente_nombre,\n  remitente_telefono: $('Extraer Datos Mensaje').item.json.telefono,\n  estado: $('Extraer Datos Mensaje').item.json.estado,\n  external_id: $('Extraer Datos Mensaje').item.json.external_id,\n  cliente_id: ($json[0] && $json[0].cliente_id) ? $json[0].cliente_id : null,\n  metadata: {}\n}) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer REEMPLAZAR_CON_TU_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "insertar-comunicacion",
+      "name": "INSERT Comunicacion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, -120],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/comunicaciones?external_id=eq.{{ $json.external_id }}",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: $json.estado_nuevo }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer REEMPLAZAR_CON_TU_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-estado",
+      "name": "UPDATE Estado Mensaje",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 120],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Evolution": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos Mensaje": {
+      "main": [
+        [
+          {
+            "node": "No Skip?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Skip?": {
+      "main": [
+        [
+          {
+            "node": "Tipo Evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Tipo Evento": {
+      "main": [
+        [
+          {
+            "node": "Buscar Cliente por Tel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "UPDATE Estado Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Buscar Cliente por Tel": {
+      "main": [
+        [
+          {
+            "node": "INSERT Comunicacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "CRM"
+    },
+    {
+      "name": "WhatsApp"
+    }
+  ]
+}
