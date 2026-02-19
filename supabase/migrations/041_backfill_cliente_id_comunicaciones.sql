@@ -20,7 +20,7 @@
 BEGIN;
 
 UPDATE comunicaciones c
-SET cliente_id = bc.cliente_id
+SET cliente_id = sub.cliente_id
 FROM (
   SELECT
     com.id         AS comm_id,
