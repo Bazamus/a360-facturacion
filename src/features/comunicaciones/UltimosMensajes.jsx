@@ -84,13 +84,19 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
   function handleMessageClick(msg) {
     if (!chatwootUrl) return
     if (msg.chatwoot_conversation_id) {
+      // Deep link directo a la conversación específica
       window.open(
         `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${msg.chatwoot_conversation_id}`,
         '_blank',
         'noopener,noreferrer'
       )
     } else {
-      window.open(chatwootUrl, '_blank', 'noopener,noreferrer')
+      // Sin ID de conversación: abrir lista de conversaciones (mejor que el dashboard)
+      window.open(
+        `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations`,
+        '_blank',
+        'noopener,noreferrer'
+      )
     }
   }
 
@@ -157,14 +163,30 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
           <div className="space-y-2">
             {mensajes.map((msg) => {
               const Icon = CANAL_ICONS[msg.canal] || MessageSquare
+              const hasConversation = !!msg.chatwoot_conversation_id
               return (
                 <div
                   key={msg.id}
-                  className="group relative flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:bg-primary-50 hover:border-primary-100 cursor-pointer transition-colors"
+                  title={
+                    hasConversation
+                      ? `Abrir conversación #${msg.chatwoot_conversation_id} en Chatwoot`
+                      : 'Sin conversación vinculada — se abrirá la lista de conversaciones'
+                  }
+                  className={`group relative flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                    hasConversation
+                      ? 'border-gray-100 hover:bg-primary-50 hover:border-primary-100'
+                      : 'border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+                  }`}
                   onClick={() => handleMessageClick(msg)}
                 >
-                  {/* Indicador de enlace externo en hover */}
-                  <ExternalLink className="absolute top-2 right-2 h-3 w-3 text-transparent group-hover:text-primary-400 transition-colors" />
+                  {/* Indicador de enlace: verde si tiene conversación, gris si no */}
+                  <ExternalLink
+                    className={`absolute top-2 right-2 h-3 w-3 transition-colors ${
+                      hasConversation
+                        ? 'text-transparent group-hover:text-primary-400'
+                        : 'text-gray-200 group-hover:text-gray-400'
+                    }`}
+                  />
 
                   {/* Icono de canal */}
                   <div

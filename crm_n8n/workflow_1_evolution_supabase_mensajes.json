@@ -133,7 +133,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer REEMPLAZAR_CON_TU_SUPABASE_SERVICE_ROLE_KEY"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
             },
             {
               "name": "Content-Type",
@@ -176,7 +176,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer REEMPLAZAR_CON_TU_SUPABASE_SERVICE_ROLE_KEY"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
             },
             {
               "name": "Content-Type",
@@ -199,6 +199,85 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Buscar conversacion de Chatwoot para enlazar el mensaje con deep link\n// Ejecuta 2 llamadas: buscar contacto por telefono → obtener conversacion mas reciente\n\nconst CHATWOOT_URL = 'https://crm-chatwoot-a360.vcheqs.easypanel.host';\nconst CHATWOOT_TOKEN = 'C2D4BxQadaEwN5wAwBaGHC6e';\nconst ACCOUNT_ID = 1;\nconst SUPABASE_URL = 'https://rvxmczogxoncdlxpptgb.supabase.co';\nconst SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8';\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  try {\n    // Obtener datos del mensaje y del registro insertado\n    const telefono = $('Extraer Datos Mensaje').item.json.telefono;\n    const insertResp = item.json;\n    // Supabase con Prefer:return=representation devuelve array\n    const recordId = Array.isArray(insertResp) ? insertResp[0]?.id : insertResp?.id;\n\n    if (!recordId || !telefono) {\n      results.push({ json: { skip: true, motivo: 'sin_record_o_telefono' } });\n      continue;\n    }\n\n    // 1. Buscar contacto en Chatwoot por telefono\n    const searchResp = await fetch(\n      `${CHATWOOT_URL}/api/v1/accounts/${ACCOUNT_ID}/contacts/search?q=${encodeURIComponent(telefono)}&include_contacts=true`,\n      { headers: { 'api_access_token': CHATWOOT_TOKEN, 'Content-Type': 'application/json' } }\n    );\n\n    if (!searchResp.ok) {\n      results.push({ json: { skip: true, motivo: 'chatwoot_search_error', status: searchResp.status } });\n      continue;\n    }\n\n    const searchData = await searchResp.json();\n    // Chatwoot puede devolver payload.contacts (v2) o payload como array directo\n    const contacts = searchData.payload?.contacts\n      || (Array.isArray(searchData.payload) ? searchData.payload : [])\n      || [];\n\n    if (!contacts.length) {\n      results.push({ json: { skip: true, motivo: 'contacto_no_encontrado', telefono, record_id: recordId } });\n      continue;\n    }\n\n    const contactId = contacts[0].id;\n\n    // 2. Obtener conversaciones del contacto\n    const convsResp = await fetch(\n      `${CHATWOOT_URL}/api/v1/accounts/${ACCOUNT_ID}/contacts/${contactId}/conversations`,\n      { headers: { 'api_access_token': CHATWOOT_TOKEN, 'Content-Type': 'application/json' } }\n    );\n\n    if (!convsResp.ok) {\n      results.push({ json: { skip: true, motivo: 'chatwoot_convs_error', contactId } });\n      continue;\n    }\n\n    const convsData = await convsResp.json();\n    const conversations = convsData.payload || [];\n\n    if (!conversations.length) {\n      results.push({ json: { skip: true, motivo: 'sin_conversaciones', contactId } });\n      continue;\n    }\n\n    // Tomar la conversacion con ID mas alto (la mas reciente)\n    const latestConv = conversations.reduce(\n      (max, c) => (c.id > max.id ? c : max),\n      conversations[0]\n    );\n\n    results.push({\n      json: {\n        skip: false,\n        record_id: recordId,\n        chatwoot_conversation_id: String(latestConv.id)\n      }\n    });\n\n  } catch (e) {\n    results.push({ json: { skip: true, motivo: 'exception', error: e.message } });\n  }\n}\n\nreturn results;"
+      },
+      "id": "obtener-chatwoot-conv",
+      "name": "Obtener Conv. Chatwoot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, -120],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "skip-chatwoot-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-tiene-conv",
+      "name": "Tiene Conversacion?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1880, -120]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/comunicaciones?id=eq.{{ $json.record_id }}",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chatwoot_conversation_id: $json.chatwoot_conversation_id }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-chatwoot-id",
+      "name": "UPDATE chatwoot_conversation_id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2160, -120],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
         "method": "PATCH",
         "url": "=https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/comunicaciones?external_id=eq.{{ $json.external_id }}",
         "authentication": "none",
@@ -216,7 +295,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer REEMPLAZAR_CON_TU_SUPABASE_SERVICE_ROLE_KEY"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
             },
             {
               "name": "Content-Type",
@@ -301,6 +380,40 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "INSERT Comunicacion": {
+      "main": [
+        [
+          {
+            "node": "Obtener Conv. Chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Conv. Chatwoot": {
+      "main": [
+        [
+          {
+            "node": "Tiene Conversacion?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Conversacion?": {
+      "main": [
+        [
+          {
+            "node": "UPDATE chatwoot_conversation_id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
