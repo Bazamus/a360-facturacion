@@ -1,0 +1,128 @@
+{
+  "name": "Chatwoot → Supabase Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatwoot-sync",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-chatwoot-sync",
+      "name": "Webhook Chatwoot",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "chatwoot-sync",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Extrae evento de Chatwoot y determina la acción en Supabase\n// Chatwoot envía POST con body: { event, id, status, ... }\nconst item = $input.first();\nconst raw = item.json;\nconst body = raw.body || raw;\n\nconst event = body.event || '';\n// El ID de conversación llega en body.id (integer) → convertir a string para comparar con TEXT en Supabase\nconst conversationId = body.id ? String(body.id) : null;\nconst status = body.status || null;\n\n// Eventos que nos interesan:\n//   conversation_status_changed + resolved → estado='respondido' (deja de aparecer en pendientes)\n//   conversation_deleted                  → estado='archivado' (eliminada de Chatwoot)\nconst esResolucion = event === 'conversation_status_changed' && status === 'resolved';\nconst esEliminacion = event === 'conversation_deleted';\n\nif ((!esResolucion && !esEliminacion) || !conversationId) {\n  return [{ json: { skip: true, motivo: 'evento_no_relevante', event, status } }];\n}\n\nconst nuevoEstado = esEliminacion ? 'archivado' : 'respondido';\n\nreturn [{ json: { skip: false, event, status, conversationId, nuevoEstado } }];"
+      },
+      "id": "code-extraer-evento",
+      "name": "Extraer Evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-relevante",
+      "name": "Es Relevante?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [560, 0]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/comunicaciones?chatwoot_conversation_id=eq.{{ $json.conversationId }}&estado=neq.archivado",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: $json.nuevoEstado }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "patch-estado-supabase",
+      "name": "Actualizar Estado Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, -80],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "noop-no-relevante",
+      "name": "Sin Acción",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [840, 120]
+    }
+  ],
+  "connections": {
+    "Webhook Chatwoot": {
+      "main": [
+        [{ "node": "Extraer Evento", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extraer Evento": {
+      "main": [
+        [{ "node": "Es Relevante?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Es Relevante?": {
+      "main": [
+        [{ "node": "Actualizar Estado Supabase", "type": "main", "index": 0 }],
+        [{ "node": "Sin Acción", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Recibe webhooks de Chatwoot y sincroniza el estado de las comunicaciones en Supabase.\n\nEventos manejados:\n- conversation_status_changed + status=resolved → estado='respondido'\n- conversation_deleted → estado='archivado'\n\nConfigurar en Chatwoot: Settings → Integrations → Webhooks → Add New\nURL: https://<tu-n8n>/webhook/chatwoot-sync\nEvents: conversation_status_changed, conversation_deleted"
+  }
+}

@@ -12,8 +12,9 @@ import {
   Clock,
   RefreshCw,
   ExternalLink,
+  Archive,
 } from 'lucide-react'
-import { useComunicaciones } from '@/hooks/useComunicaciones'
+import { useComunicaciones, useArchivarComunicacion } from '@/hooks/useComunicaciones'
 
 const CANAL_ICONS = {
   whatsapp: MessageSquare,
@@ -72,6 +73,7 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
+  const archivar = useArchivarComunicacion()
 
   const { data: resultado, isFetching, isLoading } = useComunicaciones({
     estado: 'recibido',
@@ -249,9 +251,19 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
                       )}
                     </div>
 
-                    {/* Hora */}
-                    <div className="flex-shrink-0 text-[11px] text-gray-400 whitespace-nowrap pt-0.5">
-                      {formatTimeAgo(msg.created_at)}
+                    {/* Hora + archivar */}
+                    <div className="flex-shrink-0 flex flex-col items-end gap-1.5 pt-0.5">
+                      <span className="text-[11px] text-gray-400 whitespace-nowrap">
+                        {formatTimeAgo(msg.created_at)}
+                      </span>
+                      <button
+                        onClick={() => archivar.mutate(msg.id)}
+                        disabled={archivar.isPending}
+                        title="Archivar mensaje (desaparece del listado)"
+                        className="h-5 w-5 rounded flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors disabled:opacity-40"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
 

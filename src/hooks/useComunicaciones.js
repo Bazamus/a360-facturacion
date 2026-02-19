@@ -179,6 +179,25 @@ export function useUpdatePlantilla() {
 }
 
 // Soft delete: marca plantilla como inactiva en lugar de eliminarla
+// Archiva un mensaje (estado='archivado') — desaparece de la lista de pendientes
+export function useArchivarComunicacion() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase
+        .from('comunicaciones')
+        .update({ estado: 'archivado' })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comunicaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
+    },
+  })
+}
+
 export function useDeletePlantilla() {
   const queryClient = useQueryClient()
 

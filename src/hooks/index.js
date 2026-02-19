@@ -204,6 +204,7 @@ export {
   useComunicaciones,
   useComunicacionesStats,
   useRegistrarComunicacion,
+  useArchivarComunicacion,
   useComunicacionesTrend,
   usePlantillas,
   useCreatePlantilla,
