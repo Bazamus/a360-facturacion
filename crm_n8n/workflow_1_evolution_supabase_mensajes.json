@@ -30,19 +30,13 @@
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
+          "options": { "caseSensitive": true, "leftValue": "" },
           "conditions": [
             {
               "id": "skip-check",
               "leftValue": "={{ $json.skip }}",
               "rightValue": false,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
+              "operator": { "type": "boolean", "operation": "equals" }
             }
           ],
           "combinator": "and"
@@ -61,18 +55,12 @@
           "values": [
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": ""
-                },
+                "options": { "caseSensitive": true, "leftValue": "" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.tipo_evento }}",
                     "rightValue": "mensaje",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -82,18 +70,12 @@
             },
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": ""
-                },
+                "options": { "caseSensitive": true, "leftValue": "" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.tipo_evento }}",
                     "rightValue": "update",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -142,11 +124,7 @@
           ]
         },
         "options": {
-          "response": {
-            "response": {
-              "neverError": true
-            }
-          }
+          "response": { "response": { "neverError": true } }
         }
       },
       "id": "buscar-cliente",
@@ -199,32 +177,121 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Buscar conversacion de Chatwoot para enlazar el mensaje con deep link\n// Usa $helpers.httpRequest (API nativa de n8n) en lugar de fetch\n\nconst CHATWOOT_URL = 'https://crm-chatwoot-a360.vcheqs.easypanel.host';\nconst CHATWOOT_TOKEN = 'C2D4BxQadaEwN5wAwBaGHC6e';\nconst ACCOUNT_ID = 1;\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  try {\n    const telefono = $('Extraer Datos Mensaje').item.json.telefono;\n    const insertResp = item.json;\n    const recordId = Array.isArray(insertResp) ? insertResp[0]?.id : insertResp?.id;\n\n    if (!recordId || !telefono) {\n      results.push({ json: { skip: true, motivo: 'sin_record_o_telefono' } });\n      continue;\n    }\n\n    // 1. Buscar contacto en Chatwoot por telefono\n    // $helpers.httpRequest es la API HTTP nativa de n8n (no usa fetch)\n    const searchData = await $helpers.httpRequest({\n      method: 'GET',\n      url: `${CHATWOOT_URL}/api/v1/accounts/${ACCOUNT_ID}/contacts/search?q=${encodeURIComponent(telefono)}&include_contacts=true`,\n      headers: { 'api_access_token': CHATWOOT_TOKEN }\n    });\n\n    // Chatwoot puede devolver payload.contacts (v2) o payload como array directo\n    const contacts = searchData.payload?.contacts\n      || (Array.isArray(searchData.payload) ? searchData.payload : [])\n      || [];\n\n    if (!contacts.length) {\n      results.push({ json: { skip: true, motivo: 'contacto_no_encontrado', telefono, record_id: recordId } });\n      continue;\n    }\n\n    const contactId = contacts[0].id;\n\n    // 2. Obtener conversaciones del contacto\n    const convsData = await $helpers.httpRequest({\n      method: 'GET',\n      url: `${CHATWOOT_URL}/api/v1/accounts/${ACCOUNT_ID}/contacts/${contactId}/conversations`,\n      headers: { 'api_access_token': CHATWOOT_TOKEN }\n    });\n\n    const conversations = convsData.payload || [];\n\n    if (!conversations.length) {\n      results.push({ json: { skip: true, motivo: 'sin_conversaciones', contactId, record_id: recordId } });\n      continue;\n    }\n\n    // Tomar la conversacion con ID mas alto (la mas reciente)\n    const latestConv = conversations.reduce(\n      (max, c) => (c.id > max.id ? c : max),\n      conversations[0]\n    );\n\n    results.push({\n      json: {\n        skip: false,\n        record_id: recordId,\n        chatwoot_conversation_id: String(latestConv.id)\n      }\n    });\n\n  } catch (e) {\n    results.push({ json: { skip: true, motivo: 'exception', error: e.message } });\n  }\n}\n\nreturn results;"
+        "method": "GET",
+        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/search?q={{ $('Extraer Datos Mensaje').item.json.telefono }}&include_contacts=true",
+        "authentication": "none",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "C2D4BxQadaEwN5wAwBaGHC6e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
       },
-      "id": "obtener-chatwoot-conv",
-      "name": "Obtener Conv. Chatwoot",
+      "id": "buscar-contacto-chatwoot",
+      "name": "Buscar Contacto Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1600, -120],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Solo extraccion de datos - sin llamadas HTTP\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const searchData = item.json;\n  // Chatwoot v3 devuelve payload como array, versiones anteriores como { contacts: [...] }\n  const contacts = searchData.payload?.contacts\n    || (Array.isArray(searchData.payload) ? searchData.payload : [])\n    || [];\n\n  if (!contacts.length) {\n    results.push({ json: { skip: true, motivo: 'contacto_no_encontrado' } });\n    continue;\n  }\n\n  results.push({ json: { skip: false, contact_id: contacts[0].id } });\n}\n\nreturn results;"
+      },
+      "id": "extraer-contact-id",
+      "name": "Extraer Contact ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1600, -120],
+      "position": [1880, -120],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "contacto-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-contacto-encontrado",
+      "name": "Contacto Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2160, -120]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/{{ $json.contact_id }}/conversations",
+        "authentication": "none",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "C2D4BxQadaEwN5wAwBaGHC6e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "obtener-conversaciones",
+      "name": "Obtener Conversaciones Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, -120],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Solo extraccion de datos - sin llamadas HTTP\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const convsData = item.json;\n  const conversations = convsData.payload || [];\n\n  if (!Array.isArray(conversations) || !conversations.length) {\n    results.push({ json: { skip: true, motivo: 'sin_conversaciones' } });\n    continue;\n  }\n\n  // Tomar la conversacion con ID mas alto (la mas reciente)\n  const latestConv = conversations.reduce(\n    (max, c) => (c.id > max.id ? c : max),\n    conversations[0]\n  );\n\n  // Obtener el ID del registro insertado en Supabase desde el nodo INSERT\n  const insertResp = $('INSERT Comunicacion').item.json;\n  const recordId = Array.isArray(insertResp) ? insertResp[0]?.id : insertResp?.id;\n\n  results.push({\n    json: {\n      skip: false,\n      chatwoot_conversation_id: String(latestConv.id),\n      record_id: recordId\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "extraer-conv-id",
+      "name": "Extraer Conversation ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2720, -120],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
           "conditions": [
             {
               "id": "skip-chatwoot-check",
               "leftValue": "={{ $json.skip }}",
               "rightValue": false,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
+              "operator": { "type": "boolean", "operation": "equals" }
             }
           ],
           "combinator": "and"
@@ -234,7 +301,7 @@
       "name": "Tiene Conversacion?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [1880, -120]
+      "position": [3000, -120]
     },
     {
       "parameters": {
@@ -273,7 +340,7 @@
       "name": "UPDATE chatwoot_conversation_id",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2160, -120],
+      "position": [3280, -120],
       "onError": "continueRegularOutput"
     },
     {
@@ -319,114 +386,56 @@
   ],
   "connections": {
     "Webhook Evolution": {
-      "main": [
-        [
-          {
-            "node": "Extraer Datos Mensaje",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Extraer Datos Mensaje", "type": "main", "index": 0 }]]
     },
     "Extraer Datos Mensaje": {
-      "main": [
-        [
-          {
-            "node": "No Skip?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "No Skip?", "type": "main", "index": 0 }]]
     },
     "No Skip?": {
       "main": [
-        [
-          {
-            "node": "Tipo Evento",
-            "type": "main",
-            "index": 0
-          }
-        ],
+        [{ "node": "Tipo Evento", "type": "main", "index": 0 }],
         []
       ]
     },
     "Tipo Evento": {
       "main": [
-        [
-          {
-            "node": "Buscar Cliente por Tel",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "UPDATE Estado Mensaje",
-            "type": "main",
-            "index": 0
-          }
-        ],
+        [{ "node": "Buscar Cliente por Tel", "type": "main", "index": 0 }],
+        [{ "node": "UPDATE Estado Mensaje", "type": "main", "index": 0 }],
         []
       ]
     },
     "Buscar Cliente por Tel": {
-      "main": [
-        [
-          {
-            "node": "INSERT Comunicacion",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "INSERT Comunicacion", "type": "main", "index": 0 }]]
     },
     "INSERT Comunicacion": {
+      "main": [[{ "node": "Buscar Contacto Chatwoot", "type": "main", "index": 0 }]]
+    },
+    "Buscar Contacto Chatwoot": {
+      "main": [[{ "node": "Extraer Contact ID", "type": "main", "index": 0 }]]
+    },
+    "Extraer Contact ID": {
+      "main": [[{ "node": "Contacto Encontrado?", "type": "main", "index": 0 }]]
+    },
+    "Contacto Encontrado?": {
       "main": [
-        [
-          {
-            "node": "Obtener Conv. Chatwoot",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Obtener Conversaciones Chatwoot", "type": "main", "index": 0 }],
+        []
       ]
     },
-    "Obtener Conv. Chatwoot": {
-      "main": [
-        [
-          {
-            "node": "Tiene Conversacion?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Obtener Conversaciones Chatwoot": {
+      "main": [[{ "node": "Extraer Conversation ID", "type": "main", "index": 0 }]]
+    },
+    "Extraer Conversation ID": {
+      "main": [[{ "node": "Tiene Conversacion?", "type": "main", "index": 0 }]]
     },
     "Tiene Conversacion?": {
       "main": [
-        [
-          {
-            "node": "UPDATE chatwoot_conversation_id",
-            "type": "main",
-            "index": 0
-          }
-        ],
+        [{ "node": "UPDATE chatwoot_conversation_id", "type": "main", "index": 0 }],
         []
       ]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "staticData": null,
-  "tags": [
-    {
-      "name": "CRM"
-    },
-    {
-      "name": "WhatsApp"
-    }
-  ]
+  "tags": [{ "name": "CRM" }, { "name": "WhatsApp" }]
 }
