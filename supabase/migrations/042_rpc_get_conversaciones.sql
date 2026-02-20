@@ -61,8 +61,8 @@ AS $$
       ma.remitente_telefono                                   AS conversation_key,
       ma.remitente_telefono,
       MAX(CASE WHEN ma.rn = 1 THEN ma.remitente_nombre END)  AS remitente_nombre,
-      MAX(ma.cli_id) FILTER (WHERE ma.cli_id IS NOT NULL)     AS cliente_id,
-      MAX(ma.cli_nombre) FILTER (WHERE ma.cli_id IS NOT NULL) AS cliente_nombre,
+      (MAX(CASE WHEN ma.rn = 1 THEN ma.cli_id::text END))::uuid AS cliente_id,
+      MAX(CASE WHEN ma.rn = 1 THEN ma.cli_nombre END)          AS cliente_nombre,
       MAX(CASE WHEN ma.rn = 1 THEN ma.canal END)             AS canal,
       MAX(ma.chatwoot_conversation_id) FILTER (
         WHERE ma.chatwoot_conversation_id IS NOT NULL
