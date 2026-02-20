@@ -178,8 +178,7 @@ export function useUpdatePlantilla() {
   })
 }
 
-// Soft delete: marca plantilla como inactiva en lugar de eliminarla
-// Archiva un mensaje (estado='archivado') — desaparece de la lista de pendientes
+// Archiva un mensaje individual (estado='archivado')
 // Usa RPC SECURITY DEFINER para evitar conflictos con RLS en UPDATE directo
 export function useArchivarComunicacion() {
   const queryClient = useQueryClient()
@@ -192,6 +191,26 @@ export function useArchivarComunicacion() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comunicaciones'] })
       queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['conversacion-mensajes'] })
+    },
+  })
+}
+
+// Archiva TODOS los mensajes pendientes de una conversación (por teléfono)
+export function useArchivarConversacion() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (telefono) => {
+      const { error } = await supabase.rpc('archivar_conversacion', { p_telefono: telefono })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comunicaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['conversacion-mensajes'] })
     },
   })
 }
@@ -210,6 +229,43 @@ export function useDeletePlantilla() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plantillas-mensaje'] })
     }
+  })
+}
+
+// Conversaciones agrupadas por remitente_telefono (para Dashboard rediseñado)
+// Llama a RPC get_conversaciones_pendientes que agrupa mensajes y devuelve resumen
+export function useConversaciones({ canal, search, page = 0, pageSize = 20 } = {}) {
+  return useQuery({
+    queryKey: ['conversaciones', { canal, search, page, pageSize }],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_conversaciones_pendientes', {
+        p_canal: canal || null,
+        p_search: search || null,
+        p_limit: pageSize,
+        p_offset: page * pageSize,
+      })
+      if (error) throw error
+      return data ?? []
+    },
+    refetchInterval: 30000,
+  })
+}
+
+// Mensajes individuales de una conversación (por teléfono)
+// Se activa solo cuando el thread está expandido (enabled)
+export function useMensajesConversacion(telefono, enabled = false) {
+  return useQuery({
+    queryKey: ['conversacion-mensajes', telefono],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_mensajes_conversacion', {
+        p_telefono: telefono,
+        p_limit: 50,
+      })
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!telefono && enabled,
+    refetchInterval: enabled ? 30000 : false,
   })
 }
 

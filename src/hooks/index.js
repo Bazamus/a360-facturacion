@@ -211,7 +211,10 @@ export {
   useUpdatePlantilla,
   useDeletePlantilla,
   useCanalesConfig,
-  useUpdateCanalConfig
+  useUpdateCanalConfig,
+  useConversaciones,
+  useMensajesConversacion,
+  useArchivarConversacion
 } from './useComunicaciones'
 
 // Reportes y Dashboard
