@@ -143,7 +143,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  canal: 'whatsapp',\n  direccion: $('Extraer Datos Mensaje').item.json.direccion,\n  contenido: $('Extraer Datos Mensaje').item.json.contenido,\n  contenido_tipo: $('Extraer Datos Mensaje').item.json.contenido_tipo,\n  remitente_nombre: $('Extraer Datos Mensaje').item.json.remitente_nombre,\n  remitente_telefono: $('Extraer Datos Mensaje').item.json.telefono,\n  estado: $('Extraer Datos Mensaje').item.json.estado,\n  external_id: $('Extraer Datos Mensaje').item.json.external_id,\n  cliente_id: ($json[0] && $json[0].cliente_id) ? $json[0].cliente_id : null,\n  metadata: {}\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  canal: 'whatsapp',\n  direccion: $('Extraer Datos Mensaje').item.json.direccion,\n  contenido: $('Extraer Datos Mensaje').item.json.contenido,\n  contenido_tipo: $('Extraer Datos Mensaje').item.json.contenido_tipo,\n  remitente_nombre: $('Extraer Datos Mensaje').item.json.remitente_nombre,\n  remitente_telefono: $('Extraer Datos Mensaje').item.json.telefono,\n  estado: $('Extraer Datos Mensaje').item.json.estado,\n  external_id: $('Extraer Datos Mensaje').item.json.external_id,\n  cliente_id: (Array.isArray($json) && $json.length > 0) ? $json[0].cliente_id : ($json.cliente_id || null),\n  metadata: {}\n}) }}",
         "sendHeaders": true,
         "specifyHeaders": "keypair",
         "headerParameters": {
