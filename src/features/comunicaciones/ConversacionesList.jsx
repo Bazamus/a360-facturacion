@@ -22,6 +22,7 @@ import {
   useArchivarComunicacion,
   useArchivarConversacion,
 } from '@/hooks/useComunicaciones'
+import { ClienteQuickViewModal } from './ClienteQuickViewModal'
 
 /* ── Mapas de configuración visual ─────────────────────────── */
 
@@ -234,6 +235,7 @@ export function ConversacionesList({ chatwootUrl = '', canal = null }) {
 
 function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navigate }) {
   const archivarConv = useArchivarConversacion()
+  const [showClienteModal, setShowClienteModal] = useState(false)
   const Icon = CANAL_ICONS[conv.canal] || MessageSquare
   const hasConversation = !!conv.chatwoot_conversation_id
   const hasCliente = !!conv.cliente_id
@@ -258,7 +260,7 @@ function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navig
 
   function handleClienteClick() {
     if (hasCliente) {
-      navigate(`/clientes/${conv.cliente_id}`)
+      setShowClienteModal(true)
     } else {
       navigate('/clientes')
     }
@@ -292,7 +294,7 @@ function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navig
               {displayName}
             </span>
             {conv.pendientes > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold animate-pulse">
+              <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold">
                 {conv.pendientes}
               </span>
             )}
@@ -402,6 +404,15 @@ function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navig
       {isExpanded && (
         <ConversacionThread telefono={conv.remitente_telefono} />
       )}
+
+      {/* Modal ficha cliente */}
+      {hasCliente && (
+        <ClienteQuickViewModal
+          clienteId={conv.cliente_id}
+          open={showClienteModal}
+          onClose={() => setShowClienteModal(false)}
+        />
+      )}
     </div>
   )
 }
@@ -428,47 +439,54 @@ function ConversacionThread({ telefono }) {
 
   return (
     <div className="mx-4 mb-3 bg-gray-50/70 rounded-lg border border-gray-100 divide-y divide-gray-100 overflow-hidden">
-      {mensajes.map((msg) => (
-        <div
-          key={msg.id}
-          className="flex items-center gap-2.5 px-3 py-2 group hover:bg-gray-100/50 transition-colors"
-        >
-          {/* Dirección */}
-          {msg.direccion === 'entrante' ? (
-            <ArrowDownLeft className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-          ) : (
-            <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-          )}
-
-          {/* Contenido */}
-          <span className="flex-1 text-sm text-gray-700 truncate">
-            {msg.contenido || '(sin contenido)'}
-          </span>
-
-          {/* Estado */}
-          <Badge
-            variant={ESTADO_VARIANTS[msg.estado] || 'default'}
-            className="text-[9px] flex-shrink-0"
+      {mensajes.map((msg) => {
+        const isPending = msg.estado === 'recibido'
+        return (
+          <div
+            key={msg.id}
+            className={`flex items-center gap-2.5 px-3 py-2 group transition-colors ${
+              isPending
+                ? 'bg-amber-50/60 hover:bg-amber-50 border-l-2 border-l-amber-400'
+                : 'hover:bg-gray-100/50'
+            }`}
           >
-            {msg.estado}
-          </Badge>
+            {/* Dirección */}
+            {msg.direccion === 'entrante' ? (
+              <ArrowDownLeft className={`h-3.5 w-3.5 flex-shrink-0 ${isPending ? 'text-amber-500' : 'text-blue-500'}`} />
+            ) : (
+              <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+            )}
 
-          {/* Hora */}
-          <span className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">
-            {formatTimeAgo(msg.created_at)}
-          </span>
+            {/* Contenido */}
+            <span className={`flex-1 text-sm truncate ${isPending ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+              {msg.contenido || '(sin contenido)'}
+            </span>
 
-          {/* Archivar individual */}
-          <button
-            onClick={() => archivar.mutate(msg.id)}
-            disabled={archivar.isPending}
-            title="Archivar este mensaje"
-            className="opacity-0 group-hover:opacity-100 h-5 w-5 rounded flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0"
-          >
-            <Archive className="h-3 w-3" />
-          </button>
-        </div>
-      ))}
+            {/* Estado */}
+            <Badge
+              variant={ESTADO_VARIANTS[msg.estado] || 'default'}
+              className="text-[9px] flex-shrink-0"
+            >
+              {msg.estado}
+            </Badge>
+
+            {/* Hora */}
+            <span className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">
+              {formatTimeAgo(msg.created_at)}
+            </span>
+
+            {/* Archivar individual */}
+            <button
+              onClick={() => archivar.mutate(msg.id)}
+              disabled={archivar.isPending}
+              title="Archivar este mensaje"
+              className="opacity-0 group-hover:opacity-100 h-5 w-5 rounded flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0"
+            >
+              <Archive className="h-3 w-3" />
+            </button>
+          </div>
+        )
+      })}
     </div>
   )
 }
