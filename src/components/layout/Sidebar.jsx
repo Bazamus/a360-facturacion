@@ -34,6 +34,7 @@ import {
   ClipboardList,
   BookTemplate,
   Sliders,
+  Package,
 } from 'lucide-react'
 
 // =====================================================
@@ -110,6 +111,7 @@ const sections = [
         children: [
           { name: 'Intervenciones', href: '/sat/intervenciones', icon: ClipboardList },
           { name: 'Contratos', href: '/sat/contratos', icon: FileText },
+          { name: 'Materiales', href: '/sat/materiales', icon: Package },
         ]
       },
       { name: 'Calendario', href: '/calendario', icon: Calendar },

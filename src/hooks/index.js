@@ -217,6 +217,45 @@ export {
   useArchivarConversacion
 } from './useComunicaciones'
 
+// SAT — Intervenciones
+export {
+  useIntervenciones,
+  useIntervencion,
+  useCrearIntervencion,
+  useActualizarIntervencion,
+  useCerrarIntervencion,
+  useMaterialesIntervencion,
+  useAnadirMaterialIntervencion,
+  useEliminarMaterialIntervencion,
+  useSATStats
+} from './useIntervenciones'
+
+// SAT — Citas
+export {
+  useCitas,
+  useCita,
+  useCrearCita,
+  useActualizarCita,
+  useCancelarCita,
+  useAgendaTecnico
+} from './useCitas'
+
+// SAT — Contratos de Mantenimiento
+export {
+  useContratos,
+  useContrato,
+  useCrearContrato,
+  useActualizarContrato
+} from './useContratos'
+
+// SAT — Materiales
+export {
+  useMateriales,
+  useMaterial,
+  useCrearMaterial,
+  useActualizarMaterial
+} from './useMateriales'
+
 // Reportes y Dashboard
 export {
   useDashboardMetricas,
