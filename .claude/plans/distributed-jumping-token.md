@@ -1,63 +1,97 @@
-# Plantillas de Mensaje — Análisis y Propuesta
+# Configuración de Canales — Análisis y Propuesta
 
 ## Contexto
 
-La página `/comunicaciones/plantillas` (PlantillasList.jsx) permite crear, editar y copiar plantillas de mensaje con variables `{{nombre}}`, `{{importe}}`, etc. Sin embargo, **es código muerto funcional**: las plantillas no tienen ninguna integración con Chatwoot, Evolution API ni ningún mecanismo de envío. El único uso posible es copiar manualmente el texto al portapapeles y pegarlo en Chatwoot.
+La página `/comunicaciones/configuracion` (CanalesConfig.jsx) permite activar/desactivar canales y guardar parámetros de configuración (URLs, tokens, IDs) en la tabla `canales_configuracion`. Sin embargo, **es código muerto funcional**: los valores se guardan en DB pero ningún otro componente los lee.
 
-**Problema**: La página no aporta valor real al usuario. No se puede enviar un mensaje desde ella, no se integra con el Dashboard de Comunicaciones, y el workflow manual (copiar → cambiar a Chatwoot → pegar → reemplazar variables a mano) es poco práctico.
+**Evidencia del problema:**
+- `ComunicacionesDashboard.jsx:60` → `const CHATWOOT_URL = 'https://crm-chatwoot-a360.vcheqs.easypanel.host'` (hardcoded)
+- `src/lib/resend.js:13-23` → `EMPRESA_CONFIG` con `from_email` hardcoded
+- `UsarPlantillaModal.jsx:59` → `const CHATWOOT_ACCOUNT_ID = 1` (hardcoded)
+- Quick links (Chatwoot, Evolution API Manager, n8n) → URLs hardcoded en el propio componente
+- Campos como `evolution_instance`, `chatwoot_inbox_id`, `chatwoot_website_token` → nunca consumidos
+
+**Conclusión**: La página almacena datos que nadie lee. Los valores que realmente se usan están hardcoded en otros archivos.
 
 ---
 
-## Propuesta: Reconvertir en "Respuestas Rápidas" integradas en el Dashboard
+## Propuesta: Convertir en fuente centralizada de configuración real
 
-En lugar de una página aislada, las plantillas se convierten en una herramienta de **respuesta rápida** accesible desde las conversaciones del Dashboard. Se mantiene la gestión CRUD en su página actual pero se añade utilidad real al integrar las plantillas donde se necesitan: junto a cada conversación.
+Mantener la página pero darle utilidad real: que los valores guardados aquí sean **la fuente única de verdad** para las URLs y parámetros que actualmente están hardcoded en el código.
 
-### Cambio 1 — Botón "Responder con plantilla" en ConversacionesList
+### Cambio 1 — Simplificar campos de configuración
 
-Añadir un botón en cada tarjeta de conversación (junto a "Abrir Chatwoot", "Ver ficha", "Archivar"):
+Reducir los campos a solo los que el frontend realmente consume:
+
+| Canal | Campos útiles | Justificación |
+|---|---|---|
+| **WhatsApp** | `chatwoot_url`, `chatwoot_account_id` | Usados en Dashboard, ConversacionesList, UsarPlantillaModal |
+| **Email** | `from_email`, `from_name` | Usados en resend.js (actualmente hardcoded) |
+| **Chat** | *(sin campos propios)* | Usa misma URL de Chatwoot |
+| **Teléfono** | *(sin campos propios)* | Canal manual |
+| **SMS** | *(eliminar)* | No existe integración ni planes concretos |
+
+Eliminar campos que pertenecen a la infraestructura del servidor (no al frontend):
+- ~~`evolution_api_url`~~ → configuración de servidor, no del SPA
+- ~~`evolution_instance`~~ → ídem
+- ~~`chatwoot_inbox_id`~~ → pertenece a Chatwoot, no a nuestro frontend
+- ~~`chatwoot_website_token`~~ → ídem
+
+### Cambio 2 — Añadir sección de "Enlaces externos"
+
+Convertir los quick links hardcoded en campos configurables dentro del canal WhatsApp:
 
 ```
-[📋 Plantilla]  →  abre selector de plantillas
+Enlaces a herramientas externas:
+  - URL Chatwoot:           https://crm-chatwoot-a360.vcheqs.easypanel.host
+  - Evolution API Manager:  https://api-wa.a360se.com/manager
+  - n8n Workflows:          https://n8n.a360se.com
 ```
 
-### Cambio 2 — Modal "Usar Plantilla"
+Estos se guardan en un campo JSON `enlaces_externos` dentro de la configuración general (no por canal). Los quick links actuales se renderizan dinámicamente desde este campo.
 
-Al pulsar el botón se abre un modal con:
+### Cambio 3 — Hook `useComunicacionesConfig()` centralizado
 
-1. **Selector de plantilla** — Lista filtrable de plantillas activas (filtro por canal de la conversación)
-2. **Vista previa** — Muestra el contenido de la plantilla seleccionada
-3. **Formulario de variables** — Campos auto-generados para cada `{{variable}}` detectada
-   - Variables como `{{nombre}}`, `{{telefono}}` se auto-rellenan con datos del cliente vinculado (si existe)
-   - El usuario puede editar/completar las que falten
-4. **Texto resultante** — Preview en tiempo real con variables sustituidas
-5. **Acciones**:
-   - **"Copiar y abrir Chatwoot"** — Copia el texto procesado al portapapeles y abre la conversación en Chatwoot en nueva pestaña
-   - **"Solo copiar"** — Copia al portapapeles sin navegar
+Crear un hook que lee la configuración y la expone de forma tipada:
 
-### Cambio 3 — Auto-relleno de variables con datos del cliente
+```js
+// Nuevo en useComunicaciones.js
+export function useComunicacionesConfig() {
+  const { data: canales } = useCanalesConfig()
 
-Mapeo automático de variables a campos del cliente vinculado a la conversación:
+  return useMemo(() => {
+    const whatsapp = canales?.find(c => c.canal === 'whatsapp')
+    const email = canales?.find(c => c.canal === 'email')
 
-| Variable plantilla | Campo cliente (Supabase) |
-|---|---|
-| `{{nombre}}` | `nombre` + `apellidos` |
-| `{{telefono}}` | `telefono` |
-| `{{email}}` | `email` |
-| `{{direccion}}` | `direccion` |
-| `{{localidad}}` | `localidad` |
-| `{{comunidad}}` | `comunidad_nombre` (de ubicaciones) |
-| `{{numero_factura}}` | Se deja vacío (usuario completa) |
-| `{{importe}}` | Se deja vacío (usuario completa) |
-| `{{fecha}}` | Fecha actual formateada |
-| `{{hora}}` | Se deja vacío |
-| `{{tecnico}}` | Se deja vacío |
+    return {
+      chatwootUrl: whatsapp?.configuracion?.chatwoot_url || 'https://crm-chatwoot-a360.vcheqs.easypanel.host',
+      chatwootAccountId: whatsapp?.configuracion?.chatwoot_account_id || 1,
+      fromEmail: email?.configuracion?.from_email || 'facturacion@a360se.com',
+      fromName: email?.configuracion?.from_name || 'A360 Servicios Energéticos',
+      enlaces: whatsapp?.configuracion?.enlaces_externos || {},
+    }
+  }, [canales])
+}
+```
 
-### Cambio 4 — Mejorar página PlantillasList
+**Fallback**: Cada valor tiene un default hardcoded → si la tabla está vacía o la query falla, todo sigue funcionando igual que ahora.
 
-Mejoras menores a la página existente para darle más contexto:
-- Cambiar subtítulo a: "Gestiona las plantillas de respuesta rápida. Úsalas desde el Dashboard de Comunicaciones."
-- Añadir enlace "Ir al Dashboard" junto al botón "Nueva plantilla"
-- Sin otros cambios estructurales — el CRUD existente funciona bien
+### Cambio 4 — Reemplazar valores hardcoded en consumidores
+
+| Archivo | Antes | Después |
+|---|---|---|
+| `ComunicacionesDashboard.jsx` | `const CHATWOOT_URL = '...'` (L60) | `const { chatwootUrl } = useComunicacionesConfig()` |
+| `UsarPlantillaModal.jsx` | `const CHATWOOT_ACCOUNT_ID = 1` (L59) | Recibir `chatwootAccountId` como prop desde el padre |
+| `CanalesConfig.jsx` | Quick links hardcoded (L91-117) | Renderizar desde config guardada |
+
+**Nota**: `resend.js` NO se modifica porque es código de servidor que no puede hacer queries asíncronas a Supabase en tiempo de importación. Mantener `EMPRESA_CONFIG` hardcoded es correcto para ese caso.
+
+### Cambio 5 — Mejorar UX de la página de configuración
+
+- Eliminar canal SMS (no implementado)
+- Reorganizar la UI: primero WhatsApp (canal principal), luego Email, luego Chat y Teléfono
+- Mostrar aviso visual cuando un valor difiere del default → indica que se ha personalizado
+- Añadir botón "Volver al Dashboard" (consistente con PlantillasList)
 
 ---
 
@@ -65,29 +99,30 @@ Mejoras menores a la página existente para darle más contexto:
 
 | Archivo | Acción | Descripción |
 |---|---|---|
-| `src/features/comunicaciones/ConversacionesList.jsx` | **MODIFICAR** | Añadir botón "Plantilla" + importar modal |
-| `src/features/comunicaciones/UsarPlantillaModal.jsx` | **CREAR** | Modal: selector plantilla → variables → preview → copiar |
-| `src/features/comunicaciones/PlantillasList.jsx` | **MODIFICAR** | Actualizar subtítulo y añadir enlace al Dashboard |
-| `src/hooks/useComunicaciones.js` | SIN CAMBIOS | Ya tiene `usePlantillas()` que reutilizamos |
+| `src/features/comunicaciones/CanalesConfig.jsx` | **MODIFICAR** | Simplificar campos, eliminar SMS, quick links dinámicos, botón volver |
+| `src/hooks/useComunicaciones.js` | **MODIFICAR** | Añadir `useComunicacionesConfig()` hook |
+| `src/features/comunicaciones/ComunicacionesDashboard.jsx` | **MODIFICAR** | Reemplazar `CHATWOOT_URL` hardcoded por hook |
+| `src/features/comunicaciones/UsarPlantillaModal.jsx` | **MODIFICAR** | Recibir `chatwootAccountId` como prop |
+| `src/features/comunicaciones/ConversacionesList.jsx` | **MODIFICAR** | Pasar `chatwootAccountId` al UsarPlantillaModal |
 
 ---
 
 ## Plan de implementación
 
-1. **UsarPlantillaModal.jsx** — Crear modal con selector, formulario de variables, preview y botón copiar+abrir Chatwoot
-2. **ConversacionesList.jsx** — Añadir botón "Plantilla" en acciones de cada tarjeta, importar y usar el modal
-3. **PlantillasList.jsx** — Actualizar textos descriptivos
-4. **Verificación** — Build + test completo del flujo
+1. **`useComunicaciones.js`** — Añadir hook `useComunicacionesConfig()` con fallbacks
+2. **`ComunicacionesDashboard.jsx`** — Usar hook en vez de constante hardcoded, pasar `chatwootAccountId` a ConversacionesList
+3. **`ConversacionesList.jsx`** — Recibir y propagar `chatwootAccountId` al UsarPlantillaModal
+4. **`UsarPlantillaModal.jsx`** — Usar prop `chatwootAccountId` en vez de constante local
+5. **`CanalesConfig.jsx`** — Simplificar campos, eliminar SMS, quick links desde config, botón volver
+6. **Verificación** — Build limpio + verificar que Dashboard sigue funcionando con y sin datos en `canales_configuracion`
 
 ---
 
 ## Verificación
 
-1. En Dashboard → conversación con cliente vinculado → botón "Plantilla" abre modal
-2. Modal muestra lista de plantillas filtradas por canal de la conversación
-3. Al seleccionar plantilla "Factura disponible", campos `{{nombre}}` se auto-rellena con nombre del cliente
-4. Campos sin mapeo (`{{numero_factura}}`, `{{importe}}`) aparecen vacíos para completar
-5. Preview muestra texto final con variables sustituidas
-6. "Copiar y abrir Chatwoot" copia al portapapeles y abre conversación en nueva pestaña
-7. En conversación sin cliente vinculado, variables quedan vacías pero editables
-8. `npm run build` compila sin errores
+1. Sin datos en `canales_configuracion` → Dashboard usa fallbacks hardcoded → todo funciona igual que antes
+2. Con `chatwoot_url` configurado en canal WhatsApp → Dashboard usa esa URL
+3. Quick links en CanalesConfig se renderizan desde configuración guardada
+4. Canal SMS eliminado de la UI
+5. Botón "Plantilla" en conversaciones sigue usando la URL correcta de Chatwoot
+6. `npm run build` compila sin errores

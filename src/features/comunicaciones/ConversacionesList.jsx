@@ -71,7 +71,6 @@ const ESTADO_VARIANTS = {
 }
 
 const PAGE_SIZE = 15
-const CHATWOOT_ACCOUNT_ID = 1
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
@@ -104,7 +103,7 @@ function getInitials(name) {
 
 /* ── Componente principal ──────────────────────────────────── */
 
-export function ConversacionesList({ chatwootUrl = '', canal = null }) {
+export function ConversacionesList({ chatwootUrl = '', chatwootAccountId = 1, canal = null }) {
   const navigate = useNavigate()
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -195,6 +194,7 @@ export function ConversacionesList({ chatwootUrl = '', canal = null }) {
               key={conv.conversation_key}
               conv={conv}
               chatwootUrl={chatwootUrl}
+              chatwootAccountId={chatwootAccountId}
               isExpanded={expandedConv === conv.conversation_key}
               onToggleExpand={() =>
                 setExpandedConv(
@@ -235,7 +235,7 @@ export function ConversacionesList({ chatwootUrl = '', canal = null }) {
 
 /* ── Tarjeta de conversación ───────────────────────────────── */
 
-function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navigate }) {
+function ConversacionCard({ conv, chatwootUrl, chatwootAccountId, isExpanded, onToggleExpand, navigate }) {
   const archivarConv = useArchivarConversacion()
   const [showClienteModal, setShowClienteModal] = useState(false)
   const [showPlantillaModal, setShowPlantillaModal] = useState(false)
@@ -248,13 +248,13 @@ function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navig
     if (!chatwootUrl) return
     if (hasConversation) {
       window.open(
-        `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${conv.chatwoot_conversation_id}`,
+        `${chatwootUrl}/app/accounts/${chatwootAccountId}/conversations/${conv.chatwoot_conversation_id}`,
         '_blank',
         'noopener,noreferrer'
       )
     } else {
       window.open(
-        `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations`,
+        `${chatwootUrl}/app/accounts/${chatwootAccountId}/conversations`,
         '_blank',
         'noopener,noreferrer'
       )
@@ -434,6 +434,7 @@ function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navig
         canal={conv.canal}
         clienteId={conv.cliente_id}
         chatwootUrl={chatwootUrl}
+        chatwootAccountId={chatwootAccountId}
         chatwootConversationId={conv.chatwoot_conversation_id}
       />
     </div>

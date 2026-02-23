@@ -56,14 +56,13 @@ function replaceVariables(text, values) {
   })
 }
 
-const CHATWOOT_ACCOUNT_ID = 1
-
 export function UsarPlantillaModal({
   open,
   onClose,
   canal,
   clienteId,
   chatwootUrl,
+  chatwootAccountId = 1,
   chatwootConversationId,
 }) {
   const toast = useToast()
@@ -138,8 +137,8 @@ export function UsarPlantillaModal({
 
       if (openChatwoot && chatwootUrl) {
         const url = chatwootConversationId
-          ? `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${chatwootConversationId}`
-          : `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations`
+          ? `${chatwootUrl}/app/accounts/${chatwootAccountId}/conversations/${chatwootConversationId}`
+          : `${chatwootUrl}/app/accounts/${chatwootAccountId}/conversations`
         window.open(url, '_blank', 'noopener,noreferrer')
       }
 

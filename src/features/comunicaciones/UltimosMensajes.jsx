@@ -51,7 +51,6 @@ const ESTADO_VARIANTS = {
 }
 
 const PAGE_SIZE = 10
-const CHATWOOT_ACCOUNT_ID = 1
 
 function formatTimeAgo(dateStr) {
   if (!dateStr) return ''
@@ -69,7 +68,7 @@ function formatTimeAgo(dateStr) {
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
 }
 
-export function UltimosMensajes({ chatwootUrl = '' }) {
+export function UltimosMensajes({ chatwootUrl = '', chatwootAccountId = 1 }) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
@@ -96,14 +95,14 @@ export function UltimosMensajes({ chatwootUrl = '' }) {
     if (msg.chatwoot_conversation_id) {
       // Deep link directo a la conversación específica
       window.open(
-        `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${msg.chatwoot_conversation_id}`,
+        `${chatwootUrl}/app/accounts/${chatwootAccountId}/conversations/${msg.chatwoot_conversation_id}`,
         '_blank',
         'noopener,noreferrer'
       )
     } else {
       // Sin ID de conversación: abrir lista de conversaciones (mejor que el dashboard)
       window.open(
-        `${chatwootUrl}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations`,
+        `${chatwootUrl}/app/accounts/${chatwootAccountId}/conversations`,
         '_blank',
         'noopener,noreferrer'
       )

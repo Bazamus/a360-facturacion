@@ -296,7 +296,7 @@ function PlantillaModal({ plantilla, onClose }) {
 
   return (
     <Modal
-      isOpen
+      open
       onClose={onClose}
       title={isEdit ? 'Editar plantilla' : 'Nueva plantilla'}
       size="lg"

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, Badge, Button, Modal, Input, EmptyState } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import {
@@ -7,13 +8,14 @@ import {
   Mail,
   Phone,
   MessageCircle,
-  Smartphone,
   CheckCircle,
   XCircle,
   ExternalLink,
   Save,
+  ArrowLeft,
+  Link2,
 } from 'lucide-react'
-import { useCanalesConfig, useUpdateCanalConfig } from '@/hooks/useComunicaciones'
+import { useUpdateCanalConfig, useComunicacionesConfig } from '@/hooks/useComunicaciones'
 
 const CANAL_META = {
   whatsapp: {
@@ -21,11 +23,13 @@ const CANAL_META = {
     icon: MessageSquare,
     color: 'text-green-600',
     bg: 'bg-green-50',
-    description: 'Comunicacion via Evolution API + Chatwoot (integracion nativa). Requiere vincular numero de telefono.',
+    description: 'Comunicación vía Evolution API + Chatwoot. Canal principal de mensajería con clientes.',
     fields: [
-      { key: 'evolution_api_url', label: 'URL Evolution API', placeholder: 'https://api-wa.a360se.com' },
-      { key: 'evolution_instance', label: 'Nombre de instancia', placeholder: 'a360-whatsapp' },
-      { key: 'chatwoot_inbox_id', label: 'Chatwoot Inbox ID', placeholder: '1' },
+      { key: 'chatwoot_url', label: 'URL de Chatwoot', placeholder: 'https://crm-chatwoot-a360.vcheqs.easypanel.host' },
+      { key: 'chatwoot_account_id', label: 'Chatwoot Account ID', placeholder: '1', type: 'number' },
+      { key: 'enlace_chatwoot', label: 'Enlace rápido — Chatwoot', placeholder: 'https://crm-chatwoot-a360.vcheqs.easypanel.host' },
+      { key: 'enlace_evolution', label: 'Enlace rápido — Evolution API Manager', placeholder: 'https://api-wa.a360se.com/manager' },
+      { key: 'enlace_n8n', label: 'Enlace rápido — n8n Workflows', placeholder: 'https://n8n.a360se.com' },
     ],
   },
   email: {
@@ -33,10 +37,10 @@ const CANAL_META = {
     icon: Mail,
     color: 'text-blue-600',
     bg: 'bg-blue-50',
-    description: 'Envio de emails via Resend. Ya configurado para facturacion.',
+    description: 'Envío de emails vía Resend. Configurado para facturación y comunicaciones.',
     fields: [
-      { key: 'provider', label: 'Proveedor', placeholder: 'resend' },
-      { key: 'from_email', label: 'Email de envio', placeholder: 'clientes@a360se.com' },
+      { key: 'from_email', label: 'Email de envío', placeholder: 'facturacion@a360se.com' },
+      { key: 'from_name', label: 'Nombre de remitente', placeholder: 'A360 Servicios Energéticos' },
     ],
   },
   chat: {
@@ -44,83 +48,84 @@ const CANAL_META = {
     icon: MessageCircle,
     color: 'text-purple-600',
     bg: 'bg-purple-50',
-    description: 'Widget de chat incrustado en la web via Chatwoot.',
-    fields: [
-      { key: 'chatwoot_website_token', label: 'Chatwoot Website Token', placeholder: 'TOKEN' },
-    ],
+    description: 'Widget de chat incrustado en la web vía Chatwoot.',
+    fields: [],
   },
   telefono: {
-    label: 'Telefono',
+    label: 'Teléfono',
     icon: Phone,
     color: 'text-orange-600',
     bg: 'bg-orange-50',
-    description: 'Registro manual de llamadas telefonicas.',
-    fields: [
-      { key: 'notas', label: 'Notas', placeholder: 'Configuracion del canal telefonico' },
-    ],
-  },
-  sms: {
-    label: 'SMS',
-    icon: Smartphone,
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
-    description: 'Canal SMS (pendiente de integracion).',
+    description: 'Registro manual de llamadas telefónicas.',
     fields: [],
   },
 }
 
+const CANAL_ORDER = ['whatsapp', 'email', 'chat', 'telefono']
+
+const QUICK_LINKS = [
+  { key: 'chatwoot', label: 'Chatwoot', bg: 'bg-blue-50', text: 'text-blue-700', hover: 'hover:bg-blue-100' },
+  { key: 'evolution', label: 'Evolution API Manager', bg: 'bg-green-50', text: 'text-green-700', hover: 'hover:bg-green-100' },
+  { key: 'n8n', label: 'n8n Workflows', bg: 'bg-orange-50', text: 'text-orange-700', hover: 'hover:bg-orange-100' },
+]
+
 export function CanalesConfig() {
-  const { data: canales, isLoading } = useCanalesConfig()
+  const navigate = useNavigate()
+  const { canales, isLoading, enlaces } = useComunicacionesConfig()
   const [editingCanal, setEditingCanal] = useState(null)
+
+  const sortedCanales = canales
+    ? [...canales]
+        .filter((c) => CANAL_ORDER.includes(c.canal))
+        .sort((a, b) => CANAL_ORDER.indexOf(a.canal) - CANAL_ORDER.indexOf(b.canal))
+    : []
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Settings className="h-7 w-7 text-primary-600" />
-          Configuracion de Canales
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Configura y activa los canales de comunicacion con clientes
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Settings className="h-7 w-7 text-primary-600" />
+            Configuración de Canales
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Configura las URLs y parámetros de los canales de comunicación. Los valores guardados aquí se usan en el Dashboard y las plantillas.
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={() => navigate('/comunicaciones')}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Ir al Dashboard
+        </Button>
       </div>
 
-      {/* Links rapidos */}
+      {/* Links rápidos (dinámicos desde config) */}
       <div className="flex flex-wrap gap-2">
-        <a
-          href="https://chat.a360se.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
-        >
-          <ExternalLink className="h-3 w-3" />
-          Chatwoot
-        </a>
-        <a
-          href="https://api-wa.a360se.com/manager"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors"
-        >
-          <ExternalLink className="h-3 w-3" />
-          Evolution API Manager
-        </a>
-        <a
-          href="https://n8n.a360se.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 transition-colors"
-        >
-          <ExternalLink className="h-3 w-3" />
-          n8n Workflows
-        </a>
+        {QUICK_LINKS.map((link) => {
+          const url = enlaces[link.key]
+          if (!url) return null
+          return (
+            <a
+              key={link.key}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${link.bg} ${link.text} text-xs font-medium ${link.hover} transition-colors`}
+            >
+              <ExternalLink className="h-3 w-3" />
+              {link.label}
+            </a>
+          )
+        })}
       </div>
 
       {/* Lista de canales */}
       {isLoading ? (
         <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <CardContent className="p-5 animate-pulse">
                 <div className="flex items-center gap-3">
@@ -134,18 +139,21 @@ export function CanalesConfig() {
             </Card>
           ))}
         </div>
-      ) : !canales?.length ? (
+      ) : sortedCanales.length === 0 ? (
         <EmptyState
           icon={Settings}
           title="Sin canales configurados"
-          description="Ejecuta la migracion SQL para crear la configuracion inicial de canales."
+          description="Ejecuta la migración SQL para crear la configuración inicial de canales."
         />
       ) : (
         <div className="space-y-4">
-          {canales.map((canal) => {
+          {sortedCanales.map((canal) => {
             const meta = CANAL_META[canal.canal] || {}
             const Icon = meta.icon || Settings
             const isActive = canal.activo
+            const configEntries = canal.configuracion
+              ? Object.entries(canal.configuracion).filter(([, v]) => v)
+              : []
 
             return (
               <Card
@@ -179,26 +187,29 @@ export function CanalesConfig() {
                       </div>
                     </div>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingCanal(canal)}
-                    >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Configurar
-                    </Button>
+                    {meta.fields?.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingCanal(canal)}
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        Configurar
+                      </Button>
+                    )}
                   </div>
 
-                  {/* Preview de configuracion */}
-                  {isActive && canal.configuracion && Object.keys(canal.configuracion).length > 0 && (
+                  {/* Preview de configuración */}
+                  {isActive && configEntries.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <div className="flex flex-wrap gap-2">
-                        {Object.entries(canal.configuracion).map(([key, value]) => (
+                        {configEntries.map(([key, value]) => (
                           <span
                             key={key}
-                            className="inline-flex items-center px-2 py-1 rounded bg-gray-50 text-[10px] text-gray-600 font-mono"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 text-[10px] text-gray-600 font-mono"
                           >
-                            {key}: {typeof value === 'string' && value.length > 30 ? value.slice(0, 30) + '...' : String(value)}
+                            <Link2 className="h-2.5 w-2.5 text-gray-400" />
+                            {key}: {typeof value === 'string' && value.length > 40 ? value.slice(0, 40) + '…' : String(value)}
                           </span>
                         ))}
                       </div>
@@ -244,13 +255,13 @@ function CanalConfigModal({ canal, meta, onClose }) {
       toast.success(`Canal ${meta?.label || canal.canal} actualizado`)
       onClose()
     } catch (err) {
-      toast.error(err.message || 'Error al guardar configuracion')
+      toast.error(err.message || 'Error al guardar configuración')
     }
   }
 
   return (
     <Modal
-      isOpen
+      open
       onClose={onClose}
       title={`Configurar ${meta?.label || canal.canal}`}
       size="md"
@@ -260,7 +271,7 @@ function CanalConfigModal({ canal, meta, onClose }) {
         <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
           <div>
             <p className="text-sm font-medium text-gray-700">Estado del canal</p>
-            <p className="text-xs text-gray-500">Activar o desactivar este canal de comunicacion</p>
+            <p className="text-xs text-gray-500">Activar o desactivar este canal de comunicación</p>
           </div>
           <button
             type="button"
@@ -277,16 +288,17 @@ function CanalConfigModal({ canal, meta, onClose }) {
           </button>
         </div>
 
-        {/* Campos de configuracion */}
+        {/* Campos de configuración */}
         {meta?.fields?.length > 0 && (
           <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700">Parametros</p>
+            <p className="text-sm font-medium text-gray-700">Parámetros</p>
             {meta.fields.map((field) => (
               <div key={field.key}>
                 <label className="block text-xs text-gray-600 mb-1">{field.label}</label>
                 <Input
+                  type={field.type || 'text'}
                   value={config[field.key] || ''}
-                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                  onChange={(e) => handleFieldChange(field.key, field.type === 'number' ? Number(e.target.value) : e.target.value)}
                   placeholder={field.placeholder}
                 />
               </div>

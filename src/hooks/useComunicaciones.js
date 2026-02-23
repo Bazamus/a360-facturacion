@@ -283,6 +283,45 @@ export function useCanalesConfig() {
   })
 }
 
+const CONFIG_DEFAULTS = {
+  chatwootUrl: 'https://crm-chatwoot-a360.vcheqs.easypanel.host',
+  chatwootAccountId: 1,
+  fromEmail: 'facturacion@a360se.com',
+  fromName: 'A360 Servicios Energéticos',
+  enlaces: {
+    chatwoot: 'https://crm-chatwoot-a360.vcheqs.easypanel.host',
+    evolution: 'https://api-wa.a360se.com/manager',
+    n8n: 'https://n8n.a360se.com',
+  },
+}
+
+export function useComunicacionesConfig() {
+  const { data: canales, isLoading } = useCanalesConfig()
+
+  const config = useMemo(() => {
+    if (!canales) return CONFIG_DEFAULTS
+
+    const whatsapp = canales.find((c) => c.canal === 'whatsapp')
+    const email = canales.find((c) => c.canal === 'email')
+    const cfg = whatsapp?.configuracion || {}
+    const emailCfg = email?.configuracion || {}
+
+    return {
+      chatwootUrl: cfg.chatwoot_url || CONFIG_DEFAULTS.chatwootUrl,
+      chatwootAccountId: cfg.chatwoot_account_id != null ? Number(cfg.chatwoot_account_id) : CONFIG_DEFAULTS.chatwootAccountId,
+      fromEmail: emailCfg.from_email || CONFIG_DEFAULTS.fromEmail,
+      fromName: emailCfg.from_name || CONFIG_DEFAULTS.fromName,
+      enlaces: {
+        chatwoot: cfg.enlace_chatwoot || CONFIG_DEFAULTS.enlaces.chatwoot,
+        evolution: cfg.enlace_evolution || CONFIG_DEFAULTS.enlaces.evolution,
+        n8n: cfg.enlace_n8n || CONFIG_DEFAULTS.enlaces.n8n,
+      },
+    }
+  }, [canales])
+
+  return { ...config, canales, isLoading }
+}
+
 export function useUpdateCanalConfig() {
   const queryClient = useQueryClient()
 

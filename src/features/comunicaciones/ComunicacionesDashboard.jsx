@@ -19,6 +19,7 @@ import {
 import {
   useComunicacionesStats,
   useComunicacionesTrend,
+  useComunicacionesConfig,
 } from '@/hooks/useComunicaciones'
 import { ConversacionesList } from './ConversacionesList'
 import {
@@ -57,8 +58,6 @@ const PRESETS = [
   { label: '3 meses', days: 90 },
 ]
 
-const CHATWOOT_URL = 'https://crm-chatwoot-a360.vcheqs.easypanel.host'
-
 function formatAxisDate(dateStr) {
   if (!dateStr) return ''
   const [, month, day] = dateStr.split('-')
@@ -72,6 +71,7 @@ export function ComunicacionesDashboard() {
   const [chartMode, setChartMode] = useState('trend')
   const [canalFilter, setCanalFilter] = useState(null)
   const [showStats, setShowStats] = useState(false)
+  const { chatwootUrl, chatwootAccountId } = useComunicacionesConfig()
 
   const today = new Date()
   const fechaFin = format(today, 'yyyy-MM-dd')
@@ -112,7 +112,7 @@ export function ComunicacionesDashboard() {
             </span>
           )}
           <a
-            href={CHATWOOT_URL}
+            href={chatwootUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition-colors"
@@ -205,7 +205,7 @@ export function ComunicacionesDashboard() {
       </div>
 
       {/* ── Lista de conversaciones (bloque principal) ───── */}
-      <ConversacionesList chatwootUrl={CHATWOOT_URL} canal={canalFilter} />
+      <ConversacionesList chatwootUrl={chatwootUrl} chatwootAccountId={chatwootAccountId} canal={canalFilter} />
 
       {/* ── Estadísticas colapsables ────────────────────────── */}
       <div className="border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
