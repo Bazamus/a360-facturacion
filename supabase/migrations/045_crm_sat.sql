@@ -163,8 +163,6 @@ CREATE TABLE IF NOT EXISTS citas (
   -- Programación
   fecha_hora TIMESTAMPTZ NOT NULL,
   duracion_minutos INTEGER NOT NULL DEFAULT 60,
-  fecha_hora_fin TIMESTAMPTZ GENERATED ALWAYS AS
-    (fecha_hora + (duracion_minutos || ' minutes')::INTERVAL) STORED,
 
   -- Ubicación
   direccion TEXT,
@@ -430,7 +428,7 @@ SELECT
   ci.id AS cita_id,
   ci.fecha_hora,
   ci.duracion_minutos,
-  ci.fecha_hora_fin,
+  ci.fecha_hora + ci.duracion_minutos * INTERVAL '1 minute' AS fecha_hora_fin,
   ci.estado AS cita_estado,
   ci.direccion,
   ci.notas,
