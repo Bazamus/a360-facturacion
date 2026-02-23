@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, Badge, Button, Modal, EmptyState, Input, Select, Textarea } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -90,11 +90,11 @@ export function PlantillasList() {
             Plantillas de Mensaje
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Gestiona las plantillas de respuesta r\u00e1pida. \u00dasalas desde el Dashboard de Comunicaciones con el bot\u00f3n
+            Gestiona las plantillas de respuesta rápida. Úsalas desde el Dashboard de Comunicaciones con el botón
             <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200">
               <FileText className="h-3 w-3" /> Plantilla
             </span>
-            en cada conversaci\u00f3n.
+            en cada conversación.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -234,33 +234,45 @@ export function PlantillasList() {
       )}
 
       {/* Modal crear/editar */}
-      {showModal && (
-        <PlantillaModal
-          plantilla={editingPlantilla}
-          onClose={() => {
-            setShowModal(false)
-            setEditingPlantilla(null)
-          }}
-        />
-      )}
+      <PlantillaModal
+        open={showModal}
+        plantilla={editingPlantilla}
+        onClose={() => {
+          setShowModal(false)
+          setEditingPlantilla(null)
+        }}
+      />
     </div>
   )
 }
 
-function PlantillaModal({ plantilla, onClose }) {
+function PlantillaModal({ open, plantilla, onClose }) {
   const isEdit = !!plantilla
   const toast = useToast()
   const createMutation = useCreatePlantilla()
   const updateMutation = useUpdatePlantilla()
 
   const [form, setForm] = useState({
-    nombre: plantilla?.nombre || '',
-    canal: plantilla?.canal || 'whatsapp',
-    categoria: plantilla?.categoria || 'general',
-    contenido: plantilla?.contenido || '',
+    nombre: '',
+    canal: 'whatsapp',
+    categoria: 'general',
+    contenido: '',
   })
 
   const [errors, setErrors] = useState({})
+
+  // Sincronizar form cuando se abre el modal o cambia la plantilla
+  useEffect(() => {
+    if (open) {
+      setForm({
+        nombre: plantilla?.nombre || '',
+        canal: plantilla?.canal || 'whatsapp',
+        categoria: plantilla?.categoria || 'general',
+        contenido: plantilla?.contenido || '',
+      })
+      setErrors({})
+    }
+  }, [open, plantilla])
 
   const validate = () => {
     const errs = {}
@@ -296,7 +308,7 @@ function PlantillaModal({ plantilla, onClose }) {
 
   return (
     <Modal
-      open
+      open={open}
       onClose={onClose}
       title={isEdit ? 'Editar plantilla' : 'Nueva plantilla'}
       size="lg"
