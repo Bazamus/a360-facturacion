@@ -1,6 +1,6 @@
 import React from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, CommunityPicker } from '@/components/ui'
 
 const ESTADOS = [
   { value: '', label: 'Todos los estados' },
@@ -95,21 +95,14 @@ export function FacturaFilters({
         <div className="flex flex-wrap items-end gap-3">
           {/* Comunidad */}
           <div className="flex-1 min-w-[220px]">
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Comunidad
-            </label>
-            <select
+            <CommunityPicker
               value={filters.comunidadId || ''}
-              onChange={(e) => onChange({ ...filters, comunidadId: e.target.value })}
-              className="w-full rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Todas las comunidades</option>
-              {comunidades.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.codigo} - {c.nombre}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => onChange({ ...filters, comunidadId: id })}
+              comunidades={comunidades}
+              placeholder="Todas las comunidades"
+              allowEmpty
+              label="Comunidad"
+            />
           </div>
 
           {/* Estado */}

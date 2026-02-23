@@ -1,4 +1,19 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(gh search issues:*)",
+      "Bash(python:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh issue list:*)",
+      "Bash(where:*)",
+      "Bash(gh auth status:*)",
+      "WebFetch(domain:www.blog.nestict.com)",
+      "WebFetch(domain:blog.saeloun.com)",
+      "WebFetch(domain:n8n.io)",
+      "Read(//c/Users/david-rey/.claude/projects/c--Users-david-rey-Desktop-DAVID-CODE-ENER-FACTU/memory/**)",
+      "Bash(grep:*)"
+    ]
+  },
   "enabledPlugins": {
     "claude-mem@thedotmack": true
   },

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, FileText, AlertTriangle, Check } from 'lucide-react'
-import { Button, Card, Modal, Badge } from '@/components/ui'
+import { Button, Card, Modal, Badge, CommunityPicker } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getBadgeVariant } from '@/utils/estadosCliente'
 import { PeriodoSelector, LecturasPendientesTable, GeneracionProgress } from '@/features/facturacion/components'
@@ -477,22 +477,15 @@ export default function GenerarFacturas() {
           <h2 className="text-lg font-semibold">Paso 1: Seleccionar Comunidad y Periodo</h2>
           
           {/* Comunidad */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Comunidad
-            </label>
-            <select
+          <div className="max-w-md">
+            <CommunityPicker
               value={comunidadId}
-              onChange={(e) => setComunidadId(e.target.value)}
-              className="w-full max-w-md rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Selecciona una comunidad</option>
-              {comunidades?.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.codigo} - {c.nombre}
-                </option>
-              ))}
-            </select>
+              onChange={setComunidadId}
+              comunidades={comunidades ?? []}
+              placeholder="Selecciona una comunidad"
+              allowEmpty={false}
+              label="Comunidad"
+            />
           </div>
 
           {/* Rango de búsqueda */}

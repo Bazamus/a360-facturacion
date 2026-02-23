@@ -11,7 +11,13 @@
       "Bash(find:*)",
       "Bash(npx eslint:*)",
       "Bash(npm run dev:*)",
-      "Bash(\"/c/Users/david-rey/Desktop/DAVID_CODE/ENER_FACTU/scripts/borrado_comunidades_errores_importacion.sql\":*)"
+      "Bash(\"/c/Users/david-rey/Desktop/DAVID_CODE/ENER_FACTU/scripts/borrado_comunidades_errores_importacion.sql\":*)",
+      "Bash(git -C \"C:/Users/david-rey/Desktop/DAVID_CODE/ENER_FACTU\" diff HEAD~1 HEAD -- supabase/migrations/042_rpc_get_conversaciones.sql src/features/comunicaciones/ConversacionesList.jsx src/features/comunicaciones/ComunicacionesDashboard.jsx src/hooks/useComunicaciones.js)",
+      "Bash(xxd:*)",
+      "WebFetch(domain:docs.min.io)",
+      "WebFetch(domain:developers.chatwoot.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:easypanel.io)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  FileText,
 } from 'lucide-react'
 import {
   useConversaciones,
@@ -23,6 +24,7 @@ import {
   useArchivarConversacion,
 } from '@/hooks/useComunicaciones'
 import { ClienteQuickViewModal } from './ClienteQuickViewModal'
+import { UsarPlantillaModal } from './UsarPlantillaModal'
 
 /* ── Mapas de configuración visual ─────────────────────────── */
 
@@ -236,6 +238,7 @@ export function ConversacionesList({ chatwootUrl = '', canal = null }) {
 function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navigate }) {
   const archivarConv = useArchivarConversacion()
   const [showClienteModal, setShowClienteModal] = useState(false)
+  const [showPlantillaModal, setShowPlantillaModal] = useState(false)
   const Icon = CANAL_ICONS[conv.canal] || MessageSquare
   const hasConversation = !!conv.chatwoot_conversation_id
   const hasCliente = !!conv.cliente_id
@@ -370,6 +373,16 @@ function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navig
           {hasCliente ? 'Ver ficha' : 'Buscar cliente'}
         </button>
 
+        {/* Plantilla — respuesta rápida */}
+        <button
+          onClick={() => setShowPlantillaModal(true)}
+          title="Usar plantilla de respuesta rápida"
+          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Plantilla
+        </button>
+
         {/* Archivar conversación completa */}
         <button
           onClick={() => archivarConv.mutate(conv.remitente_telefono)}
@@ -413,6 +426,16 @@ function ConversacionCard({ conv, chatwootUrl, isExpanded, onToggleExpand, navig
           onClose={() => setShowClienteModal(false)}
         />
       )}
+
+      {/* Modal usar plantilla */}
+      <UsarPlantillaModal
+        open={showPlantillaModal}
+        onClose={() => setShowPlantillaModal(false)}
+        canal={conv.canal}
+        clienteId={conv.cliente_id}
+        chatwootUrl={chatwootUrl}
+        chatwootConversationId={conv.chatwoot_conversation_id}
+      />
     </div>
   )
 }

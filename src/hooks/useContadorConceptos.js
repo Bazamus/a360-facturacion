@@ -53,11 +53,11 @@ export function useEditarLecturaInicial() {
       return data
     },
     onSuccess: (data, variables) => {
-      // Invalidar queries relacionadas
       queryClient.invalidateQueries({ queryKey: ['contador'] })
       queryClient.invalidateQueries({ queryKey: ['contadores'] })
       queryClient.invalidateQueries({ queryKey: ['validar-edicion-lectura', variables.contadorConceptoId] })
       queryClient.invalidateQueries({ queryKey: ['historial-contador-concepto', variables.contadorConceptoId] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas-pendientes-facturar'] })
     }
   })
 }
@@ -111,6 +111,7 @@ export function useCorregirLecturaActual() {
       queryClient.invalidateQueries({ queryKey: ['facturas'] })
       queryClient.invalidateQueries({ queryKey: ['validar-correccion-lectura-actual', variables.contadorConceptoId] })
       queryClient.invalidateQueries({ queryKey: ['historial-contador-concepto', variables.contadorConceptoId] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas-pendientes-facturar'] })
     }
   })
 }

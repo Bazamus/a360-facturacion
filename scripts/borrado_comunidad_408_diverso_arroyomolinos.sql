@@ -6,14 +6,11 @@
 --
 -- ORDEN DE BORRADO (respeta foreign keys):
 --   1. remesas_recibos    (ref. facturas, sin CASCADE)
---   2. lecturas           (ref. contadores, sin CASCADE)
---   3. importaciones      (CASCADE elimina importaciones_detalle)
---   4. facturas           (CASCADE elimina facturas_lineas, envios_email)
+--   2. facturas           (CASCADE elimina facturas_lineas -> libera ref. a lecturas)
+--   3. lecturas           (liberar ref. a importaciones_detalle antes de borrar importaciones)
+--   4. importaciones      (CASCADE elimina importaciones_detalle; lecturas ya borradas)
 --   5. clientes           (solo exclusivos de esta comunidad)
---                         (CASCADE elimina mandatos_sepa)
---   6. comunidades        (CASCADE elimina: agrupaciones, ubicaciones,
---                          contadores, contadores_conceptos,
---                          ubicaciones_clientes, precios)
+--   6. comunidades        (CASCADE: agrupaciones, ubicaciones, contadores, etc.)
 --
 -- INSTRUCCIONES:
 --   1. Ejecuta primero BLOQUE 1 (solo SELECT) para revisar datos
@@ -80,8 +77,19 @@ WHERE factura_id IN (
 );
 
 -- ---------------------------------------------------------------------
--- PASO 2: Lecturas
--- contador_id referencia contadores SIN CASCADE -> borrado manual requerido
+-- PASO 2: Facturas
+-- CASCADE -> facturas_lineas (libera ref. a lecturas), envios_email, etc.
+-- Debe ir ANTES de lecturas (facturas_lineas.lectura_id -> lecturas).
+-- ---------------------------------------------------------------------
+DELETE FROM facturas
+WHERE comunidad_id IN (
+  SELECT id FROM comunidades
+  WHERE codigo = '408'
+);
+
+-- ---------------------------------------------------------------------
+-- PASO 3: Lecturas
+-- Debe ir ANTES de importaciones: lecturas.importacion_detalle_id -> importaciones_detalle.
 -- ---------------------------------------------------------------------
 DELETE FROM lecturas
 WHERE contador_id IN (
@@ -96,20 +104,10 @@ WHERE contador_id IN (
 );
 
 -- ---------------------------------------------------------------------
--- PASO 3: Importaciones
--- CASCADE -> importaciones_detalle se borra automaticamente
+-- PASO 4: Importaciones
+-- CASCADE -> importaciones_detalle (ya no referenciado por lecturas)
 -- ---------------------------------------------------------------------
 DELETE FROM importaciones
-WHERE comunidad_id IN (
-  SELECT id FROM comunidades
-  WHERE codigo = '408'
-);
-
--- ---------------------------------------------------------------------
--- PASO 4: Facturas
--- CASCADE -> facturas_lineas y envios_email se borran automaticamente
--- ---------------------------------------------------------------------
-DELETE FROM facturas
 WHERE comunidad_id IN (
   SELECT id FROM comunidades
   WHERE codigo = '408'

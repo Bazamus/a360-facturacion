@@ -21,6 +21,7 @@ import {
   Badge,
   Breadcrumb,
   Select,
+  CommunityPicker,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -293,16 +294,14 @@ function ContadoresList() {
             className="w-64"
           />
           
-          <Select
+          <CommunityPicker
             value={filtroComunidad}
-            onChange={e => setFiltroComunidad(e.target.value)}
+            onChange={setFiltroComunidad}
+            comunidades={comunidades ?? []}
+            placeholder="Todas las comunidades"
+            allowEmpty
             className="w-48"
-          >
-            <option value="">Todas las comunidades</option>
-            {comunidades?.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre}</option>
-            ))}
-          </Select>
+          />
 
           <label className="flex items-center gap-2 text-sm text-gray-600">
             <input

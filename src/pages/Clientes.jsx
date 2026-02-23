@@ -23,6 +23,7 @@ import {
   Badge,
   Breadcrumb,
   Select,
+  CommunityPicker,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -308,17 +309,14 @@ function ClientesList() {
               <option value="inquilino">Inquilinos</option>
             </Select>
 
-            <Select
+            <CommunityPicker
               value={filtroComunidad}
-              onChange={e => setFiltroComunidad(e.target.value)}
-            >
-              <option value="">Todas las comunidades</option>
-              {comunidades?.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.codigo} - {c.nombre}
-                </option>
-              ))}
-            </Select>
+              onChange={setFiltroComunidad}
+              comunidades={comunidades ?? []}
+              placeholder="Todas las comunidades"
+              allowEmpty
+              className="w-48"
+            />
 
             <Select
               value={filtroEstado}

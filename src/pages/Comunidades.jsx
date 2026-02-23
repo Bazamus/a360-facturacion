@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { Building2, Plus, Eye, Edit2, MoreVertical, Upload, Download, FileSpreadsheet, ChevronDown } from 'lucide-react'
 import {
@@ -42,6 +42,7 @@ import { useComentarios } from '@/hooks/useComentarios'
 import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
 import { exportarComunidadExcel } from '@/lib/exportComunidadExcel'
+import { normalizeForSearch } from '@/utils/normalizeSearch'
 
 export function ComunidadesPage() {
   return (
@@ -63,10 +64,19 @@ function ComunidadesList() {
   const actionsMenuRef = useRef(null)
   const toast = useToast()
 
-  const { data: comunidades, isLoading, error, refetch } = useComunidades({ 
-    activa: soloActivas ? true : undefined,
-    search 
+  const { data: comunidadesRaw, isLoading, error, refetch } = useComunidades({
+    activa: soloActivas ? true : undefined
   })
+
+  const comunidades = useMemo(() => {
+    if (!comunidadesRaw?.length) return comunidadesRaw ?? []
+    if (!search?.trim()) return comunidadesRaw
+    const normalized = normalizeForSearch(search)
+    return comunidadesRaw.filter((c) => {
+      const full = `${c.codigo || ''} ${c.nombre || ''}`.trim()
+      return normalizeForSearch(full).includes(normalized)
+    })
+  }, [comunidadesRaw, search])
 
   const { descargarPlantilla, exportarEntidad } = useImportExport()
 

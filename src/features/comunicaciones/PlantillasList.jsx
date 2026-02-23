@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, Badge, Button, Modal, EmptyState, Input, Select, Textarea } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import {
@@ -11,6 +12,7 @@ import {
   Tag,
   Variable,
   Copy,
+  ArrowLeft,
 } from 'lucide-react'
 import { usePlantillas, useCreatePlantilla, useUpdatePlantilla } from '@/hooks/useComunicaciones'
 
@@ -51,6 +53,7 @@ function extractVariables(text) {
 }
 
 export function PlantillasList() {
+  const navigate = useNavigate()
   const [filtroCanal, setFiltroCanal] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editingPlantilla, setEditingPlantilla] = useState(null)
@@ -87,13 +90,26 @@ export function PlantillasList() {
             Plantillas de Mensaje
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Plantillas reutilizables para respuestas frecuentes
+            Gestiona las plantillas de respuesta r\u00e1pida. \u00dasalas desde el Dashboard de Comunicaciones con el bot\u00f3n
+            <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200">
+              <FileText className="h-3 w-3" /> Plantilla
+            </span>
+            en cada conversaci\u00f3n.
           </p>
         </div>
-        <Button variant="primary" onClick={handleNew}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nueva plantilla
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/comunicaciones')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Ir al Dashboard
+          </Button>
+          <Button variant="primary" onClick={handleNew}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nueva plantilla
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
