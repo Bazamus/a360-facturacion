@@ -158,8 +158,9 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
   // Acordeón: solo un grupo expandido a la vez
   const [expandedGroup, setExpandedGroup] = useState(() => getActiveGroup(location.pathname))
 
-  // Flyout para modo colapsado
+  // Flyout para modo colapsado (fixed positioning para evitar clip por overflow)
   const [flyoutItem, setFlyoutItem] = useState(null)
+  const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0, height: 0 })
   const flyoutTimeout = useRef(null)
 
   // Auto-expandir el grupo activo al cambiar de ruta
@@ -175,8 +176,12 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
   }
 
   // Handlers del flyout (hover en modo colapsado)
-  const handleFlyoutEnter = (itemName) => {
+  const handleFlyoutEnter = (itemName, element) => {
     if (flyoutTimeout.current) clearTimeout(flyoutTimeout.current)
+    if (element) {
+      const rect = element.getBoundingClientRect()
+      setFlyoutPos({ top: rect.top, left: rect.right, height: rect.height })
+    }
     setFlyoutItem(itemName)
   }
 
@@ -199,7 +204,7 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
       <li
         key={item.name}
         className="relative"
-        onMouseEnter={() => handleFlyoutEnter(item.name)}
+        onMouseEnter={(e) => handleFlyoutEnter(item.name, e.currentTarget)}
         onMouseLeave={handleFlyoutLeave}
       >
         {hasChildren ? (
@@ -215,10 +220,11 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
             >
               <item.icon className="h-5 w-5 shrink-0" />
             </button>
-            {/* Flyout submenu */}
+            {/* Flyout submenu — fixed para no ser recortado por overflow del contenedor */}
             {showFlyout && (
               <div
-                className="absolute left-full top-0 ml-1 z-[100]"
+                className="fixed z-[100]"
+                style={{ top: `${flyoutPos.top}px`, left: `${flyoutPos.left + 4}px` }}
                 onMouseEnter={() => handleFlyoutEnter(item.name)}
                 onMouseLeave={handleFlyoutLeave}
               >
@@ -268,9 +274,16 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
                 </span>
               )}
             </NavLink>
-            {/* Tooltip */}
+            {/* Tooltip — fixed positioning */}
             {showFlyout && (
-              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[100] pointer-events-none">
+              <div
+                className="fixed z-[100] pointer-events-none"
+                style={{
+                  top: `${flyoutPos.top + flyoutPos.height / 2}px`,
+                  left: `${flyoutPos.left + 8}px`,
+                  transform: 'translateY(-50%)'
+                }}
+              >
                 <div className="bg-gray-900 text-white text-xs rounded-md px-2.5 py-1.5 whitespace-nowrap shadow-lg">
                   {item.name}
                 </div>
@@ -371,8 +384,8 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
   // =====================================================
   const content = (
     <div className={cn(
-      'flex grow flex-col bg-primary-700 pb-3',
-      isCollapsed ? 'px-2.5 overflow-visible' : 'px-4 overflow-y-auto'
+      'flex grow flex-col bg-primary-700',
+      isCollapsed ? 'px-2.5' : 'px-4'
     )}>
       {/* Logo + Toggle */}
       <div className={cn(
@@ -397,9 +410,9 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
         )}
       </div>
 
-      {/* Navegación con secciones */}
-      <nav className="flex flex-1 flex-col">
-        <div className="flex flex-1 flex-col gap-y-3">
+      {/* Navegación con secciones (scrollable) */}
+      <nav className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:theme(colors.primary.500)_transparent]">
+        <div className="flex flex-col gap-y-3">
           {sections
             .filter(section => {
               if (!section.requiredRoles) return true
@@ -424,43 +437,43 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
             </div>
           ))}
         </div>
-
-        {/* Botón colapsar/expandir (solo desktop) */}
-        {!mobile && (
-          <div className={cn(
-            'pt-3 mt-3 border-t border-primary-600/50',
-            isCollapsed && 'flex justify-center'
-          )}>
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className={cn(
-                'flex items-center gap-2 rounded-lg p-2.5 text-sm text-primary-300 hover:bg-primary-600 hover:text-white transition-colors',
-                isCollapsed ? 'justify-center' : 'w-full px-3'
-              )}
-              title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
-            >
-              {isCollapsed ? (
-                <ChevronsRight className="h-5 w-5" />
-              ) : (
-                <>
-                  <ChevronsLeft className="h-5 w-5 shrink-0" />
-                  <span>Colapsar menú</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Footer */}
-        {!isCollapsed && (
-          <div className="mt-2 pt-3 border-t border-primary-600/50">
-            <p className="text-[10px] text-primary-400 text-center">
-              v2.0.0 · A360 Servicios Energéticos
-            </p>
-          </div>
-        )}
       </nav>
+
+      {/* Botón colapsar/expandir (solo desktop) — siempre visible al fondo */}
+      {!mobile && (
+        <div className={cn(
+          'shrink-0 pt-3 mt-1 border-t border-primary-600/50',
+          isCollapsed ? 'flex justify-center pb-3' : ''
+        )}>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className={cn(
+              'flex items-center gap-2 rounded-lg p-2.5 text-sm text-primary-300 hover:bg-primary-600 hover:text-white transition-colors',
+              isCollapsed ? 'justify-center' : 'w-full px-3'
+            )}
+            title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+          >
+            {isCollapsed ? (
+              <ChevronsRight className="h-5 w-5" />
+            ) : (
+              <>
+                <ChevronsLeft className="h-5 w-5 shrink-0" />
+                <span>Colapsar menú</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Footer */}
+      {!isCollapsed && (
+        <div className="shrink-0 pt-3 border-t border-primary-600/50 pb-3">
+          <p className="text-[10px] text-primary-400 text-center">
+            v2.0.0 · A360 Servicios Energéticos
+          </p>
+        </div>
+      )}
     </div>
   )
 
