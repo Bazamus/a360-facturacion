@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { clienteSchema } from '@/lib/validations'
-import { Button, Input, Select, FormField, Textarea, Checkbox } from '@/components/ui'
+import { Button, Input, Select, FormField, Textarea, Checkbox, CommunityPicker, SearchablePicker } from '@/components/ui'
 import { formatIBAN } from '@/lib/utils'
 import { useComunidades, useUbicacionesByComunidad } from '@/hooks/useComunidades'
+import { PROVINCIAS } from '@/constants/provincias'
 import { useEstadosCliente } from '@/hooks'
 
 export function ClienteForm({ cliente, onSubmit, loading }) {
@@ -158,43 +159,39 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Comunidad">
-            <Select
+            <CommunityPicker
               value={comunidadId}
-              onChange={(e) => {
-                setComunidadId(e.target.value)
+              onChange={(id) => {
+                setComunidadId(id)
                 setUbicacionId('') // Reset ubicación al cambiar comunidad
               }}
-              disabled={loadingComunidades}
-            >
-              <option value="">Selecciona una comunidad</option>
-              {comunidades?.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.codigo} - {c.nombre}
-                </option>
-              ))}
-            </Select>
+              comunidades={comunidades ?? []}
+              placeholder="Selecciona una comunidad"
+              allowEmpty={false}
+              className={loadingComunidades ? 'opacity-60 pointer-events-none' : ''}
+            />
           </FormField>
 
           <FormField label="Ubicación (Vivienda)">
-            <Select
+            <SearchablePicker
               value={ubicacionId}
-              onChange={(e) => setUbicacionId(e.target.value)}
-              disabled={!comunidadId || loadingUbicaciones}
-            >
-              <option value="">
-                {!comunidadId 
-                  ? 'Primero selecciona una comunidad' 
-                  : loadingUbicaciones 
-                    ? 'Cargando...' 
+              onChange={setUbicacionId}
+              options={(ubicaciones || []).map((u) => ({
+                value: u.ubicacion_id,
+                label: `${u.agrupacion_nombre} - ${u.ubicacion_nombre}`
+              }))}
+              placeholder={
+                !comunidadId
+                  ? 'Primero selecciona una comunidad'
+                  : loadingUbicaciones
+                    ? 'Cargando...'
                     : 'Selecciona una ubicación'
-                }
-              </option>
-              {ubicaciones?.map(u => (
-                <option key={u.ubicacion_id} value={u.ubicacion_id}>
-                  {u.agrupacion_nombre} - {u.ubicacion_nombre}
-                </option>
-              ))}
-            </Select>
+              }
+              allowEmpty={false}
+              modalTitle="Seleccionar ubicación (vivienda)"
+              searchPlaceholder="Buscar por portal o vivienda..."
+              disabled={!comunidadId || loadingUbicaciones}
+            />
           </FormField>
         </div>
 
@@ -271,10 +268,16 @@ export function ClienteForm({ cliente, onSubmit, loading }) {
           </FormField>
 
           <FormField label="Provincia" error={errors.provincia_correspondencia?.message}>
-            <Input
-              {...register('provincia_correspondencia')}
-              placeholder="Madrid"
-              error={errors.provincia_correspondencia}
+            <SearchablePicker
+              value={watch('provincia_correspondencia') || ''}
+              onChange={(v) => setValue('provincia_correspondencia', v)}
+              options={PROVINCIAS.map((p) => ({ value: p, label: p }))}
+              placeholder="Seleccionar provincia..."
+              allowEmpty
+              emptyOptionLabel="Ninguna"
+              modalTitle="Seleccionar provincia"
+              searchPlaceholder="Buscar provincia..."
+              label={undefined}
             />
           </FormField>
         </div>

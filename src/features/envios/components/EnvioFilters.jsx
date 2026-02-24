@@ -1,4 +1,4 @@
-import { Select, Input } from '../../../components/ui'
+import { Select, Input, CommunityPicker } from '../../../components/ui'
 import { useComunidades } from '../../../hooks'
 import { Filter, Calendar } from 'lucide-react'
 
@@ -23,18 +23,14 @@ export function EnvioFilters({ filtros, onFiltrosChange }) {
     <div className="flex flex-wrap items-center gap-4 p-4 bg-gray-50 rounded-lg">
       <Filter size={18} className="text-gray-400" />
 
-      <Select
+      <CommunityPicker
         value={filtros.comunidadId || ''}
-        onChange={(e) => handleChange('comunidadId', e.target.value || null)}
+        onChange={(id) => handleChange('comunidadId', id || null)}
+        comunidades={comunidades}
+        placeholder="Todas las comunidades"
+        allowEmpty
         className="w-64"
-      >
-        <option value="">Todas las comunidades</option>
-        {comunidades.map((comunidad) => (
-          <option key={comunidad.id} value={comunidad.id}>
-            {comunidad.nombre}
-          </option>
-        ))}
-      </Select>
+      />
 
       <Select
         value={filtros.estado || ''}

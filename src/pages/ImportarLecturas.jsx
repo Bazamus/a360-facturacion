@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, ArrowLeft, Check, Download } from 'lucide-react'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, CommunityPicker } from '@/components/ui'
 import { FileDropzone, ColumnMapper, ExcelPreview } from '@/features/lecturas/components'
 import { 
   readExcel, 
@@ -446,23 +446,16 @@ export default function ImportarLecturas() {
       {/* Content */}
       <Card className="p-6">
         {/* Selector de comunidad (siempre visible) */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Comunidad
-          </label>
-          <select
+        <div className="mb-6 max-w-md">
+          <CommunityPicker
             value={comunidadId}
-            onChange={(e) => setComunidadId(e.target.value)}
-            className="w-full max-w-md rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            disabled={isProcessing}
-          >
-            <option value="">Selecciona una comunidad</option>
-            {comunidades?.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.codigo} - {c.nombre}
-              </option>
-            ))}
-          </select>
+            onChange={setComunidadId}
+            comunidades={comunidades ?? []}
+            placeholder="Selecciona una comunidad"
+            allowEmpty={false}
+            label="Comunidad"
+            className={isProcessing ? 'opacity-60 pointer-events-none' : ''}
+          />
         </div>
 
         {/* Paso 0: Subir archivo */}

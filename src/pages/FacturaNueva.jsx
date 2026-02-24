@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, FileText, Plus, Trash2, Calculator, AlertTriangle } from 'lucide-react'
-import { Button, Card, Modal, Input, Select, FormField, Badge } from '@/components/ui'
+import { Button, Card, Modal, Input, Select, FormField, Badge, CommunityPicker } from '@/components/ui'
 import { getBadgeVariant } from '@/utils/estadosCliente'
 import { useToast } from '@/components/ui/Toast'
 import {
@@ -395,17 +395,13 @@ export default function FacturaNueva() {
           <h3 className="font-semibold text-gray-900 mb-4">Comunidad y Cliente</h3>
           <div className="space-y-4">
             <FormField label="Comunidad" required>
-              <Select
+              <CommunityPicker
                 value={comunidadId}
-                onChange={(e) => setComunidadId(e.target.value)}
-              >
-                <option value="">Seleccionar comunidad...</option>
-                {comunidades?.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.codigo} - {c.nombre}
-                  </option>
-                ))}
-              </Select>
+                onChange={setComunidadId}
+                comunidades={comunidades ?? []}
+                placeholder="Seleccionar comunidad..."
+                allowEmpty={false}
+              />
             </FormField>
 
             <FormField label="Cliente" required>

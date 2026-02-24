@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Select, Input } from '../../../components/ui'
+import { Button, Select, Input, CommunityPicker } from '../../../components/ui'
 import { useComunidades } from '../../../hooks/useComunidades'
 import { RotateCcw, Calendar } from 'lucide-react'
 
@@ -70,11 +70,6 @@ export function ReporteFiltros({ filtros, onChange, tipo }) {
     { value: 'ultimo_año', label: 'Último año' }
   ]
 
-  const opcionesComunidad = [
-    { value: '', label: 'Todas las comunidades' },
-    ...comunidades.map(c => ({ value: c.id, label: c.nombre }))
-  ]
-
   const opcionesEstado = [
     { value: '', label: 'Todos los estados' },
     { value: 'borrador', label: 'Borrador' },
@@ -130,13 +125,13 @@ export function ReporteFiltros({ filtros, onChange, tipo }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Comunidad */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Comunidad
-          </label>
-          <Select
+          <CommunityPicker
             value={filtros.comunidadId || ''}
-            onChange={(e) => handleChange('comunidadId', e.target.value)}
-            options={opcionesComunidad}
+            onChange={(id) => handleChange('comunidadId', id)}
+            comunidades={comunidades}
+            placeholder="Todas las comunidades"
+            allowEmpty
+            label="Comunidad"
           />
         </div>
 

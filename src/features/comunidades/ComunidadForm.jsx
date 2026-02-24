@@ -1,24 +1,15 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { comunidadSchema } from '@/lib/validations'
-import { Button, Input, Select, FormField, Textarea } from '@/components/ui'
-
-const PROVINCIAS = [
-  'Álava', 'Albacete', 'Alicante', 'Almería', 'Asturias', 'Ávila', 'Badajoz',
-  'Barcelona', 'Burgos', 'Cáceres', 'Cádiz', 'Cantabria', 'Castellón', 'Ceuta',
-  'Ciudad Real', 'Córdoba', 'Cuenca', 'Girona', 'Granada', 'Guadalajara',
-  'Guipúzcoa', 'Huelva', 'Huesca', 'Islas Baleares', 'Jaén', 'La Coruña',
-  'La Rioja', 'Las Palmas', 'León', 'Lérida', 'Lugo', 'Madrid', 'Málaga',
-  'Melilla', 'Murcia', 'Navarra', 'Orense', 'Palencia', 'Pontevedra',
-  'Salamanca', 'Santa Cruz de Tenerife', 'Segovia', 'Sevilla', 'Soria',
-  'Tarragona', 'Teruel', 'Toledo', 'Valencia', 'Valladolid', 'Vizcaya',
-  'Zamora', 'Zaragoza'
-]
+import { Button, Input, Select, FormField, Textarea, SearchablePicker } from '@/components/ui'
+import { PROVINCIAS } from '@/constants/provincias'
 
 export function ComunidadForm({ comunidad, onSubmit, loading }) {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(comunidadSchema),
@@ -101,11 +92,15 @@ export function ComunidadForm({ comunidad, onSubmit, loading }) {
             </FormField>
 
             <FormField label="Provincia" error={errors.provincia?.message} required>
-              <Select {...register('provincia')} error={errors.provincia}>
-                {PROVINCIAS.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </Select>
+              <SearchablePicker
+                value={watch('provincia') || ''}
+                onChange={(v) => setValue('provincia', v)}
+                options={PROVINCIAS.map((p) => ({ value: p, label: p }))}
+                placeholder="Seleccionar provincia..."
+                allowEmpty={false}
+                modalTitle="Seleccionar provincia"
+                searchPlaceholder="Buscar provincia..."
+              />
             </FormField>
           </div>
         </div>

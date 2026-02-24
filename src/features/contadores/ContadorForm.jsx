@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { contadorSchema } from '@/lib/validations'
 import { useComunidades, useAgrupaciones, useUbicaciones } from '@/hooks'
-import { Button, Input, Select, FormField, Textarea, LoadingSpinner } from '@/components/ui'
+import { Button, Input, Select, FormField, Textarea, LoadingSpinner, CommunityPicker, SearchablePicker } from '@/components/ui'
 
 export function ContadorForm({ contador, onSubmit, loading }) {
   const [comunidadId, setComunidadId] = useState('')
@@ -17,6 +17,7 @@ export function ContadorForm({ contador, onSubmit, loading }) {
     register,
     handleSubmit,
     setValue,
+    watch,
     reset,
     formState: { errors }
   } = useForm({
@@ -78,14 +79,14 @@ export function ContadorForm({ contador, onSubmit, loading }) {
     }
   }, [ubicaciones, loadingUbicaciones, contador, setValue])
 
-  const handleComunidadChange = (e) => {
-    setComunidadId(e.target.value)
+  const handleComunidadChange = (id) => {
+    setComunidadId(id)
     setAgrupacionId('')
     setValue('ubicacion_id', '')
   }
 
-  const handleAgrupacionChange = (e) => {
-    setAgrupacionId(e.target.value)
+  const handleAgrupacionChange = (id) => {
+    setAgrupacionId(id || '')
     setValue('ubicacion_id', '')
   }
 
@@ -143,50 +144,46 @@ export function ContadorForm({ contador, onSubmit, loading }) {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField label="Comunidad" required>
-            <Select
+            <CommunityPicker
               value={comunidadId}
               onChange={handleComunidadChange}
-              disabled={loadingComunidades}
-            >
-              <option value="">Seleccionar comunidad...</option>
-              {comunidades?.map(c => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
-              ))}
-            </Select>
+              comunidades={comunidades ?? []}
+              placeholder="Seleccionar comunidad..."
+              allowEmpty={false}
+              className={loadingComunidades ? 'opacity-60 pointer-events-none' : ''}
+            />
           </FormField>
 
           <FormField label="Portal/Bloque" required>
-            <Select
+            <SearchablePicker
               value={agrupacionId}
               onChange={handleAgrupacionChange}
+              options={(agrupaciones?.filter((a) => a.activa) || []).map((a) => ({
+                value: a.id,
+                label: a.nombre
+              }))}
+              placeholder={!comunidadId ? 'Primero selecciona comunidad' : 'Seleccionar portal/bloque...'}
+              allowEmpty={false}
+              modalTitle="Seleccionar portal o bloque"
+              searchPlaceholder="Buscar por nombre..."
               disabled={!comunidadId || loadingAgrupaciones}
-            >
-              <option value="">
-                {!comunidadId ? 'Primero selecciona comunidad' : 'Seleccionar...'}
-              </option>
-              {agrupaciones?.filter(a => a.activa).map(a => (
-                <option key={a.id} value={a.id}>{a.nombre}</option>
-              ))}
-            </Select>
+            />
           </FormField>
 
           <FormField label="Vivienda" error={errors.ubicacion_id?.message} required>
-            <Select
-              key={`ubicacion-${agrupacionId}-${ubicaciones?.length || 0}`}
-              {...register('ubicacion_id')}
+            <SearchablePicker
+              value={watch('ubicacion_id') || ''}
+              onChange={(id) => setValue('ubicacion_id', id)}
+              options={(ubicaciones || []).map((u) => ({
+                value: u.ubicacion_id,
+                label: `${u.ubicacion_nombre}${u.cliente_nombre ? ` (${u.cliente_nombre})` : ''}`
+              }))}
+              placeholder={!agrupacionId ? 'Primero selecciona portal' : 'Seleccionar vivienda...'}
+              allowEmpty={false}
+              modalTitle="Seleccionar vivienda"
+              searchPlaceholder="Buscar por nombre o cliente..."
               disabled={!agrupacionId || loadingUbicaciones}
-              error={errors.ubicacion_id}
-            >
-              <option value="">
-                {!agrupacionId ? 'Primero selecciona portal' : 'Seleccionar...'}
-              </option>
-              {ubicaciones?.map(u => (
-                <option key={u.ubicacion_id} value={u.ubicacion_id}>
-                  {u.ubicacion_nombre}
-                  {u.cliente_nombre && ` (${u.cliente_nombre})`}
-                </option>
-              ))}
-            </Select>
+            />
           </FormField>
         </div>
       </div>

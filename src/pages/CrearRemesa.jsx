@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Building2, Calendar, FileText, CheckCircle } from 'lucide-react'
-import { Button, Input, Select } from '../components/ui'
+import { Button, Input, Select, CommunityPicker } from '../components/ui'
 import { FacturasRemesaTable } from '../features/remesas/components'
 import { 
   useFacturasParaRemesa, 
@@ -60,11 +60,6 @@ export default function CrearRemesa() {
       showToast(error.message, 'error')
     }
   }
-
-  const opcionesComunidad = [
-    { value: '', label: 'Todas las comunidades' },
-    ...comunidades.map(c => ({ value: c.id, label: c.nombre }))
-  ]
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -134,10 +129,13 @@ export default function CrearRemesa() {
 
         {/* Filtros */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <Select
-            value={filtros.comunidadId}
-            onChange={(e) => setFiltros(f => ({ ...f, comunidadId: e.target.value }))}
-            options={opcionesComunidad}
+          <CommunityPicker
+            value={filtros.comunidadId || ''}
+            onChange={(id) => setFiltros(f => ({ ...f, comunidadId: id }))}
+            comunidades={comunidades}
+            placeholder="Todas las comunidades"
+            allowEmpty
+            label="Comunidad"
           />
           <Input
             type="date"

@@ -6,7 +6,7 @@
 
 import React, { useState } from 'react'
 import { Building2, Users, Gauge, Download, Upload, FileSpreadsheet, Layers, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
-import { Button, Card, Tabs, TabsList, TabsTrigger, TabsContent, Badge } from '@/components/ui'
+import { Button, Card, Tabs, TabsList, TabsTrigger, TabsContent, Badge, CommunityPicker } from '@/components/ui'
 import { ImportDropzone } from './ImportDropzone'
 import { ImportPreview } from './ImportPreview'
 import { ImportProgress } from './ImportProgress'
@@ -582,21 +582,14 @@ export function ImportExportPanel() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Seleccionar comunidad a exportar
-                    </label>
-                    <select
+                    <CommunityPicker
                       value={comunidadExportarId}
-                      onChange={(e) => setComunidadExportarId(e.target.value)}
-                      className="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                    >
-                      <option value="">Seleccionar comunidad...</option>
-                      {comunidades?.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.codigo} - {c.nombre}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setComunidadExportarId}
+                      comunidades={comunidades ?? []}
+                      placeholder="Seleccionar comunidad..."
+                      allowEmpty={false}
+                      label="Seleccionar comunidad a exportar"
+                    />
                   </div>
                   <div className="flex gap-3">
                     <Button
