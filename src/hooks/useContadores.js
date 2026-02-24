@@ -47,6 +47,20 @@ export function useContadores(options = {}) {
         if (contadorIdsFiltro.length === 0) return { data: [], count: 0 }
       }
 
+      // Pre-filtro por búsqueda → resolver contador IDs desde la vista (multi-campo)
+      let searchContadorIds = null
+      if (search) {
+        const { data: searchData, error: searchError } = await supabase
+          .from('v_contadores_completos')
+          .select('contador_id')
+          .or(`numero_serie.ilike.%${search}%,ubicacion_nombre.ilike.%${search}%,comunidad_nombre.ilike.%${search}%,agrupacion_nombre.ilike.%${search}%,cliente_nombre.ilike.%${search}%,concepto_codigo.ilike.%${search}%`)
+          .range(0, 9999)
+        if (searchError) throw searchError
+
+        searchContadorIds = [...new Set(searchData?.map(r => r.contador_id))]
+        if (searchContadorIds.length === 0) return { data: [], count: 0 }
+      }
+
       // Query paginada de contadores (solo IDs + count)
       let query = supabase
         .from('contadores')
@@ -54,8 +68,8 @@ export function useContadores(options = {}) {
         .order('numero_serie')
         .range((page - 1) * pageSize, page * pageSize - 1)
 
-      if (search) {
-        query = query.ilike('numero_serie', `%${search}%`)
+      if (searchContadorIds) {
+        query = query.in('id', searchContadorIds)
       }
 
       if (activo !== undefined) {

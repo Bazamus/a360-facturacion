@@ -94,7 +94,7 @@ export function useEstadisticas() {
 
   const obtenerFacturadoMesActual = async () => {
     try {
-      // Mismo criterio que página Facturas / get_factura_stats: fecha_factura en rango y solo emitida+pagada
+      // Usar RPC get_factura_stats para evitar el límite de 1000 filas de PostgREST
       const ahora = new Date()
       const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1)
       const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0)
@@ -105,29 +105,27 @@ export function useEstadisticas() {
       const desdeMesAnterior = primerDiaMesAnterior.toISOString().split('T')[0]
       const hastaMesAnterior = ultimoDiaMesAnterior.toISOString().split('T')[0]
 
-      // Facturado del mes actual: solo emitida y pagada (mismo criterio que Importe Total en Facturas)
-      const { data: mesActual, error: errorActual } = await supabase
-        .from('facturas')
-        .select('total')
-        .gte('fecha_factura', desdeMes)
-        .lte('fecha_factura', hastaMes)
-        .in('estado', ['emitida', 'pagada'])
+      // Facturado del mes actual via RPC (sin límite de filas)
+      const { data: statsActual, error: errorActual } = await supabase
+        .rpc('get_factura_stats', {
+          p_fecha_desde: desdeMes,
+          p_fecha_hasta: hastaMes
+        })
 
       if (errorActual) throw errorActual
 
-      const totalMesActual = mesActual?.reduce((sum, f) => sum + (parseFloat(f.total) || 0), 0) || 0
+      const totalMesActual = parseFloat(statsActual?.importeTotal) || 0
 
-      // Facturado del mes anterior (para % cambio): mismo criterio
-      const { data: mesAnterior, error: errorAnterior } = await supabase
-        .from('facturas')
-        .select('total')
-        .gte('fecha_factura', desdeMesAnterior)
-        .lte('fecha_factura', hastaMesAnterior)
-        .in('estado', ['emitida', 'pagada'])
+      // Facturado del mes anterior via RPC (para % cambio)
+      const { data: statsAnterior, error: errorAnterior } = await supabase
+        .rpc('get_factura_stats', {
+          p_fecha_desde: desdeMesAnterior,
+          p_fecha_hasta: hastaMesAnterior
+        })
 
       if (errorAnterior) throw errorAnterior
 
-      const totalMesAnterior = mesAnterior?.reduce((sum, f) => sum + (parseFloat(f.total) || 0), 0) || 0
+      const totalMesAnterior = parseFloat(statsAnterior?.importeTotal) || 0
 
       // Calcular porcentaje de cambio
       let cambio = 0

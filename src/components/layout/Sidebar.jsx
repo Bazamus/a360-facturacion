@@ -411,7 +411,7 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
       </div>
 
       {/* Navegación con secciones (scrollable) */}
-      <nav className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:theme(colors.primary.500)_transparent]">
+      <nav className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin]" style={{ scrollbarColor: '#6d9e37 transparent' }}>
         <div className="flex flex-col gap-y-3">
           {sections
             .filter(section => {
