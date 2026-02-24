@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCrearContrato, useContrato, useActualizarContrato, useClientesSimple, useComunidades } from '@/hooks'
-import { Button, Card, CardContent, Select, Textarea, Breadcrumb, LoadingSpinner, CommunityPicker, Input } from '@/components/ui'
+import { Button, Card, CardContent, Select, Textarea, Breadcrumb, LoadingSpinner, CommunityPicker, SearchablePicker, Input } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 
 const TIPO_OPTIONS = [
@@ -222,13 +222,20 @@ function ContratoFormFields({ contrato, onSubmit, loading, isEdit = false }) {
       {/* Cliente y Comunidad */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-          <Select value={form.cliente_id} onChange={set('cliente_id')}>
-            <option value="">Sin asignar</option>
-            {clientes?.map((c) => (
-              <option key={c.id} value={c.id}>{c.nombre} {c.apellidos}</option>
-            ))}
-          </Select>
+          <SearchablePicker
+            value={form.cliente_id || ''}
+            onChange={(id) => setForm({ ...form, cliente_id: id })}
+            options={(clientes || []).map((c) => ({
+              value: c.id,
+              label: `${c.nombre} ${c.apellidos}`.trim()
+            }))}
+            placeholder="Sin asignar"
+            allowEmpty
+            emptyOptionLabel="Sin asignar"
+            label="Cliente"
+            modalTitle="Seleccionar cliente"
+            searchPlaceholder="Buscar por nombre o apellidos..."
+          />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Comunidad</label>

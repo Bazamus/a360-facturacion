@@ -17,6 +17,7 @@ export function useContadores(options = {}) {
         .order('comunidad_nombre')
         .order('agrupacion_nombre')
         .order('ubicacion_nombre')
+        .limit(10000)
 
       if (search) {
         query = query.ilike('numero_serie', `%${search}%`)
@@ -55,6 +56,9 @@ export function useContadores(options = {}) {
             comunidad_id: row.comunidad_id,
             comunidad_nombre: row.comunidad_nombre,
             comunidad_codigo: row.comunidad_codigo,
+            cliente_id: row.cliente_id,
+            cliente_nombre: row.cliente_nombre,
+            cliente_codigo: row.cliente_codigo,
             conceptos: []
           })
         }

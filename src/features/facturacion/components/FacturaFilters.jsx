@@ -7,7 +7,9 @@ const ESTADOS = [
   { value: 'borrador', label: 'Borradores' },
   { value: 'emitida', label: 'Emitidas' },
   { value: 'pagada', label: 'Pagadas' },
-  { value: 'anulada', label: 'Anuladas' }
+  { value: 'anulada', label: 'Anuladas' },
+  { value: 'email_enviado', label: 'Enviadas por email' },
+  { value: 'email_no_enviado', label: 'No enviadas por email' }
 ]
 
 const RANGOS_FECHA = [
@@ -58,8 +60,9 @@ export function FacturaFilters({
   onChange,
   onClear
 }) {
-  const hasFilters = filters.comunidadId || filters.estado || filters.search || 
-                     filters.rangoFecha || filters.fechaDesde || filters.fechaHasta
+  const hasFilters = filters.comunidadId || filters.estado || filters.search ||
+                     filters.rangoFecha || filters.fechaDesde || filters.fechaHasta ||
+                     filters.emailEnviado != null
 
   // Manejador para cambio de rango predefinido
   const handleRangoChange = (rango) => {
@@ -106,13 +109,27 @@ export function FacturaFilters({
           </div>
 
           {/* Estado */}
-          <div className="w-44">
+          <div className="w-52">
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Estado
             </label>
             <select
-              value={filters.estado || ''}
-              onChange={(e) => onChange({ ...filters, estado: e.target.value })}
+              value={
+                filters.emailEnviado === true ? 'email_enviado'
+                : filters.emailEnviado === false ? 'email_no_enviado'
+                : filters.estado || ''
+              }
+              onChange={(e) => {
+                const val = e.target.value
+                if (val === 'email_enviado') {
+                  onChange({ ...filters, estado: '', emailEnviado: true })
+                } else if (val === 'email_no_enviado') {
+                  onChange({ ...filters, estado: '', emailEnviado: false })
+                } else {
+                  const { emailEnviado, ...rest } = filters
+                  onChange({ ...rest, estado: val })
+                }
+              }}
               className="w-full rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
             >
               {ESTADOS.map(e => (
@@ -168,7 +185,7 @@ export function FacturaFilters({
               type="text"
               value={filters.search || ''}
               onChange={(e) => onChange({ ...filters, search: e.target.value })}
-              placeholder="Nº factura, cliente, NIF..."
+              placeholder="Nº factura, nombre cliente, NIF..."
               className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>

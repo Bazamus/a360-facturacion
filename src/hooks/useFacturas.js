@@ -7,22 +7,23 @@ import { useAuth } from '@/features/auth/AuthContext'
 // =====================================================
 
 export function useFacturas(options = {}) {
-  const { 
-    comunidadId, 
-    estado, 
-    clienteId, 
-    search, 
-    fechaDesde, 
-    fechaHasta, 
-    limit = 50, 
-    offset = 0, 
+  const {
+    comunidadId,
+    estado,
+    clienteId,
+    search,
+    fechaDesde,
+    fechaHasta,
+    emailEnviado,
+    limit = 50,
+    offset = 0,
     withCount = false,
     sortBy = 'fecha_factura',
     sortDirection = 'desc'
   } = options
 
   return useQuery({
-    queryKey: ['facturas', { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, limit, offset, sortBy, sortDirection }],
+    queryKey: ['facturas', { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, emailEnviado, limit, offset, sortBy, sortDirection }],
     queryFn: async () => {
       // Construir query base con los filtros
       let baseQuery = supabase.from('v_facturas_resumen')
@@ -32,6 +33,7 @@ export function useFacturas(options = {}) {
       const applyFilters = (q) => {
         if (comunidadId) q = q.eq('comunidad_id', comunidadId)
         if (estado) q = q.eq('estado', estado)
+        if (emailEnviado != null) q = q.eq('email_enviado', emailEnviado)
         if (clienteId) q = q.eq('cliente_id', clienteId)
         if (search) q = q.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
         if (fechaDesde) q = q.gte('fecha_factura', fechaDesde)
@@ -513,59 +515,14 @@ export function useEstadisticasFacturacion(options = {}) {
   return useQuery({
     queryKey: ['estadisticas-facturacion', { comunidadId, fechaInicio, fechaFin }],
     queryFn: async () => {
-      let query = supabase
-        .from('facturas')
-        .select('estado, total')
-
-      if (comunidadId) {
-        query = query.eq('comunidad_id', comunidadId)
-      }
-
-      if (fechaInicio) {
-        query = query.gte('fecha_factura', fechaInicio)
-      }
-
-      if (fechaFin) {
-        query = query.lte('fecha_factura', fechaFin)
-      }
-
-      const { data, error } = await query
-      if (error) throw error
-
-      // Calcular estadísticas
-      const stats = {
-        total: data.length,
-        borradores: 0,
-        emitidas: 0,
-        pagadas: 0,
-        anuladas: 0,
-        importeTotal: 0,
-        importePendiente: 0,
-        importeCobrado: 0
-      }
-
-      data.forEach(f => {
-        switch (f.estado) {
-          case 'borrador':
-            stats.borradores++
-            break
-          case 'emitida':
-            stats.emitidas++
-            stats.importePendiente += Number(f.total)
-            stats.importeTotal += Number(f.total)
-            break
-          case 'pagada':
-            stats.pagadas++
-            stats.importeCobrado += Number(f.total)
-            stats.importeTotal += Number(f.total)
-            break
-          case 'anulada':
-            stats.anuladas++
-            break
-        }
+      const { data, error } = await supabase.rpc('get_factura_stats', {
+        p_comunidad_id: comunidadId || null,
+        p_fecha_desde: fechaInicio || null,
+        p_fecha_hasta: fechaFin || null,
       })
 
-      return stats
+      if (error) throw error
+      return data
     }
   })
 }

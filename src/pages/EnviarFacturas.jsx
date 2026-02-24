@@ -19,7 +19,7 @@ export default function EnviarFacturas() {
   
   const [filtros, setFiltros] = useState({
     comunidadId: null,
-    estado: 'pendiente',
+    estado: '',
     fechaDesde: null,
     fechaHasta: null
   })

@@ -19,6 +19,7 @@ import {
   EmptyState, 
   LoadingSpinner,
   DataTable,
+  Pagination,
   SearchInput,
   Badge,
   Breadcrumb,
@@ -62,18 +63,25 @@ function ClientesList() {
   const [showActionsMenu, setShowActionsMenu] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
   const actionsMenuRef = useRef(null)
   const toast = useToast()
 
   const { data: comunidades } = useComunidades({ activa: true })
   const { data: estados } = useEstadosCliente()
 
-  const { data: clientes, isLoading, error, refetch } = useClientes({ 
+  const { data: clientesData, isLoading, error, refetch } = useClientes({
     search,
     tipo: filtroTipo || undefined,
     comunidadId: filtroComunidad || undefined,
-    estadoId: filtroEstado || undefined
+    estadoId: filtroEstado || undefined,
+    page,
+    pageSize
   })
+  const clientes = clientesData?.data || []
+  const totalCount = clientesData?.count || 0
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   const { descargarPlantilla, exportarEntidad } = useImportExport()
   const { exportar } = useExportarClientes()
@@ -88,6 +96,11 @@ function ClientesList() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [search, filtroTipo, filtroComunidad, filtroEstado])
 
   const handleAbrirModalExportar = () => {
     setShowActionsMenu(false)
@@ -145,30 +158,34 @@ function ClientesList() {
       header: 'Cliente',
       render: (_, row) => (
         <div>
-          <p className="font-medium text-gray-900">
-            {row.nombre} {row.apellidos}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-gray-900">
+              {row.nombre} {row.apellidos}
+            </p>
+            <Badge variant={row.tipo === 'propietario' ? 'primary' : 'info'} className="text-[10px] px-1.5 py-0">
+              {row.tipo === 'propietario' ? 'Prop.' : 'Inq.'}
+            </Badge>
+          </div>
           <p className="text-xs text-gray-500">{row.nif}</p>
+          {(row.email || row.telefono) && (
+            <p className="text-xs text-gray-400 truncate max-w-[220px]">
+              {row.email}{row.email && row.telefono ? ' · ' : ''}{row.telefono}
+            </p>
+          )}
         </div>
       )
     },
     {
-      key: 'tipo',
-      header: 'Tipo',
+      key: 'numero_contador',
+      header: 'Nº Contador',
       render: (value) => (
-        <Badge variant={value === 'propietario' ? 'primary' : 'info'} className="text-xs">
-          {value === 'propietario' ? 'Prop.' : 'Inq.'}
-        </Badge>
-      )
-    },
-    {
-      key: 'contacto',
-      header: 'Contacto',
-      render: (_, row) => (
-        <div className="text-sm">
-          <p className="text-gray-900 truncate max-w-[180px]">{row.email || '-'}</p>
-          <p className="text-xs text-gray-500">{row.telefono || '-'}</p>
-        </div>
+        value ? (
+          <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+            {value}
+          </span>
+        ) : (
+          <span className="text-gray-400 text-xs">-</span>
+        )
       )
     },
     {
@@ -297,7 +314,7 @@ function ClientesList() {
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Buscar por nombre o NIF..."
+              placeholder="Buscar por nombre, NIF, email o código..."
             />
             
             <Select
@@ -336,13 +353,13 @@ function ClientesList() {
           <div className="py-12 flex justify-center">
             <LoadingSpinner size="lg" />
           </div>
-        ) : !clientes?.length ? (
+        ) : !clientes.length ? (
           <CardContent className="p-0">
             <EmptyState
               icon={Users}
               title="Sin clientes"
-              description={search 
-                ? 'No se encontraron clientes con ese criterio' 
+              description={search
+                ? 'No se encontraron clientes con ese criterio'
                 : 'Aún no hay clientes registrados. Crea el primer cliente para comenzar.'
               }
               action={!search && (
@@ -354,12 +371,25 @@ function ClientesList() {
             />
           </CardContent>
         ) : (
-          <DataTable
-            data={clientes}
-            columns={columns}
-            onRowClick={(row) => navigate(`/clientes/${row.id}`)}
-            pageSize={20}
-          />
+          <>
+            <DataTable
+              data={clientes}
+              columns={columns}
+              onRowClick={(row) => navigate(`/clientes/${row.id}`)}
+              pageSize={pageSize}
+            />
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalCount}
+              itemsPerPage={pageSize}
+              onPageChange={setPage}
+              onItemsPerPageChange={(size) => {
+                setPageSize(size)
+                setPage(1)
+              }}
+            />
+          </>
         )}
       </Card>
 
@@ -376,7 +406,7 @@ function ClientesList() {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         onExport={handleExportar}
-        totalClientes={clientes?.length || 0}
+        totalClientes={totalCount}
         isExporting={isExporting}
       />
     </div>

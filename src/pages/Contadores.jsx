@@ -165,15 +165,19 @@ function ContadoresList() {
       sortable: false
     },
     {
-      key: 'marca_modelo',
-      header: 'Marca/Modelo',
+      key: 'cliente',
+      header: 'Cliente',
       render: (_, row) => (
-        <span className="text-sm text-gray-600">
-          {row.marca && row.modelo 
-            ? `${row.marca} - ${row.modelo}`
-            : row.marca || row.modelo || '-'
-          }
-        </span>
+        row.cliente_nombre ? (
+          <div className="text-sm">
+            <p className="text-gray-900">{row.cliente_nombre}</p>
+            {row.cliente_codigo && (
+              <p className="text-xs text-gray-500 font-mono">{row.cliente_codigo}</p>
+            )}
+          </div>
+        ) : (
+          <span className="text-gray-400 text-xs">Sin cliente</span>
+        )
       )
     },
     {

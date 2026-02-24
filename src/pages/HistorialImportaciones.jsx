@@ -195,17 +195,27 @@ export default function HistorialImportaciones() {
                       <td className="px-3 py-3 text-right sticky right-0 bg-white">
                         <div className="flex items-center justify-end gap-1">
                           {imp.estado === 'validado' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleVerDetalle(imp)}
-                              className="text-xs px-2 py-1"
-                            >
-                              <Play className="w-3 h-3 mr-1" />
-                              Continuar
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleVerDetalle(imp)}
+                                className="text-xs px-2 py-1"
+                              >
+                                <Play className="w-3 h-3 mr-1" />
+                                Continuar
+                              </Button>
+                              <button
+                                onClick={() => handleEliminarImportacion(imp)}
+                                disabled={eliminarImportacion.isPending}
+                                title="Eliminar lecturas"
+                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
-                          {imp.estado === 'confirmado' && (
+                          {(imp.estado === 'confirmado' || imp.estado === 'cancelado') && (
                             <>
                               <button
                                 onClick={() => handleVerDetalle(imp)}

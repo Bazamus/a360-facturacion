@@ -23,12 +23,9 @@ export function useFacturasPendientesEnvio(filtros = {}) {
         query = query.eq('comunidad_id', comunidadId)
       }
 
-      if (estado === 'pendiente') {
-        query = query.eq('estado_envio', 'pendiente')
-      } else if (estado === 'sin_email') {
-        query = query.eq('estado_envio', 'sin_email')
-      } else if (estado === 'enviado') {
-        query = query.eq('estado_envio', 'enviado')
+      // Solo filtrar por estado si se especifica uno concreto (vacío = todos)
+      if (estado) {
+        query = query.eq('estado_envio', estado)
       }
 
       if (fechaDesde) {
@@ -57,14 +54,15 @@ export function useHistorialEnvios(filtros = {}) {
     queryKey: ['historial-envios', comunidadId, estado, fechaInicio, fechaFin, search, page],
     queryFn: async () => {
       let query = supabase
-        .from('envios_email')
-        .select(`
-          *,
-          factura:facturas(numero_completo, total, comunidad_id),
-          cliente:clientes(nombre, apellidos, codigo_cliente)
-        `, { count: 'exact' })
+        .from('v_historial_envios')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1)
+
+      // Filtro comunidad server-side (antes era post-query)
+      if (comunidadId) {
+        query = query.eq('comunidad_id', comunidadId)
+      }
 
       if (estado) {
         query = query.eq('estado', estado)
@@ -79,21 +77,15 @@ export function useHistorialEnvios(filtros = {}) {
       }
 
       if (search) {
-        query = query.or(`email_destino.ilike.%${search}%,asunto.ilike.%${search}%`)
+        query = query.or(`email_destino.ilike.%${search}%,numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%`)
       }
 
       const { data, error, count } = await query
 
       if (error) throw error
 
-      // Filtrar por comunidad si se especifica
-      let filteredData = data || []
-      if (comunidadId) {
-        filteredData = filteredData.filter(e => e.factura?.comunidad_id === comunidadId)
-      }
-
       return {
-        data: filteredData,
+        data: data || [],
         total: count || 0,
         page,
         pageSize,

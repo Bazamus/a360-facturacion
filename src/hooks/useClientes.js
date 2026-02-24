@@ -6,11 +6,46 @@ import { supabase } from '@/lib/supabase'
 // =====================================================
 
 export function useClientes(options = {}) {
-  const { search, tipo, estadoId, comunidadId } = options
+  const { search, tipo, estadoId, comunidadId, page = 1, pageSize = 50 } = options
 
   return useQuery({
-    queryKey: ['clientes', { search, tipo, estadoId, comunidadId }],
+    queryKey: ['clientes', { search, tipo, estadoId, comunidadId, page, pageSize }],
     queryFn: async () => {
+      // Filtrado server-side por comunidad — obtener IDs de clientes vinculados
+      let clienteIdsFiltro = null
+      if (comunidadId) {
+        const { data: agrupData, error: errAgrup } = await supabase
+          .from('agrupaciones')
+          .select('id')
+          .eq('comunidad_id', comunidadId)
+
+        if (errAgrup) throw errAgrup
+
+        const agrupacionIds = agrupData?.map(a => a.id) || []
+        if (agrupacionIds.length === 0) return { data: [], count: 0 }
+
+        const { data: ubicData, error: errUbic } = await supabase
+          .from('ubicaciones')
+          .select('id')
+          .in('agrupacion_id', agrupacionIds)
+
+        if (errUbic) throw errUbic
+
+        const ubicacionIds = ubicData?.map(u => u.id) || []
+        if (ubicacionIds.length === 0) return { data: [], count: 0 }
+
+        const { data: ucData, error: errUc } = await supabase
+          .from('ubicaciones_clientes')
+          .select('cliente_id')
+          .in('ubicacion_id', ubicacionIds)
+
+        if (errUc) throw errUc
+
+        clienteIdsFiltro = [...new Set(ucData?.map(uc => uc.cliente_id).filter(Boolean))]
+        if (clienteIdsFiltro.length === 0) return { data: [], count: 0 }
+      }
+
+      // Query principal con paginación server-side
       let query = supabase
         .from('clientes')
         .select(`
@@ -20,6 +55,7 @@ export function useClientes(options = {}) {
             ubicacion_id,
             es_actual,
             ubicacion:ubicaciones(
+              id,
               nombre,
               agrupacion:agrupaciones(
                 nombre,
@@ -27,12 +63,13 @@ export function useClientes(options = {}) {
               )
             )
           )
-        `)
+        `, { count: 'exact' })
         .order('apellidos')
         .order('nombre')
+        .range((page - 1) * pageSize, page * pageSize - 1)
 
       if (search) {
-        query = query.or(`nombre.ilike.%${search}%,apellidos.ilike.%${search}%,nif.ilike.%${search}%,codigo_cliente.ilike.%${search}%`)
+        query = query.or(`nombre.ilike.%${search}%,apellidos.ilike.%${search}%,nif.ilike.%${search}%,codigo_cliente.ilike.%${search}%,email.ilike.%${search}%`)
       }
 
       if (tipo) {
@@ -43,46 +80,44 @@ export function useClientes(options = {}) {
         query = query.eq('estado_id', estadoId)
       }
 
-      // Filtrado server-side por comunidad (evita el límite de 1000 filas de Supabase)
-      if (comunidadId) {
-        const { data: agrupData, error: errAgrup } = await supabase
-          .from('agrupaciones')
-          .select('id')
-          .eq('comunidad_id', comunidadId)
-
-        if (errAgrup) throw errAgrup
-
-        const agrupacionIds = agrupData?.map(a => a.id) || []
-        if (agrupacionIds.length === 0) return []
-
-        const { data: ubicData, error: errUbic } = await supabase
-          .from('ubicaciones')
-          .select('id')
-          .in('agrupacion_id', agrupacionIds)
-
-        if (errUbic) throw errUbic
-
-        const ubicacionIds = ubicData?.map(u => u.id) || []
-        if (ubicacionIds.length === 0) return []
-
-        const { data: ucData, error: errUc } = await supabase
-          .from('ubicaciones_clientes')
-          .select('cliente_id')
-          .in('ubicacion_id', ubicacionIds)
-
-        if (errUc) throw errUc
-
-        const clienteIds = [...new Set(ucData?.map(uc => uc.cliente_id).filter(Boolean))]
-        if (clienteIds.length === 0) return []
-
-        query = query.in('id', clienteIds)
+      if (clienteIdsFiltro) {
+        query = query.in('id', clienteIdsFiltro)
       }
 
-      const { data, error } = await query
+      const { data, error, count } = await query
 
       if (error) throw error
 
-      return data
+      // Obtener nº contador para las ubicaciones actuales de estos clientes
+      if (data?.length > 0) {
+        const ubicacionIds = data
+          .flatMap(c => c.ubicaciones_clientes?.filter(uc => uc.es_actual).map(uc => uc.ubicacion_id) || [])
+          .filter(Boolean)
+
+        if (ubicacionIds.length > 0) {
+          const { data: contadores } = await supabase
+            .from('contadores')
+            .select('id, numero_serie, ubicacion_id')
+            .in('ubicacion_id', ubicacionIds)
+            .eq('activo', true)
+
+          if (contadores?.length > 0) {
+            const contadorMap = {}
+            contadores.forEach(c => {
+              if (!contadorMap[c.ubicacion_id]) {
+                contadorMap[c.ubicacion_id] = c.numero_serie
+              }
+            })
+
+            data.forEach(cliente => {
+              const ubicActual = cliente.ubicaciones_clientes?.find(uc => uc.es_actual)
+              cliente.numero_contador = ubicActual ? contadorMap[ubicActual.ubicacion_id] || null : null
+            })
+          }
+        }
+      }
+
+      return { data: data || [], count: count || 0 }
     }
   })
 }
