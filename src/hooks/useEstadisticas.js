@@ -94,30 +94,36 @@ export function useEstadisticas() {
 
   const obtenerFacturadoMesActual = async () => {
     try {
-      // Obtener primer y último día del mes actual
+      // Mismo criterio que página Facturas / get_factura_stats: fecha_factura en rango y solo emitida+pagada
       const ahora = new Date()
       const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1)
+      const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0)
       const primerDiaMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1)
-      const ultimoDiaMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth(), 0, 23, 59, 59)
+      const ultimoDiaMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth(), 0)
+      const desdeMes = primerDiaMes.toISOString().split('T')[0]
+      const hastaMes = ultimoDiaMes.toISOString().split('T')[0]
+      const desdeMesAnterior = primerDiaMesAnterior.toISOString().split('T')[0]
+      const hastaMesAnterior = ultimoDiaMesAnterior.toISOString().split('T')[0]
 
-      // Facturado del mes actual
+      // Facturado del mes actual: solo emitida y pagada (mismo criterio que Importe Total en Facturas)
       const { data: mesActual, error: errorActual } = await supabase
         .from('facturas')
         .select('total')
-        .gte('fecha_factura', primerDiaMes.toISOString())
-        .neq('estado', 'anulada')
+        .gte('fecha_factura', desdeMes)
+        .lte('fecha_factura', hastaMes)
+        .in('estado', ['emitida', 'pagada'])
 
       if (errorActual) throw errorActual
 
       const totalMesActual = mesActual?.reduce((sum, f) => sum + (parseFloat(f.total) || 0), 0) || 0
 
-      // Facturado del mes anterior (para calcular cambio)
+      // Facturado del mes anterior (para % cambio): mismo criterio
       const { data: mesAnterior, error: errorAnterior } = await supabase
         .from('facturas')
         .select('total')
-        .gte('fecha_factura', primerDiaMesAnterior.toISOString())
-        .lte('fecha_factura', ultimoDiaMesAnterior.toISOString())
-        .neq('estado', 'anulada')
+        .gte('fecha_factura', desdeMesAnterior)
+        .lte('fecha_factura', hastaMesAnterior)
+        .in('estado', ['emitida', 'pagada'])
 
       if (errorAnterior) throw errorAnterior
 

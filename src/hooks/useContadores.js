@@ -6,42 +6,86 @@ import { supabase } from '@/lib/supabase'
 // =====================================================
 
 export function useContadores(options = {}) {
-  const { search, comunidadId, conceptoId, activo } = options
+  const { search, comunidadId, conceptoId, activo, page = 1, pageSize = 50 } = options
 
   return useQuery({
-    queryKey: ['contadores', { search, comunidadId, conceptoId, activo }],
+    queryKey: ['contadores', { search, comunidadId, conceptoId, activo, page, pageSize }],
     queryFn: async () => {
+      // Pre-filtro por comunidad → resolver ubicacion IDs
+      let ubicacionIdsFiltro = null
+      if (comunidadId) {
+        const { data: agrupData, error: errAgrup } = await supabase
+          .from('agrupaciones')
+          .select('id')
+          .eq('comunidad_id', comunidadId)
+        if (errAgrup) throw errAgrup
+
+        const agrupIds = agrupData?.map(a => a.id) || []
+        if (agrupIds.length === 0) return { data: [], count: 0 }
+
+        const { data: ubicData, error: errUbic } = await supabase
+          .from('ubicaciones')
+          .select('id')
+          .in('agrupacion_id', agrupIds)
+        if (errUbic) throw errUbic
+
+        ubicacionIdsFiltro = ubicData?.map(u => u.id) || []
+        if (ubicacionIdsFiltro.length === 0) return { data: [], count: 0 }
+      }
+
+      // Pre-filtro por concepto → resolver contador IDs
+      let contadorIdsFiltro = null
+      if (conceptoId) {
+        const { data: ccData, error: errCc } = await supabase
+          .from('contadores_conceptos')
+          .select('contador_id')
+          .eq('concepto_id', conceptoId)
+          .eq('activo', true)
+        if (errCc) throw errCc
+
+        contadorIdsFiltro = [...new Set(ccData?.map(cc => cc.contador_id))]
+        if (contadorIdsFiltro.length === 0) return { data: [], count: 0 }
+      }
+
+      // Query paginada de contadores (solo IDs + count)
       let query = supabase
-        .from('v_contadores_completos')
-        .select('*')
-        .order('comunidad_nombre')
-        .order('agrupacion_nombre')
-        .order('ubicacion_nombre')
-        .limit(10000)
+        .from('contadores')
+        .select('id', { count: 'exact' })
+        .order('numero_serie')
+        .range((page - 1) * pageSize, page * pageSize - 1)
 
       if (search) {
         query = query.ilike('numero_serie', `%${search}%`)
       }
 
-      if (comunidadId) {
-        query = query.eq('comunidad_id', comunidadId)
-      }
-
-      if (conceptoId) {
-        query = query.eq('concepto_id', conceptoId)
-      }
-
       if (activo !== undefined) {
-        query = query.eq('contador_activo', activo)
+        query = query.eq('activo', activo)
       }
 
-      const { data, error } = await query
+      if (ubicacionIdsFiltro) {
+        query = query.in('ubicacion_id', ubicacionIdsFiltro)
+      }
 
+      if (contadorIdsFiltro) {
+        query = query.in('id', contadorIdsFiltro)
+      }
+
+      const { data: contadoresPage, count, error } = await query
       if (error) throw error
-      
+      if (!contadoresPage?.length) return { data: [], count: count || 0 }
+
+      const contadorIds = contadoresPage.map(c => c.id)
+
+      // Datos completos de la vista para los IDs paginados
+      const { data: viewData, error: viewError } = await supabase
+        .from('v_contadores_completos')
+        .select('*')
+        .in('contador_id', contadorIds)
+      if (viewError) throw viewError
+
       // Agrupar conceptos por contador
       const contadoresMap = new Map()
-      data.forEach(row => {
+      viewData.forEach(row => {
         if (!contadoresMap.has(row.contador_id)) {
           contadoresMap.set(row.contador_id, {
             id: row.contador_id,
@@ -62,7 +106,7 @@ export function useContadores(options = {}) {
             conceptos: []
           })
         }
-        
+
         if (row.concepto_id) {
           contadoresMap.get(row.contador_id).conceptos.push({
             id: row.concepto_id,
@@ -78,7 +122,12 @@ export function useContadores(options = {}) {
         }
       })
 
-      return Array.from(contadoresMap.values())
+      // Mantener orden de la paginación
+      const orderedData = contadorIds
+        .map(id => contadoresMap.get(id))
+        .filter(Boolean)
+
+      return { data: orderedData, count: count || 0 }
     }
   })
 }

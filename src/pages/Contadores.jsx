@@ -17,6 +17,7 @@ import {
   EmptyState, 
   LoadingSpinner,
   DataTable,
+  Pagination,
   SearchInput,
   Badge,
   Breadcrumb,
@@ -55,17 +56,24 @@ function ContadoresList() {
   const [showActionsMenu, setShowActionsMenu] = useState(false)
   const [contadorAEliminar, setContadorAEliminar] = useState(null)
   const [showEliminarModal, setShowEliminarModal] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
   const actionsMenuRef = useRef(null)
   const toast = useToast()
-  
+
   const eliminarContador = useEliminarContadorPermanente()
 
   const { data: comunidades } = useComunidades({ activa: true })
-  const { data: contadores, isLoading, error, refetch } = useContadores({ 
+  const { data: contadoresData, isLoading, error, refetch } = useContadores({
     search,
     comunidadId: filtroComunidad || undefined,
-    activo: soloActivos ? true : undefined
+    activo: soloActivos ? true : undefined,
+    page,
+    pageSize
   })
+  const contadores = contadoresData?.data || []
+  const totalCount = contadoresData?.count || 0
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   const { descargarPlantilla, exportarEntidad } = useImportExport()
 
@@ -79,6 +87,11 @@ function ContadoresList() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [search, filtroComunidad, soloActivos])
 
   const handleExportar = async () => {
     setShowActionsMenu(false)
@@ -290,24 +303,27 @@ function ContadoresList() {
 
       <Card>
         {/* Filtros */}
-        <div className="p-4 border-b border-gray-200 flex flex-wrap gap-4 items-center">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar por número de serie..."
-            className="w-64"
-          />
-          
-          <CommunityPicker
-            value={filtroComunidad}
-            onChange={setFiltroComunidad}
-            comunidades={comunidades ?? []}
-            placeholder="Todas las comunidades"
-            allowEmpty
-            className="w-48"
-          />
+        <div className="p-4 border-b border-gray-200 flex flex-wrap gap-4 items-stretch">
+          <div className="flex-1 min-w-[280px] max-w-2xl">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por nº serie, ubicación, cliente, conceptos..."
+              className="rounded-xl border-2 border-gray-200 bg-gray-50/90 shadow-sm [&>input]:py-2.5 [&>input]:text-[15px] [&>input]:placeholder:text-gray-500 focus-within:border-primary-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary-500/20"
+            />
+          </div>
 
-          <label className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-4 shrink-0">
+            <CommunityPicker
+              value={filtroComunidad}
+              onChange={setFiltroComunidad}
+              comunidades={comunidades ?? []}
+              placeholder="Todas las comunidades"
+              allowEmpty
+              className="w-52"
+            />
+
+            <label className="flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap">
             <input
               type="checkbox"
               checked={soloActivos}
@@ -316,19 +332,20 @@ function ContadoresList() {
             />
             Solo activos
           </label>
+          </div>
         </div>
 
         {isLoading ? (
           <div className="py-12 flex justify-center">
             <LoadingSpinner size="lg" />
           </div>
-        ) : !contadores?.length ? (
+        ) : !contadores.length ? (
           <CardContent className="p-0">
             <EmptyState
               icon={Gauge}
-              title="Sin contadores"
-              description={search 
-                ? 'No se encontraron contadores con ese criterio' 
+              title={search ? 'Sin resultados' : 'Sin contadores'}
+              description={search
+                ? 'No hay contadores que coincidan con la búsqueda. Prueba con otro criterio.'
                 : 'Aún no hay contadores registrados. Añade el primer contador para comenzar.'
               }
               action={!search && (
@@ -340,12 +357,25 @@ function ContadoresList() {
             />
           </CardContent>
         ) : (
-          <DataTable
-            data={contadores}
-            columns={columns}
-            onRowClick={(row) => navigate(`/contadores/${row.id}`)}
-            pageSize={20}
-          />
+          <>
+            <DataTable
+              data={contadores}
+              columns={columns}
+              onRowClick={(row) => navigate(`/contadores/${row.id}`)}
+              pageSize={pageSize}
+            />
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalCount}
+              itemsPerPage={pageSize}
+              onPageChange={setPage}
+              onItemsPerPageChange={(size) => {
+                setPageSize(size)
+                setPage(1)
+              }}
+            />
+          </>
         )}
       </Card>
 
