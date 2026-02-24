@@ -80,6 +80,7 @@ async function generarBasico(clientes, opciones) {
     'NOMBRE',
     'APELLIDOS',
     'TIPO',
+    'Nº CONTADOR',
     'EMAIL',
     'TELÉFONO',
     'TELÉFONO 2'
@@ -103,6 +104,7 @@ async function generarBasico(clientes, opciones) {
       'NOMBRE': c.nombre || '-',
       'APELLIDOS': c.apellidos || '-',
       'TIPO': c.tipo === 'propietario' ? 'Propietario' : 'Inquilino',
+      'Nº CONTADOR': c.numero_contador || '-',
       'EMAIL': c.email || '-',
       'TELÉFONO': c.telefono || '-',
       'TELÉFONO 2': c.telefono_secundario || '-'
@@ -165,6 +167,7 @@ async function generarCompleto(clientes, opciones) {
     'NOMBRE',
     'APELLIDOS',
     'TIPO',
+    'Nº CONTADOR',
     'EMAIL',
     'TELÉFONO',
     'TELÉFONO 2',
@@ -187,6 +190,7 @@ async function generarCompleto(clientes, opciones) {
       'NOMBRE': c.nombre || '-',
       'APELLIDOS': c.apellidos || '-',
       'TIPO': c.tipo === 'propietario' ? 'Propietario' : 'Inquilino',
+      'Nº CONTADOR': c.numero_contador || '-',
       'EMAIL': c.email || '-',
       'TELÉFONO': c.telefono || '-',
       'TELÉFONO 2': c.telefono_secundario || '-',
@@ -238,6 +242,7 @@ async function generarDetallado(clientes, opciones) {
     'APELLIDOS',
     'TIPO',
     'ESTADO',
+    'Nº CONTADOR',
     'COMUNIDAD',
     'CÓD. COMUNIDAD',
     'UBICACIÓN',
@@ -263,6 +268,7 @@ async function generarDetallado(clientes, opciones) {
         'APELLIDOS': c.apellidos || '-',
         'TIPO': c.tipo === 'propietario' ? 'Propietario' : 'Inquilino',
         'ESTADO': c.estado?.nombre || '-',
+        'Nº CONTADOR': c.numero_contador || '-',
         'COMUNIDAD': '-',
         'CÓD. COMUNIDAD': '-',
         'UBICACIÓN': '-',
@@ -283,6 +289,7 @@ async function generarDetallado(clientes, opciones) {
           'APELLIDOS': c.apellidos || '-',
           'TIPO': c.tipo === 'propietario' ? 'Propietario' : 'Inquilino',
           'ESTADO': c.estado?.nombre || '-',
+          'Nº CONTADOR': c.numero_contador || '-',
           'COMUNIDAD': uc.ubicacion?.comunidad?.nombre || '-',
           'CÓD. COMUNIDAD': uc.ubicacion?.comunidad?.codigo || '-',
           'UBICACIÓN': uc.ubicacion?.nombre || '-',
@@ -322,6 +329,7 @@ function aplicarFormatoAvanzado(ws, numFilas, columnas, formatoNumeros) {
     if (col.includes('DIRECCIÓN') || col.includes('UBICACIÓN')) return { wch: 30 }
     if (col.includes('EMAIL')) return { wch: 25 }
     if (col.includes('IBAN')) return { wch: 24 }
+    if (col.includes('CONTADOR')) return { wch: 18 }
     if (col.includes('COMUNIDAD')) return { wch: 30 }
     if (col.includes('FECHA')) return { wch: 12 }
     return { wch: 15 }
