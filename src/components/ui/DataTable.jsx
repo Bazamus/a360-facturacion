@@ -86,7 +86,7 @@ export function DataTable({
                   key={column.key}
                   scope="col"
                   className={cn(
-                    'px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+                    'px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
                     sortable && column.sortable !== false && 'cursor-pointer hover:bg-gray-100 select-none',
                     column.className
                   )}
@@ -119,7 +119,8 @@ export function DataTable({
                   <td
                     key={column.key}
                     className={cn(
-                      'px-4 py-3 text-sm text-gray-900 whitespace-nowrap',
+                      'px-3 py-2.5 text-sm text-gray-900',
+                      !column.cellClassName?.includes('whitespace') && 'whitespace-nowrap',
                       column.cellClassName
                     )}
                   >

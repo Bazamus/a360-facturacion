@@ -141,8 +141,9 @@ function ContadoresList() {
     {
       key: 'numero_serie',
       header: 'Nº Serie',
+      width: '100px',
       render: (value) => (
-        <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+        <span className="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
           {value}
         </span>
       )
@@ -150,11 +151,14 @@ function ContadoresList() {
     {
       key: 'ubicacion',
       header: 'Ubicación',
+      cellClassName: 'whitespace-normal',
       render: (_, row) => (
-        <div>
-          <p className="font-medium text-gray-900">{row.comunidad_nombre}</p>
-          <p className="text-sm text-gray-500">
-            {row.agrupacion_nombre} - {row.ubicacion_nombre}
+        <div className="leading-tight">
+          <p className="text-sm font-medium text-gray-900 truncate max-w-[280px]">
+            {row.comunidad_nombre}
+          </p>
+          <p className="text-xs text-gray-500 truncate max-w-[280px]">
+            {row.agrupacion_nombre} — {row.ubicacion_nombre}
           </p>
         </div>
       )
@@ -162,62 +166,66 @@ function ContadoresList() {
     {
       key: 'conceptos',
       header: 'Conceptos',
+      width: '120px',
+      sortable: false,
       render: (_, row) => (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-0.5">
           {row.conceptos?.length > 0 ? (
             row.conceptos.map(c => (
-              <Badge key={c.id} variant="primary">
+              <span key={c.id} className="inline-block text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded bg-primary-100 text-primary-700">
                 {c.codigo}
-              </Badge>
+              </span>
             ))
           ) : (
-            <span className="text-gray-400 text-sm">Sin conceptos</span>
+            <span className="text-gray-400 text-xs italic">—</span>
           )}
         </div>
-      ),
-      sortable: false
+      )
     },
     {
       key: 'cliente',
       header: 'Cliente',
+      cellClassName: 'whitespace-normal',
       render: (_, row) => (
         row.cliente_nombre ? (
-          <div className="text-sm">
-            <p className="text-gray-900">{row.cliente_nombre}</p>
+          <div className="leading-tight">
+            <p className="text-sm text-gray-900 truncate max-w-[220px]">{row.cliente_nombre}</p>
             {row.cliente_codigo && (
-              <p className="text-xs text-gray-500 font-mono">{row.cliente_codigo}</p>
+              <p className="text-[11px] text-gray-400 font-mono">{row.cliente_codigo}</p>
             )}
           </div>
         ) : (
-          <span className="text-gray-400 text-xs">Sin cliente</span>
+          <span className="text-gray-400 text-xs italic">Sin cliente</span>
         )
       )
     },
     {
       key: 'activo',
       header: 'Estado',
+      width: '80px',
       render: (value) => (
-        <Badge variant={value ? 'success' : 'default'}>
+        <Badge variant={value ? 'success' : 'default'} className="text-xs">
           {value ? 'Activo' : 'Inactivo'}
         </Badge>
       )
     },
     {
       key: 'acciones',
-      header: '',
+      header: 'Acciones',
+      width: '100px',
       sortable: false,
       render: (_, row) => (
-        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
           <Link
             to={`/contadores/${row.id}`}
-            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
             title="Ver detalles"
           >
             <Eye className="h-4 w-4" />
           </Link>
           <Link
             to={`/contadores/${row.id}/editar`}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
             title="Editar"
           >
             <Edit2 className="h-4 w-4" />
@@ -227,8 +235,8 @@ function ContadoresList() {
               e.stopPropagation()
               handleClickEliminar(row)
             }}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-            title="Eliminar permanentemente (solo contadores sin lecturas ni facturas)"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+            title="Eliminar"
           >
             <Trash2 className="h-4 w-4" />
           </button>
