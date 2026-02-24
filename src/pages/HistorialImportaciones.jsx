@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Eye, Play, Download, Calendar, Folder, Trash2 } from 'lucide-react'
-import { Button, Card, EmptyState, LoadingSpinner, Badge } from '@/components/ui'
+import { Button, Card, EmptyState, LoadingSpinner, Badge, CommunityPicker } from '@/components/ui'
 import { useImportaciones, useEliminarImportacionCompleta } from '@/hooks/useLecturas'
 import { useComunidades } from '@/hooks/useComunidades'
 import { formatDateTime } from '@/lib/utils'
@@ -86,20 +86,16 @@ export default function HistorialImportaciones() {
       {/* Filtros */}
       <Card className="p-4">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Folder className="w-4 h-4 text-gray-400" />
-            <select
+          <div className="flex items-center gap-2 min-w-[280px]">
+            <Folder className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <CommunityPicker
               value={comunidadId}
-              onChange={(e) => setComunidadId(e.target.value)}
-              className="rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Todas las comunidades</option>
-              {comunidades?.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.codigo} - {c.nombre}
-                </option>
-              ))}
-            </select>
+              onChange={setComunidadId}
+              comunidades={comunidades ?? []}
+              placeholder="Todas las comunidades"
+              allowEmpty
+              className="flex-1"
+            />
           </div>
         </div>
       </Card>
