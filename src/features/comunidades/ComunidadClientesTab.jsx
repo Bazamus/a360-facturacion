@@ -11,7 +11,8 @@ export function ComunidadClientesTab({ comunidad }) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const { data: clientes, isLoading } = useClientes({ comunidadId: comunidad.id })
+  const { data: clientesResult, isLoading } = useClientes({ comunidadId: comunidad.id })
+  const clientes = clientesResult?.data || []
 
   // Reset página cuando cambia el filtro de búsqueda
   useEffect(() => {

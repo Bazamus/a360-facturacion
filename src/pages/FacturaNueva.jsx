@@ -30,9 +30,10 @@ export default function FacturaNueva() {
   const [porcentajeIva, setPorcentajeIva] = useState(21)
 
   // Obtener clientes filtrados por comunidad
-  const { data: clientes, isLoading: loadingClientes } = useClientes({
+  const { data: clientesResult, isLoading: loadingClientes } = useClientes({
     comunidadId: comunidadId || undefined
   })
+  const clientes = clientesResult?.data || []
 
   // Obtener precios vigentes de la comunidad seleccionada
   const { data: precios } = usePreciosVigentes(comunidadId || undefined)

@@ -362,8 +362,10 @@ function ComunidadDetail() {
   const [isExporting, setIsExporting] = useState(false)
 
   const { data: comunidad, isLoading, error } = useComunidad(id)
-  const { data: clientesComunidad } = useClientes({ comunidadId: id })
-  const { data: contadoresComunidad } = useContadores({ comunidadId: id })
+  const { data: clientesResult } = useClientes({ comunidadId: id })
+  const clientesComunidad = clientesResult?.data || []
+  const { data: contadoresResult } = useContadores({ comunidadId: id })
+  const contadoresComunidad = contadoresResult?.data || []
   const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 500 })
   const { data: notasComunidad } = useComentarios('comunidad', id)
   const { data: agrupacionesComunidad } = useAgrupaciones(id)

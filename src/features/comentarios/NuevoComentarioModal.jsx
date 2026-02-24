@@ -56,7 +56,8 @@ export function NuevoComentarioModal({
   const [busquedaEntidad, setBusquedaEntidad] = useState('')
 
   // Datos para selectores
-  const { data: clientes } = useClientes({ enabled: modoGlobal && tipoEntidad === 'cliente' })
+  const { data: clientesResult } = useClientes({ enabled: modoGlobal && tipoEntidad === 'cliente' })
+  const clientes = clientesResult?.data || []
   const { data: comunidades } = useComunidades({ enabled: modoGlobal && tipoEntidad === 'comunidad' })
 
   // Lista filtrada de entidades
