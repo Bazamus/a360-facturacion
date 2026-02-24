@@ -384,7 +384,7 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
   // =====================================================
   const content = (
     <div className={cn(
-      'flex grow flex-col bg-primary-700',
+      'flex h-full grow flex-col overflow-hidden bg-primary-700',
       isCollapsed ? 'px-2.5' : 'px-4'
     )}>
       {/* Logo + Toggle */}
