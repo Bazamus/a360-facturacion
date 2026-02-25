@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { FormField } from '@/components/ui/FormField'
+import { ComunidadSelectorModal } from './ComunidadSelectorModal'
 
 /**
  * Modal formulario para crear nuevo descuento
@@ -91,16 +92,13 @@ export function DescuentoForm({
     >
       <div className="space-y-4">
         <FormField label="Comunidad" required error={errors.comunidadId}>
-          <Select
-            value={form.comunidadId}
-            onChange={(e) => handleChange('comunidadId', e.target.value)}
-            error={!!errors.comunidadId}
-          >
-            <option value="">Seleccionar comunidad...</option>
-            {comunidades.map(c => (
-              <option key={c.id} value={c.id}>{c.codigo} — {c.nombre}</option>
-            ))}
-          </Select>
+          <ComunidadSelectorModal
+            comunidades={comunidades}
+            selected={form.comunidadId}
+            onChange={(id) => handleChange('comunidadId', id)}
+            mode="single"
+            placeholder="Seleccionar comunidad..."
+          />
         </FormField>
 
         <FormField label="Concepto" required error={errors.conceptoId}>

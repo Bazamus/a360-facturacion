@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { FormField } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
-import { ComunidadMultiSelector } from './ComunidadMultiSelector'
+import { ComunidadSelectorModal } from './ComunidadSelectorModal'
 import { PreviewPreciosModal } from './PreviewPreciosModal'
 import {
   useAplicarFactorPrecios,
@@ -65,6 +65,7 @@ export function IPCFijosTab({ comunidades = [], conceptos = [] }) {
   }
 
   const handleAplicar = async () => {
+    if (!factor || factor <= 0) { toast.error('Factor inválido'); return }
     try {
       await aplicar.mutateAsync({
         comunidadIds: comunidadesSeleccionadas,
@@ -121,16 +122,13 @@ export function IPCFijosTab({ comunidades = [], conceptos = [] }) {
       </div>
 
       {/* Selector comunidades */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Comunidades
-        </label>
-        <ComunidadMultiSelector
-          comunidades={comunidades}
-          selected={comunidadesSeleccionadas}
-          onChange={setComunidadesSeleccionadas}
-        />
-      </div>
+      <ComunidadSelectorModal
+        label="Comunidades"
+        comunidades={comunidades}
+        selected={comunidadesSeleccionadas}
+        onChange={setComunidadesSeleccionadas}
+        mode="multi"
+      />
 
       {/* Checkboxes conceptos */}
       <div>

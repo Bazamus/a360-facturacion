@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/Checkbox'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import { FactorCalculator } from './FactorCalculator'
-import { ComunidadMultiSelector } from './ComunidadMultiSelector'
+import { ComunidadSelectorModal } from './ComunidadSelectorModal'
 import { PreviewPreciosModal } from './PreviewPreciosModal'
 import {
   useAplicarFactorPrecios,
@@ -77,6 +77,7 @@ export function FactorEnergeticoTab({ comunidades = [], conceptos = [] }) {
   }
 
   const handleAplicar = async () => {
+    if (!factor || factor <= 0) { toast.error('Factor inválido'); return }
     try {
       const valorAnterior = referenciaActiva === 'P6_NATURGY' ? parseFloat(p6Anterior) : parseFloat(mibgasAnterior)
       const valorActual = referenciaActiva === 'P6_NATURGY' ? parseFloat(p6Actual) : parseFloat(mibgasActual)
@@ -169,17 +170,14 @@ export function FactorEnergeticoTab({ comunidades = [], conceptos = [] }) {
       </div>
 
       {/* Selector comunidades */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Comunidades
-        </label>
-        <ComunidadMultiSelector
-          comunidades={comunidades}
-          selected={comunidadesSeleccionadas}
-          onChange={setComunidadesSeleccionadas}
-          filtroReferencia={referenciaActiva}
-        />
-      </div>
+      <ComunidadSelectorModal
+        label="Comunidades"
+        comunidades={comunidades}
+        selected={comunidadesSeleccionadas}
+        onChange={setComunidadesSeleccionadas}
+        filtroReferencia={referenciaActiva}
+        mode="multi"
+      />
 
       {/* Checkboxes conceptos */}
       <div>

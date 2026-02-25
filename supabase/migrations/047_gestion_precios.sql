@@ -404,9 +404,12 @@ GRANT EXECUTE ON FUNCTION recalcular_facturas_con_nuevos_precios TO authenticate
 
 -- ────────────────────────────────────────────────────────────
 -- 9. Actualizar vista v_comunidades_resumen con referencia_energia
+--    DROP + CREATE porque CREATE OR REPLACE no permite insertar
+--    columnas en medio (cambia nombre de columna existente)
 -- ────────────────────────────────────────────────────────────
 
-CREATE OR REPLACE VIEW v_comunidades_resumen AS
+DROP VIEW IF EXISTS v_comunidades_resumen;
+CREATE VIEW v_comunidades_resumen AS
 SELECT
   c.id,
   c.nombre,
