@@ -2,7 +2,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { AlertTriangle } from 'lucide-react'
-import { formatNumber } from '@/lib/utils'
+import { formatNumber, cn } from '@/lib/utils'
 
 /**
  * Modal de preview antes de aplicar actualización de precios
@@ -29,24 +29,37 @@ export function PreviewPreciosModal({
       description={`Factor: ${factor ? parseFloat(factor).toFixed(5) : '—'}`}
       size="xl"
       footer={
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <div className="flex flex-col gap-3 w-full">
+          {/* Toggle recalcular — prominente */}
+          {facturasAfectadas > 0 && (
+            <div className={cn(
+              'flex items-center gap-3 rounded-lg px-4 py-3 border transition-colors',
+              recalcularFacturas
+                ? 'bg-primary-50 border-primary-300'
+                : 'bg-amber-50 border-amber-200'
+            )}>
               <input
                 type="checkbox"
+                id="recalcular-toggle"
                 checked={recalcularFacturas}
                 onChange={(e) => onToggleRecalcular(e.target.checked)}
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
               />
-              <span className="text-gray-700">
-                Recalcular facturas borrador/emitidas no enviadas
-              </span>
-            </label>
-            {facturasAfectadas > 0 && (
-              <Badge variant="warning">{facturasAfectadas} factura{facturasAfectadas > 1 ? 's' : ''}</Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+              <label htmlFor="recalcular-toggle" className="flex-1 text-sm cursor-pointer">
+                <span className="font-medium text-gray-900">
+                  Aplicar también a facturas existentes
+                </span>
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  {facturasAfectadas} factura{facturasAfectadas > 1 ? 's' : ''} en borrador/emitida no enviada{facturasAfectadas > 1 ? 's' : ''} se recalcularán con los nuevos precios
+                </span>
+              </label>
+              <Badge variant={recalcularFacturas ? 'success' : 'warning'}>
+                {facturasAfectadas}
+              </Badge>
+            </div>
+          )}
+          {/* Botones */}
+          <div className="flex items-center justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>Cancelar</Button>
             <Button
               variant="primary"

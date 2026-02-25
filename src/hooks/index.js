@@ -259,6 +259,7 @@ export {
 // Gestión de Precios
 export {
   useReferenciasEnergia,
+  useUltimosValoresReferencia,
   useDescuentosVigentes,
   useHistorialAjustes,
   useRegistrarReferencia,
@@ -266,7 +267,9 @@ export {
   usePreviewActualizacion,
   useRecalcularFacturas,
   useCrearDescuento,
-  useEliminarDescuento
+  useEliminarDescuento,
+  useAplicarDescuentoFacturas,
+  useAsignarReferenciaMasiva
 } from './useGestionPrecios'
 
 // Reportes y Dashboard

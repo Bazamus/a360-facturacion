@@ -429,3 +429,92 @@ LEFT JOIN ubicaciones u ON a.id = u.agrupacion_id AND u.activa = true
 LEFT JOIN contadores cont ON u.id = cont.ubicacion_id AND cont.activo = true
 LEFT JOIN ubicaciones_clientes uc ON u.id = uc.ubicacion_id
 GROUP BY c.id, c.nombre, c.codigo, c.ciudad, c.activa, c.nombre_agrupacion, c.nombre_ubicacion, c.referencia_energia;
+
+-- ────────────────────────────────────────────────────────────
+-- 10. RPC: aplicar_descuento_facturas_existentes
+--     Aplica un descuento a facturas borrador/emitida no enviadas
+-- ────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION aplicar_descuento_facturas_existentes(
+  p_comunidad_id UUID,
+  p_concepto_id UUID,
+  p_porcentaje DECIMAL(5,2)
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_factura RECORD;
+  v_linea RECORD;
+  v_bruto DECIMAL(10,2);
+  v_dto_importe DECIMAL(10,2);
+  v_subtotal DECIMAL(10,2);
+  v_nueva_base DECIMAL(10,2);
+  v_nuevo_iva DECIMAL(10,2);
+  v_nuevo_total DECIMAL(10,2);
+  v_facturas_actualizadas INTEGER := 0;
+  v_lineas_actualizadas INTEGER := 0;
+BEGIN
+  FOR v_factura IN
+    SELECT f.id, f.porcentaje_iva
+    FROM facturas f
+    WHERE f.comunidad_id = p_comunidad_id
+      AND f.estado IN ('borrador', 'emitida')
+      AND NOT EXISTS (
+        SELECT 1 FROM envios_email ee
+        WHERE ee.factura_id = f.id
+          AND ee.estado IN ('enviado', 'entregado', 'abierto')
+      )
+    FOR UPDATE
+  LOOP
+    FOR v_linea IN
+      SELECT fl.id, fl.cantidad, fl.precio_unitario
+      FROM facturas_lineas fl
+      WHERE fl.factura_id = v_factura.id
+        AND fl.concepto_id = p_concepto_id
+    LOOP
+      v_bruto := v_linea.cantidad * v_linea.precio_unitario;
+      v_dto_importe := ROUND(v_bruto * p_porcentaje / 100, 2);
+      v_subtotal := ROUND(v_bruto - v_dto_importe, 2);
+
+      UPDATE facturas_lineas
+      SET descuento_porcentaje = p_porcentaje,
+          descuento_importe = v_dto_importe,
+          subtotal = v_subtotal
+      WHERE id = v_linea.id;
+
+      v_lineas_actualizadas := v_lineas_actualizadas + 1;
+    END LOOP;
+
+    IF v_lineas_actualizadas > 0 THEN
+      SELECT COALESCE(SUM(fl.subtotal), 0) INTO v_nueva_base
+      FROM facturas_lineas fl
+      WHERE fl.factura_id = v_factura.id;
+
+      v_nuevo_iva := ROUND(v_nueva_base * v_factura.porcentaje_iva / 100, 2);
+      v_nuevo_total := v_nueva_base + v_nuevo_iva;
+
+      UPDATE facturas
+      SET base_imponible = v_nueva_base,
+          importe_iva = v_nuevo_iva,
+          total = v_nuevo_total,
+          pdf_generado = false,
+          updated_at = now()
+      WHERE id = v_factura.id;
+
+      v_facturas_actualizadas := v_facturas_actualizadas + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'facturas_actualizadas', v_facturas_actualizadas,
+    'lineas_actualizadas', v_lineas_actualizadas
+  );
+END;
+$$;
+
+COMMENT ON FUNCTION aplicar_descuento_facturas_existentes
+  IS 'Aplica descuento a facturas borrador/emitida no enviadas de una comunidad+concepto';
+
+GRANT EXECUTE ON FUNCTION aplicar_descuento_facturas_existentes TO authenticated;

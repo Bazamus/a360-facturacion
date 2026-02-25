@@ -78,6 +78,28 @@ export function useHistorialAjustes({ page = 1, pageSize = 20 } = {}) {
   })
 }
 
+/**
+ * Últimos 2 valores de referencia energética (para pre-popular calculadoras)
+ */
+export function useUltimosValoresReferencia(tipo) {
+  return useQuery({
+    queryKey: ['ultimos-ref', tipo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('precios_referencias_mercado')
+        .select('*')
+        .eq('tipo', tipo)
+        .order('anio', { ascending: false })
+        .order('mes', { ascending: false })
+        .limit(2)
+
+      if (error) throw error
+      return data
+    },
+    enabled: !!tipo
+  })
+}
+
 // ──────────────────────────────────────────────
 // MUTATIONS
 // ──────────────────────────────────────────────
@@ -216,6 +238,51 @@ export function useCrearDescuento() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['descuentos'] })
+    }
+  })
+}
+
+/**
+ * Aplicar descuento a facturas existentes (borrador/emitida no enviadas)
+ */
+export function useAplicarDescuentoFacturas() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ comunidadId, conceptoId, porcentaje }) => {
+      const { data, error } = await supabase.rpc('aplicar_descuento_facturas_existentes', {
+        p_comunidad_id: comunidadId,
+        p_concepto_id: conceptoId,
+        p_porcentaje: porcentaje
+      })
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['facturas'] })
+    }
+  })
+}
+
+/**
+ * Asignar referencia energética masiva a múltiples comunidades
+ */
+export function useAsignarReferenciaMasiva() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ comunidadIds, referencia }) => {
+      const { error } = await supabase
+        .from('comunidades')
+        .update({ referencia_energia: referencia })
+        .in('id', comunidadIds)
+
+      if (error) throw error
+      return { actualizadas: comunidadIds.length }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comunidades'] })
     }
   })
 }

@@ -10,7 +10,8 @@ import { DescuentoForm } from './DescuentoForm'
 import {
   useDescuentosVigentes,
   useCrearDescuento,
-  useEliminarDescuento
+  useEliminarDescuento,
+  useAplicarDescuentoFacturas
 } from '@/hooks/useGestionPrecios'
 
 /**
@@ -24,11 +25,33 @@ export function DescuentosTab({ comunidades = [], conceptos = [] }) {
   const { data: descuentos, isLoading } = useDescuentosVigentes()
   const crear = useCrearDescuento()
   const eliminar = useEliminarDescuento()
+  const aplicarFacturas = useAplicarDescuentoFacturas()
 
   const handleCrear = async (data) => {
     try {
       await crear.mutateAsync(data)
-      toast.success('Descuento creado correctamente')
+
+      // Si el usuario pidió aplicar a facturas existentes
+      if (data.aplicarExistentes) {
+        try {
+          const result = await aplicarFacturas.mutateAsync({
+            comunidadId: data.comunidadId,
+            conceptoId: data.conceptoId,
+            porcentaje: data.porcentaje
+          })
+          const n = result?.facturas_actualizadas || 0
+          if (n > 0) {
+            toast.success(`Descuento creado y aplicado a ${n} factura${n > 1 ? 's' : ''} existente${n > 1 ? 's' : ''}`)
+          } else {
+            toast.success('Descuento creado (sin facturas existentes que actualizar)')
+          }
+        } catch (err) {
+          toast.warning('Descuento creado, pero error al aplicar a facturas: ' + err.message)
+        }
+      } else {
+        toast.success('Descuento creado correctamente')
+      }
+
       setShowForm(false)
     } catch (err) {
       toast.error('Error al crear descuento: ' + err.message)

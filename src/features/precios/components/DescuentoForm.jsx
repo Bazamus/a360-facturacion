@@ -24,7 +24,8 @@ export function DescuentoForm({
     porcentaje: '',
     motivo: '',
     fechaInicio: new Date().toISOString().split('T')[0],
-    fechaFin: ''
+    fechaFin: '',
+    aplicarExistentes: false
   })
   const [errors, setErrors] = useState({})
 
@@ -57,7 +58,8 @@ export function DescuentoForm({
       porcentaje: parseFloat(form.porcentaje),
       motivo: form.motivo || null,
       fechaInicio: form.fechaInicio,
-      fechaFin: form.fechaFin
+      fechaFin: form.fechaFin,
+      aplicarExistentes: form.aplicarExistentes
     })
   }
 
@@ -68,7 +70,8 @@ export function DescuentoForm({
       porcentaje: '',
       motivo: '',
       fechaInicio: new Date().toISOString().split('T')[0],
-      fechaFin: ''
+      fechaFin: '',
+      aplicarExistentes: false
     })
     setErrors({})
     onClose()
@@ -155,6 +158,26 @@ export function DescuentoForm({
             onChange={(e) => handleChange('motivo', e.target.value)}
           />
         </FormField>
+
+        {/* Toggle aplicar a facturas existentes */}
+        <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.aplicarExistentes}
+              onChange={(e) => handleChange('aplicarExistentes', e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <div>
+              <span className="text-sm font-medium text-gray-900">
+                Aplicar también a facturas existentes
+              </span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Las facturas en borrador o emitidas no enviadas se recalcularán con este descuento
+              </span>
+            </div>
+          </label>
+        </div>
       </div>
     </Modal>
   )

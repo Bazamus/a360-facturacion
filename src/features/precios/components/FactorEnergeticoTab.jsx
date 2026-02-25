@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Zap } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Zap, AlertTriangle, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Badge } from '@/components/ui/Badge'
@@ -7,11 +7,13 @@ import { useToast } from '@/components/ui/Toast'
 import { FactorCalculator } from './FactorCalculator'
 import { ComunidadSelectorModal } from './ComunidadSelectorModal'
 import { PreviewPreciosModal } from './PreviewPreciosModal'
+import { AsignarReferenciaMasiva } from './AsignarReferenciaMasiva'
 import {
   useAplicarFactorPrecios,
   usePreviewActualizacion,
   useRecalcularFacturas,
-  useRegistrarReferencia
+  useRegistrarReferencia,
+  useUltimosValoresReferencia
 } from '@/hooks/useGestionPrecios'
 
 /**
@@ -32,6 +34,7 @@ export function FactorEnergeticoTab({ comunidades = [], conceptos = [] }) {
 
   // Referencia activa (cuál calculadora usar)
   const [referenciaActiva, setReferenciaActiva] = useState('P6_NATURGY')
+  const [showAsignarRef, setShowAsignarRef] = useState(false)
 
   // Selección
   const [comunidadesSeleccionadas, setComunidadesSeleccionadas] = useState([])
@@ -42,6 +45,33 @@ export function FactorEnergeticoTab({ comunidades = [], conceptos = [] }) {
   const [previewData, setPreviewData] = useState(null)
   const [recalcular, setRecalcular] = useState(false)
 
+  // Cargar últimos valores persistidos
+  const { data: ultimosP6 } = useUltimosValoresReferencia('P6_NATURGY')
+  const { data: ultimosMibgas } = useUltimosValoresReferencia('MIBGAS')
+
+  // Pre-popular campos con valores guardados (solo una vez al cargar)
+  const [initialized, setInitialized] = useState(false)
+  useEffect(() => {
+    if (initialized) return
+    if (ultimosP6?.length >= 2) {
+      setP6Anterior(String(ultimosP6[1].valor))
+      setP6Actual(String(ultimosP6[0].valor))
+      setInitialized(true)
+    } else if (ultimosP6?.length === 1) {
+      setP6Anterior(String(ultimosP6[0].valor))
+      setInitialized(true)
+    }
+  }, [ultimosP6, initialized])
+
+  useEffect(() => {
+    if (ultimosMibgas?.length >= 2) {
+      setMibgasAnterior(String(ultimosMibgas[1].valor))
+      setMibgasActual(String(ultimosMibgas[0].valor))
+    } else if (ultimosMibgas?.length === 1) {
+      setMibgasAnterior(String(ultimosMibgas[0].valor))
+    }
+  }, [ultimosMibgas])
+
   // Mutations
   const aplicar = useAplicarFactorPrecios()
   const preview = usePreviewActualizacion()
@@ -50,6 +80,11 @@ export function FactorEnergeticoTab({ comunidades = [], conceptos = [] }) {
 
   // Conceptos energéticos (no fijos)
   const conceptosEnergeticos = conceptos.filter(c => !c.es_termino_fijo && c.activo)
+
+  // Comunidades sin referencia configurada
+  const sinReferencia = useMemo(() =>
+    comunidades.filter(c => !c.referencia_energia).length
+  , [comunidades])
 
   const getFactor = () => {
     const ant = referenciaActiva === 'P6_NATURGY' ? parseFloat(p6Anterior) : parseFloat(mibgasAnterior)
@@ -122,6 +157,29 @@ export function FactorEnergeticoTab({ comunidades = [], conceptos = [] }) {
 
   return (
     <div className="space-y-6">
+      {/* Aviso comunidades sin referencia */}
+      {sinReferencia > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+            <span className="text-sm text-amber-800">
+              <strong>{sinReferencia}</strong> comunidad{sinReferencia > 1 ? 'es' : ''} sin referencia energética configurada
+            </span>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setShowAsignarRef(true)}>
+            <Settings className="h-3.5 w-3.5 mr-1" />
+            Asignar masivamente
+          </Button>
+        </div>
+      )}
+
+      {/* Modal asignación masiva de referencia */}
+      <AsignarReferenciaMasiva
+        open={showAsignarRef}
+        onClose={() => setShowAsignarRef(false)}
+        comunidades={comunidades}
+      />
+
       {/* Calculadoras */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div
