@@ -256,6 +256,19 @@ export {
   useActualizarMaterial
 } from './useMateriales'
 
+// Gestión de Precios
+export {
+  useReferenciasEnergia,
+  useDescuentosVigentes,
+  useHistorialAjustes,
+  useRegistrarReferencia,
+  useAplicarFactorPrecios,
+  usePreviewActualizacion,
+  useRecalcularFacturas,
+  useCrearDescuento,
+  useEliminarDescuento
+} from './useGestionPrecios'
+
 // Reportes y Dashboard
 export {
   useDashboardMetricas,

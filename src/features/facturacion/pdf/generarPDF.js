@@ -210,11 +210,14 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // Ordenar líneas según orden predefinido de conceptos
   const lineasOrdenadas = ordenarLineasFactura(lineas)
 
+  // Detectar si alguna línea tiene descuento
+  const hasDescuentos = lineasOrdenadas.some(l => (l.descuento_porcentaje || 0) > 0)
+
   // Preparar datos tabla
   const tableBody = lineasOrdenadas.map(linea => {
     // Solo el nombre del concepto, sin repetir el contador
     const concepto = linea.concepto_nombre || '-'
-    
+
     // Lecturas (usar caracteres ASCII compatibles) - 3 decimales
     // Mostrar lecturas incluso si son 0 (para evitar confusión con lecturas iniciales)
     let lecturas = '-'
@@ -230,18 +233,42 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
     // Precio con precisión variable según concepto
     const precioFormateado = formatPrecio(linea.precio_unitario, linea.concepto_codigo)
 
-    return [
-      concepto,
-      lecturas,
-      consumo,
-      precioFormateado,
-      formatImporte(linea.subtotal)  // Subtotal siempre 2 decimales
-    ]
+    const row = [concepto, lecturas, consumo, precioFormateado]
+
+    // Columna Dto condicional
+    if (hasDescuentos) {
+      row.push((linea.descuento_porcentaje || 0) > 0 ? `${linea.descuento_porcentaje}%` : '')
+    }
+
+    row.push(formatImporte(linea.subtotal))  // Subtotal siempre 2 decimales
+    return row
   })
+
+  // Cabecera y anchos según si hay descuentos
+  const tableHead = hasDescuentos
+    ? [['Concepto', 'Lecturas\u00A0(ant/act)', 'Consumo', 'Precio', 'Dto', 'Importe']]
+    : [['Concepto', 'Lecturas\u00A0(ant/act)', 'Consumo', 'Precio', 'Importe']]
+
+  const columnStyles = hasDescuentos
+    ? {
+        0: { cellWidth: 42 },  // Concepto
+        1: { cellWidth: 40, halign: 'center', fontSize: 8.5, overflow: 'visible' },  // Lecturas
+        2: { cellWidth: 30, halign: 'right', overflow: 'visible' },  // Consumo
+        3: { cellWidth: 26, halign: 'right', overflow: 'visible' },  // Precio
+        4: { cellWidth: 16, halign: 'center', overflow: 'visible' }, // Dto
+        5: { cellWidth: 26, halign: 'right', fontStyle: 'bold', overflow: 'visible' }  // Importe
+      }
+    : {
+        0: { cellWidth: 46 },  // Concepto
+        1: { cellWidth: 44, halign: 'center', fontSize: 8.5, overflow: 'visible' },  // Lecturas
+        2: { cellWidth: 33, halign: 'right', overflow: 'visible' },  // Consumo
+        3: { cellWidth: 30, halign: 'right', overflow: 'visible' },  // Precio
+        4: { cellWidth: 27, halign: 'right', fontStyle: 'bold', overflow: 'visible' }  // Importe
+      }
 
   autoTable(doc, {
     startY: y,
-    head: [['Concepto', 'Lecturas\u00A0(ant/act)', 'Consumo', 'Precio', 'Importe']],
+    head: tableHead,
     body: tableBody,
     theme: 'striped',
     headStyles: {
@@ -259,13 +286,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
       overflow: 'linebreak',
       cellWidth: 'wrap'
     },
-    columnStyles: {
-      0: { cellWidth: 46 }, // Concepto - reducido para dar espacio a Lecturas
-      1: { cellWidth: 44, halign: 'center', fontSize: 8.5, overflow: 'visible' }, // Lecturas - ampliado y fuente ajustada
-      2: { cellWidth: 33, halign: 'right', overflow: 'visible' }, // Consumo
-      3: { cellWidth: 30, halign: 'right', overflow: 'visible' }, // Precio
-      4: { cellWidth: 27, halign: 'right', fontStyle: 'bold', overflow: 'visible' } // Importe
-    },
+    columnStyles,
     margin: { left: margin, right: margin },
     tableWidth: contentWidth
   })

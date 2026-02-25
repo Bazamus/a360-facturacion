@@ -35,6 +35,7 @@ import {
   BookTemplate,
   Sliders,
   Package,
+  TrendingUp,
 } from 'lucide-react'
 
 // =====================================================
@@ -79,6 +80,7 @@ const sections = [
           { name: 'Dashboard Envíos', href: '/facturacion/envios', icon: Mail },
         ]
       },
+      { name: 'Gestión Precios', href: '/gestion-precios', icon: TrendingUp },
       {
         name: 'Remesas',
         href: '/remesas',

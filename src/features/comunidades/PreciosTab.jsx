@@ -1,21 +1,41 @@
 import { useState } from 'react'
-import { Plus, Edit2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Edit2, TrendingUp, Tag } from 'lucide-react'
 import { usePrecios, usePreciosVigentes, useCreatePrecio, useConceptos } from '@/hooks'
+import { useDescuentosVigentes } from '@/hooks/useGestionPrecios'
 import { Button, Modal, Input, Select, FormField, LoadingSpinner, EmptyState, Badge, DataTable } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { validarDecimalesPrecio, formatPrecio, getDecimalesPrecio } from '@/utils/precision'
+import { supabase } from '@/lib/supabase'
 
 export function PreciosTab({ comunidad }) {
+  const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
   const [showHistorico, setShowHistorico] = useState(false)
   const [conceptoSeleccionado, setConceptoSeleccionado] = useState(null)
+  const [referenciaEnergia, setReferenciaEnergia] = useState(comunidad.referencia_energia || '')
 
   const { data: preciosVigentes, isLoading: loadingVigentes } = usePreciosVigentes(comunidad.id)
   const { data: todosPrecios, isLoading: loadingTodos } = usePrecios(comunidad.id)
   const { data: conceptos } = useConceptos()
+  const { data: descuentos } = useDescuentosVigentes(comunidad.id)
   const createMutation = useCreatePrecio()
   const toast = useToast()
+
+  const handleReferenciaChange = async (e) => {
+    const valor = e.target.value || null
+    setReferenciaEnergia(e.target.value)
+    const { error } = await supabase
+      .from('comunidades')
+      .update({ referencia_energia: valor })
+      .eq('id', comunidad.id)
+    if (error) {
+      toast.error('Error al guardar referencia: ' + error.message)
+    } else {
+      toast.success('Referencia energética actualizada')
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -107,8 +127,60 @@ export function PreciosTab({ comunidad }) {
   const precios = showHistorico ? todosPrecios : preciosVigentes
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
+    <div className="space-y-6">
+      {/* Referencia energética + link */}
+      <div className="flex items-center justify-between gap-4 bg-gray-50 rounded-lg p-4">
+        <div className="flex items-center gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Referencia energética</label>
+            <select
+              value={referenciaEnergia}
+              onChange={handleReferenciaChange}
+              className="rounded-md border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500"
+            >
+              <option value="">Sin configurar</option>
+              <option value="P6_NATURGY">P6 NATURGY</option>
+              <option value="MIBGAS">MIBGAS</option>
+            </select>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/gestion-precios')}
+        >
+          <TrendingUp className="h-4 w-4 mr-1" />
+          Gestión masiva de precios
+        </Button>
+      </div>
+
+      {/* Descuentos activos */}
+      {descuentos?.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Tag className="h-4 w-4 text-amber-600" />
+            <h4 className="text-sm font-medium text-amber-800">Descuentos activos</h4>
+          </div>
+          <div className="space-y-1">
+            {descuentos.map(d => (
+              <div key={d.id} className="flex items-center gap-3 text-sm">
+                <Badge variant="primary">{d.concepto?.codigo}</Badge>
+                <span className="font-mono font-medium text-red-600">{d.porcentaje}%</span>
+                <span className="text-gray-500">
+                  hasta {formatDate(d.fecha_fin)}
+                </span>
+                {d.motivo && <span className="text-xs text-gray-400">— {d.motivo}</span>}
+                <Badge variant={d.aplicado ? 'success' : 'warning'}>
+                  {d.aplicado ? 'Aplicado' : 'Pendiente'}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Precios */}
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <h3 className="text-lg font-medium text-gray-900">Precios</h3>
           <label className="flex items-center gap-2 text-sm">

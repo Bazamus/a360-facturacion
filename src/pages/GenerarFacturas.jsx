@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useFacturas'
 import { usePreciosVigentes } from '@/hooks/useComunidades'
 import { useConceptos } from '@/hooks/useConceptos'
+import { useDescuentosVigentes } from '@/hooks/useGestionPrecios'
 import { supabase } from '@/lib/supabase'
 
 export default function GenerarFacturas() {
@@ -57,6 +58,7 @@ export default function GenerarFacturas() {
   })
   const { data: precios } = usePreciosVigentes(comunidadId)
   const { data: conceptos } = useConceptos()
+  const { data: descuentosVigentes } = useDescuentosVigentes(comunidadId)
 
   // Mutations
   const createFactura = useCreateFactura()
@@ -261,10 +263,28 @@ export default function GenerarFacturas() {
           let baseImponible = 0
           let orden = 0
 
+          // IDs de descuentos aplicados en esta factura (para marcar como aplicados)
+          const descuentosAplicadosIds = []
+
           for (const lectura of lecturasContador) {
             const precio = precios?.find(p => p.concepto_id === lectura.concepto_id)
             const precioUnitario = precio?.precio_unitario || lectura.precio_unitario || 0
-            const subtotal = Math.round((lectura.consumo || 0) * precioUnitario * 100) / 100
+
+            // Buscar descuento vigente para este concepto
+            const hoy = new Date().toISOString().split('T')[0]
+            const descuento = descuentosVigentes?.find(
+              d => d.concepto_id === lectura.concepto_id
+                && d.comunidad_id === comunidadId
+                && !d.aplicado
+                && d.fecha_inicio <= hoy
+                && d.fecha_fin >= hoy
+            )
+            const dtoPct = descuento?.porcentaje || 0
+            const bruto = (lectura.consumo || 0) * precioUnitario
+            const dtoImporte = dtoPct > 0 ? Math.round(bruto * dtoPct / 100 * 100) / 100 : 0
+            const subtotal = Math.round((bruto - dtoImporte) * 100) / 100
+
+            if (descuento) descuentosAplicadosIds.push(descuento.id)
 
             baseImponible += subtotal
 
@@ -283,6 +303,8 @@ export default function GenerarFacturas() {
               consumo: lectura.consumo,
               cantidad: lectura.consumo,
               precio_unitario: precioUnitario,
+              descuento_porcentaje: dtoPct,
+              descuento_importe: dtoImporte,
               subtotal,
               orden: orden++
             })
@@ -295,7 +317,21 @@ export default function GenerarFacturas() {
             const precioTF = precios?.find(p => p.concepto_id === conceptoTF.id)
 
             if (precioTF) {
-              const subtotalTF = Math.round(precioTF.precio_unitario * 100) / 100
+              // Buscar descuento vigente para término fijo
+              const hoyTF = new Date().toISOString().split('T')[0]
+              const descuentoTF = descuentosVigentes?.find(
+                d => d.concepto_id === conceptoTF.id
+                  && d.comunidad_id === comunidadId
+                  && !d.aplicado
+                  && d.fecha_inicio <= hoyTF
+                  && d.fecha_fin >= hoyTF
+              )
+              const dtoPctTF = descuentoTF?.porcentaje || 0
+              const brutoTF = precioTF.precio_unitario
+              const dtoImporteTF = dtoPctTF > 0 ? Math.round(brutoTF * dtoPctTF / 100 * 100) / 100 : 0
+              const subtotalTF = Math.round((brutoTF - dtoImporteTF) * 100) / 100
+
+              if (descuentoTF) descuentosAplicadosIds.push(descuentoTF.id)
 
               baseImponible += subtotalTF
 
@@ -308,6 +344,8 @@ export default function GenerarFacturas() {
                 es_termino_fijo: true,
                 cantidad: 1,
                 precio_unitario: precioTF.precio_unitario,
+                descuento_porcentaje: dtoPctTF,
+                descuento_importe: dtoImporteTF,
                 subtotal: subtotalTF,
                 orden: orden++
               })
@@ -363,6 +401,14 @@ export default function GenerarFacturas() {
                 updated_at: new Date().toISOString()
               })
               .in('id', lecturaIds)
+          }
+
+          // Marcar descuentos como aplicados
+          if (descuentosAplicadosIds.length > 0) {
+            await supabase
+              .from('descuentos')
+              .update({ aplicado: true })
+              .in('id', [...new Set(descuentosAplicadosIds)])
           }
 
           results.success.push({

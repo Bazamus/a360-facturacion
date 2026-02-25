@@ -20,6 +20,7 @@ import { ComunicacionesPage } from '@/pages/Comunicaciones'
 import { SATPage } from '@/pages/SAT'
 import { CalendarioPage } from '@/pages/Calendario'
 import { PortalPage } from '@/pages/Portal'
+import GestionPreciosPage from '@/pages/GestionPrecios'
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
           <Route path="importar-exportar" element={<ImportarExportarPage />} />
           <Route path="lecturas/*" element={<LecturasPage />} />
           <Route path="facturacion/*" element={<FacturacionPage />} />
+          <Route path="gestion-precios" element={<GestionPreciosPage />} />
           <Route path="remesas/*" element={<RemesasPage />} />
           <Route path="reportes/*" element={<ReportesPage />} />
           <Route path="notas" element={<NotasPage />} />

@@ -166,12 +166,24 @@ export function generarDatosFactura(params) {
     periodoFin,
     lecturas,
     precios,
-    conceptos
+    conceptos,
+    descuentos = []
   } = params
 
   const diasPeriodo = calcularDiasPeriodo(periodoInicio, periodoFin)
   const diasMes = getDiasDelMes(periodoInicio)
   const esParcial = diasPeriodo < diasMes
+
+  // Helper: find applicable discount for a concepto
+  const findDescuento = (conceptoId) => {
+    const hoy = new Date().toISOString().split('T')[0]
+    return descuentos.find(
+      d => d.concepto_id === conceptoId
+        && !d.aplicado
+        && d.fecha_inicio <= hoy
+        && d.fecha_fin >= hoy
+    )
+  }
 
   // Generar líneas desde lecturas
   const lineas = []
@@ -183,7 +195,10 @@ export function generarDatosFactura(params) {
 
     if (!concepto || !precio) continue
 
-    const subtotal = calcularSubtotal(lectura.consumo, precio.precio_unitario)
+    const descuento = findDescuento(lectura.concepto_id)
+    const dtoPct = descuento?.porcentaje || 0
+    const subtotal = calcularSubtotal(lectura.consumo, precio.precio_unitario, dtoPct)
+    const dtoImporte = dtoPct > 0 ? round2(lectura.consumo * precio.precio_unitario * dtoPct / 100) : 0
 
     lineas.push({
       lectura_id: lectura.id,
@@ -200,6 +215,8 @@ export function generarDatosFactura(params) {
       consumo: lectura.consumo,
       cantidad: lectura.consumo,
       precio_unitario: precio.precio_unitario,
+      descuento_porcentaje: dtoPct,
+      descuento_importe: dtoImporte,
       subtotal,
       orden: orden++
     })
@@ -211,7 +228,11 @@ export function generarDatosFactura(params) {
 
   if (conceptoTF && precioTF) {
     const cantidadTF = esParcial ? (diasPeriodo / diasMes) : 1  // No redondear, usar precisión completa
-    const subtotalTF = calcularProrrateoTerminoFijo(precioTF.precio_unitario, diasPeriodo, diasMes)
+    const descuentoTF = findDescuento(conceptoTF.id)
+    const dtoPctTF = descuentoTF?.porcentaje || 0
+    const subtotalBrutoTF = calcularProrrateoTerminoFijo(precioTF.precio_unitario, diasPeriodo, diasMes)
+    const dtoImporteTF = dtoPctTF > 0 ? round2(subtotalBrutoTF * dtoPctTF / 100) : 0
+    const subtotalTF = round2(subtotalBrutoTF - dtoImporteTF)
 
     lineas.push({
       lectura_id: null,
@@ -222,6 +243,8 @@ export function generarDatosFactura(params) {
       es_termino_fijo: true,
       cantidad: cantidadTF,
       precio_unitario: precioTF.precio_unitario,
+      descuento_porcentaje: dtoPctTF,
+      descuento_importe: dtoImporteTF,
       subtotal: subtotalTF,
       orden: orden++
     })
