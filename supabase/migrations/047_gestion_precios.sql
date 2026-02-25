@@ -401,3 +401,28 @@ COMMENT ON FUNCTION recalcular_facturas_con_nuevos_precios
 GRANT EXECUTE ON FUNCTION aplicar_factor_precios TO authenticated;
 GRANT EXECUTE ON FUNCTION get_preview_actualizacion_precios TO authenticated;
 GRANT EXECUTE ON FUNCTION recalcular_facturas_con_nuevos_precios TO authenticated;
+
+-- ────────────────────────────────────────────────────────────
+-- 9. Actualizar vista v_comunidades_resumen con referencia_energia
+-- ────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE VIEW v_comunidades_resumen AS
+SELECT
+  c.id,
+  c.nombre,
+  c.codigo,
+  c.ciudad,
+  c.activa,
+  c.nombre_agrupacion,
+  c.nombre_ubicacion,
+  c.referencia_energia,
+  COUNT(DISTINCT a.id) AS num_agrupaciones,
+  COUNT(DISTINCT u.id) AS num_ubicaciones,
+  COUNT(DISTINCT cont.id) AS num_contadores,
+  COUNT(DISTINCT uc.cliente_id) FILTER (WHERE uc.es_actual = true) AS num_clientes_actuales
+FROM comunidades c
+LEFT JOIN agrupaciones a ON c.id = a.comunidad_id AND a.activa = true
+LEFT JOIN ubicaciones u ON a.id = u.agrupacion_id AND u.activa = true
+LEFT JOIN contadores cont ON u.id = cont.ubicacion_id AND cont.activo = true
+LEFT JOIN ubicaciones_clientes uc ON u.id = uc.ubicacion_id
+GROUP BY c.id, c.nombre, c.codigo, c.ciudad, c.activa, c.nombre_agrupacion, c.nombre_ubicacion, c.referencia_energia;
