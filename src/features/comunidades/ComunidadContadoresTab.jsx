@@ -10,7 +10,8 @@ export function ComunidadContadoresTab({ comunidad }) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const { data: contadores, isLoading } = useContadores({ comunidadId: comunidad.id })
+  const { data: contadoresResult, isLoading } = useContadores({ comunidadId: comunidad.id })
+  const contadores = contadoresResult?.data || []
 
   // Reset página cuando cambia el filtro de búsqueda
   useEffect(() => {
