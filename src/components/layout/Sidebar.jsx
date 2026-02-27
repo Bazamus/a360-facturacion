@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/brand/Logo'
 import { useNotasCount } from '@/hooks/useComentarios'
+import { usePendientesCount } from '@/hooks/useComunicaciones'
 import { useAuth } from '@/features/auth/AuthContext'
 import {
   LayoutDashboard,
@@ -57,6 +58,7 @@ const sections = [
         name: 'Comunicaciones',
         href: '/comunicaciones',
         icon: MessageSquare,
+        hasBadge: 'comunicaciones',
         children: [
           { name: 'Dashboard', href: '/comunicaciones', icon: MessageSquare },
           { name: 'Historial', href: '/comunicaciones/historial', icon: History },
@@ -162,6 +164,7 @@ function getActiveGroup(pathname) {
 export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) {
   const location = useLocation()
   const { data: notasCount } = useNotasCount()
+  const { data: comPendientes = 0 } = usePendientesCount()
   const { profile } = useAuth()
 
   // Acordeón: solo un grupo expandido a la vez
@@ -276,10 +279,15 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
               )}
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              {/* Badge de Notas (punto) */}
-              {item.hasBadge && notasCount > 0 && (
+              {/* Badge colapsado (punto con número) */}
+              {item.hasBadge === true && notasCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-primary-700">
                   {notasCount > 9 ? '9+' : notasCount}
+                </span>
+              )}
+              {item.hasBadge === 'comunicaciones' && comPendientes > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-primary-700">
+                  {comPendientes > 9 ? '9+' : comPendientes}
                 </span>
               )}
             </NavLink>
@@ -376,10 +384,15 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
           >
             <item.icon className="h-5 w-5 shrink-0" />
             {item.name}
-            {/* Badge de Notas (número) */}
-            {item.hasBadge && notasCount > 0 && (
+            {/* Badge expandido (número) */}
+            {item.hasBadge === true && notasCount > 0 && (
               <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
                 {notasCount > 99 ? '99+' : notasCount}
+              </span>
+            )}
+            {item.hasBadge === 'comunicaciones' && comPendientes > 0 && (
+              <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                {comPendientes > 99 ? '99+' : comPendientes}
               </span>
             )}
           </NavLink>

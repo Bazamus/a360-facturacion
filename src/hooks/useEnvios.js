@@ -16,8 +16,9 @@ export function useFacturasPendientesEnvio(filtros = {}) {
     queryFn: async () => {
       let query = supabase
         .from('v_facturas_pendientes_envio')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('fecha_factura', { ascending: false })
+        .range(0, 4999)
 
       if (comunidadId) {
         query = query.eq('comunidad_id', comunidadId)
@@ -36,10 +37,10 @@ export function useFacturasPendientesEnvio(filtros = {}) {
         query = query.lte('fecha_factura', fechaHasta)
       }
 
-      const { data, error } = await query
+      const { data, error, count } = await query
 
       if (error) throw error
-      return data || []
+      return { data: data || [], count: count ?? (data || []).length }
     }
   })
 }

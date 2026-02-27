@@ -60,6 +60,7 @@ export default function FacturaDetalle({ showPdf = false }) {
 
   // Ordenar líneas según orden predefinido de conceptos
   const lineasOrdenadas = useMemo(() => ordenarLineasFactura(lineas), [lineas])
+  const hasDescuentos = lineasOrdenadas?.some(l => (l.descuento_porcentaje || 0) > 0)
 
   const emitirFactura = useEmitirFactura()
   const anularFactura = useAnularFactura()
@@ -409,6 +410,11 @@ export default function FacturaDetalle({ showPdf = false }) {
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   Precio Unit.
                 </th>
+                {hasDescuentos && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    Dto
+                  </th>
+                )}
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   Subtotal
                 </th>
@@ -435,6 +441,11 @@ export default function FacturaDetalle({ showPdf = false }) {
                   <td className="px-6 py-4 text-right whitespace-nowrap">
                     {formatPrecio(linea.precio_unitario, linea.concepto_codigo)}
                   </td>
+                  {hasDescuentos && (
+                    <td className="px-6 py-4 text-right whitespace-nowrap text-red-600 font-medium">
+                      {(linea.descuento_porcentaje || 0) > 0 ? `${linea.descuento_porcentaje}%` : ''}
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-right whitespace-nowrap font-medium">
                     {formatCurrency(linea.subtotal)}
                   </td>
@@ -443,7 +454,7 @@ export default function FacturaDetalle({ showPdf = false }) {
             </tbody>
             <tfoot className="bg-gray-50">
               <tr>
-                <td colSpan="3" className="px-6 py-3 text-right text-sm text-gray-500">
+                <td colSpan={hasDescuentos ? 4 : 3} className="px-6 py-3 text-right text-sm text-gray-500">
                   Base imponible
                 </td>
                 <td className="px-6 py-3 text-right font-medium">
@@ -451,7 +462,7 @@ export default function FacturaDetalle({ showPdf = false }) {
                 </td>
               </tr>
               <tr>
-                <td colSpan="3" className="px-6 py-3 text-right text-sm text-gray-500">
+                <td colSpan={hasDescuentos ? 4 : 3} className="px-6 py-3 text-right text-sm text-gray-500">
                   IVA ({factura.porcentaje_iva}%)
                 </td>
                 <td className="px-6 py-3 text-right font-medium">
@@ -459,7 +470,7 @@ export default function FacturaDetalle({ showPdf = false }) {
                 </td>
               </tr>
               <tr className="bg-blue-50">
-                <td colSpan="3" className="px-6 py-3 text-right text-sm font-semibold">
+                <td colSpan={hasDescuentos ? 4 : 3} className="px-6 py-3 text-right text-sm font-semibold">
                   TOTAL
                 </td>
                 <td className="px-6 py-3 text-right text-lg font-bold text-blue-700">

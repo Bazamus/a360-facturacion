@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/Toast'
 import { formatDate } from '@/lib/utils'
 import { DescuentoForm } from './DescuentoForm'
 import {
-  useDescuentosVigentes,
+  useDescuentos,
   useCrearDescuento,
   useEliminarDescuento,
   useAplicarDescuentoFacturas
@@ -22,7 +22,7 @@ export function DescuentosTab({ comunidades = [], conceptos = [] }) {
   const [showForm, setShowForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
-  const { data: descuentos, isLoading } = useDescuentosVigentes()
+  const { data: descuentos, isLoading } = useDescuentos()
   const crear = useCrearDescuento()
   const eliminar = useEliminarDescuento()
   const aplicarFacturas = useAplicarDescuentoFacturas()
@@ -103,6 +103,7 @@ export function DescuentosTab({ comunidades = [], conceptos = [] }) {
       key: 'fecha_fin',
       header: 'Expiración',
       render: (val) => {
+        if (!val) return <span className="text-gray-400">Sin expiración</span>
         const hoy = new Date().toISOString().split('T')[0]
         const expirado = val < hoy
         return (
@@ -115,11 +116,13 @@ export function DescuentosTab({ comunidades = [], conceptos = [] }) {
     {
       key: 'aplicado',
       header: 'Estado',
-      render: (val) => (
-        <Badge variant={val ? 'success' : 'warning'}>
-          {val ? 'Aplicado' : 'Pendiente'}
-        </Badge>
-      )
+      render: (val, row) => {
+        const hoy = new Date().toISOString().split('T')[0]
+        const expirado = row.fecha_fin && row.fecha_fin < hoy
+        if (val) return <Badge variant="success">Aplicado</Badge>
+        if (expirado) return <Badge variant="danger">Expirado</Badge>
+        return <Badge variant="warning">Vigente</Badge>
+      }
     },
     {
       key: 'motivo',

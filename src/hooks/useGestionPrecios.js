@@ -29,6 +29,33 @@ export function useReferenciasEnergia(tipo, anio) {
 }
 
 /**
+ * Todos los descuentos (para pestaña de gestión)
+ */
+export function useDescuentos(comunidadId) {
+  return useQuery({
+    queryKey: ['descuentos', 'todos', comunidadId],
+    queryFn: async () => {
+      let query = supabase
+        .from('descuentos')
+        .select(`
+          *,
+          comunidad:comunidades(id, nombre, codigo),
+          concepto:conceptos(id, codigo, nombre)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (comunidadId) {
+        query = query.eq('comunidad_id', comunidadId)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+      return data
+    }
+  })
+}
+
+/**
  * Descuentos vigentes (no expirados)
  */
 export function useDescuentosVigentes(comunidadId) {

@@ -436,6 +436,7 @@ export function useRealtimeComunicaciones() {
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
           queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
+          queryClient.invalidateQueries({ queryKey: ['comunicaciones-pendientes-count'] })
 
           // Notificación del navegador para mensajes entrantes
           if (payload.new.direccion === 'entrante' && Notification.permission === 'granted') {
@@ -455,17 +456,33 @@ export function useRealtimeComunicaciones() {
   }, [queryClient])
 }
 
+// Count de mensajes pendientes de respuesta (para badges Header/Sidebar)
+export function usePendientesCount() {
+  return useQuery({
+    queryKey: ['comunicaciones-pendientes-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('comunicaciones')
+        .select('id', { count: 'exact', head: true })
+        .eq('estado', 'recibido')
+        .eq('direccion', 'entrante')
+      if (error) throw error
+      return count ?? 0
+    },
+    refetchInterval: 60000,
+  })
+}
+
 // Mensajes de una conversación archivada (todos los estados, por teléfono)
+// Usa RPC SECURITY DEFINER para bypasear RLS
 export function useMensajesArchivados(telefono) {
   return useQuery({
     queryKey: ['historial-mensajes', telefono],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('comunicaciones')
-        .select('id, canal, direccion, contenido, contenido_tipo, estado, remitente_nombre, created_at')
-        .eq('remitente_telefono', telefono)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      const { data, error } = await supabase.rpc('get_mensajes_por_telefono', {
+        p_telefono: telefono,
+        p_limit: 50,
+      })
       if (error) throw error
       return data ?? []
     },

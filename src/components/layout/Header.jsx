@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
 import { Logo } from '@/components/brand/Logo'
+import { usePendientesCount } from '@/hooks/useComunicaciones'
 import { Menu, Bell, LogOut, User } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
 export function Header({ onMenuClick }) {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const { data: pendientesCount = 0 } = usePendientesCount()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
 
@@ -51,12 +53,19 @@ export function Header({ onMenuClick }) {
 
         {/* Acciones de la derecha */}
         <div className="flex items-center gap-x-4 lg:gap-x-6">
-          {/* Notificaciones */}
+          {/* Notificaciones — badge con pendientes */}
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
+            className="relative -m-2.5 p-2.5 text-gray-400 hover:text-gray-500 transition-colors"
+            onClick={() => navigate('/comunicaciones')}
+            title={pendientesCount > 0 ? `${pendientesCount} mensajes pendientes` : 'Comunicaciones'}
           >
             <Bell className="h-6 w-6" />
+            {pendientesCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                {pendientesCount > 99 ? '99+' : pendientesCount}
+              </span>
+            )}
           </button>
 
           {/* Separador */}

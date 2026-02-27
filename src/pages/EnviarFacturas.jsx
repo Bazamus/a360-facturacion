@@ -31,7 +31,9 @@ export default function EnviarFacturas() {
   const [resultados, setResultados] = useState(null)
   const [isCompleted, setIsCompleted] = useState(false)
 
-  const { data: facturas = [], isLoading, refetch } = useFacturasPendientesEnvio(filtros)
+  const { data: facturasResult, isLoading, refetch } = useFacturasPendientesEnvio(filtros)
+  const facturas = facturasResult?.data ?? facturasResult ?? []
+  const totalCount = facturasResult?.count ?? facturas.length
   const enviarMasivo = useEnviarFacturasMasivo()
 
   const facturasConEmail = facturas.filter(
@@ -137,7 +139,7 @@ export default function EnviarFacturas() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-primary-800 font-medium">
-              {facturasConEmail.length} facturas pendientes de envío con email válido
+              {totalCount} facturas pendientes de envío con email válido
             </p>
             {selectedIds.length > 0 && (
               <p className="text-primary-600 text-sm mt-1">
