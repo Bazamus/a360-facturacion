@@ -1,0 +1,134 @@
+{
+  "name": "Resolve Chatwoot Conversation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "resolve-chatwoot",
+        "responseMode": "lastNode",
+        "options": {
+          "responseCode": 200,
+          "responseData": "allEntries"
+        }
+      },
+      "id": "webhook-resolve",
+      "name": "Webhook Resolve",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "resolve-chatwoot",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "has-conv-id",
+              "leftValue": "={{ $json.body?.conversation_id || $json.conversation_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-has-id",
+      "name": "Tiene conversation_id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [280, 0]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const raw = item.json;\n  const convId = raw.body?.conversation_id || raw.conversation_id;\n  results.push({ json: { conversation_id: String(convId) } });\n}\n\nreturn results;"
+      },
+      "id": "extraer-conv-id",
+      "name": "Extraer Conversation ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, -60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://chat.a360se.com/api/v1/accounts/1/conversations/{{ $json.conversation_id }}/toggle_status",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'resolved' }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "C2D4BxQadaEwN5wAwBaGHC6e"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "resolve-chatwoot",
+      "name": "Resolver Conversacion Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, -60],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const resp = item.json;\n  const ok = resp.current_status === 'resolved' || resp.payload?.current_status === 'resolved';\n  results.push({\n    json: {\n      success: ok,\n      conversation_id: $('Extraer Conversation ID').item.json.conversation_id,\n      current_status: resp.current_status || resp.payload?.current_status || 'unknown',\n      message: ok ? 'Conversacion resuelta correctamente' : 'No se pudo resolver la conversacion'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "formatear-respuesta",
+      "name": "Formatear Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, -60],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{ json: { success: false, error: 'conversation_id es requerido' } }];"
+      },
+      "id": "error-sin-id",
+      "name": "Error: sin ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 120]
+    }
+  ],
+  "connections": {
+    "Webhook Resolve": {
+      "main": [[{ "node": "Tiene conversation_id?", "type": "main", "index": 0 }]]
+    },
+    "Tiene conversation_id?": {
+      "main": [
+        [{ "node": "Extraer Conversation ID", "type": "main", "index": 0 }],
+        [{ "node": "Error: sin ID", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extraer Conversation ID": {
+      "main": [[{ "node": "Resolver Conversacion Chatwoot", "type": "main", "index": 0 }]]
+    },
+    "Resolver Conversacion Chatwoot": {
+      "main": [[{ "node": "Formatear Respuesta", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "CRM" }, { "name": "Chatwoot" }],
+  "active": true
+}

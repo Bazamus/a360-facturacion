@@ -382,6 +382,44 @@
       "typeVersion": 4.2,
       "position": [1040, 120],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://rvxmczogxoncdlxpptgb.supabase.co/rest/v1/comunicaciones?remitente_telefono=eq.{{ $('Extraer Datos Mensaje').item.json.telefono }}&chatwoot_conversation_id=is.null",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chatwoot_conversation_id: $('Extraer Conversation ID').item.json.chatwoot_conversation_id }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2eG1jem9neG9uY2RseHBwdGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTg5OTMwMiwiZXhwIjoyMDgxNDc1MzAyfQ.8RHtJEXpFS5eR5eSEn15iQQ4BJKWGGmFFXYqUQQzB-8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "propagar-chatwoot-id",
+      "name": "PATCH Propagar chatwoot_id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3560, -120],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -432,6 +470,11 @@
       "main": [
         [{ "node": "UPDATE chatwoot_conversation_id", "type": "main", "index": 0 }],
         []
+      ]
+    },
+    "UPDATE chatwoot_conversation_id": {
+      "main": [
+        [{ "node": "PATCH Propagar chatwoot_id", "type": "main", "index": 0 }]
       ]
     }
   },
