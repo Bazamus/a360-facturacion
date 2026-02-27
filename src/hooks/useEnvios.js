@@ -6,25 +6,27 @@ import { supabase } from '../lib/supabase'
 // =====================================================
 
 /**
- * Hook para obtener facturas pendientes de envío
+ * Hook para obtener facturas pendientes de envío (paginación server-side)
  */
 export function useFacturasPendientesEnvio(filtros = {}) {
-  const { comunidadId, estado, fechaDesde, fechaHasta } = filtros
+  const { comunidadId, estado, fechaDesde, fechaHasta, page = 1, pageSize = 50 } = filtros
 
   return useQuery({
-    queryKey: ['facturas-pendientes-envio', comunidadId, estado, fechaDesde, fechaHasta],
+    queryKey: ['facturas-pendientes-envio', comunidadId, estado, fechaDesde, fechaHasta, page, pageSize],
     queryFn: async () => {
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+
       let query = supabase
         .from('v_facturas_pendientes_envio')
         .select('*', { count: 'exact' })
         .order('fecha_factura', { ascending: false })
-        .range(0, 4999)
+        .range(from, to)
 
       if (comunidadId) {
         query = query.eq('comunidad_id', comunidadId)
       }
 
-      // Solo filtrar por estado si se especifica uno concreto (vacío = todos)
       if (estado) {
         query = query.eq('estado_envio', estado)
       }
@@ -40,9 +42,69 @@ export function useFacturasPendientesEnvio(filtros = {}) {
       const { data, error, count } = await query
 
       if (error) throw error
-      return { data: data || [], count: count ?? (data || []).length }
+      return { data: data || [], count: count ?? 0 }
     }
   })
+}
+
+/**
+ * Hook para count real de pendientes de envío (solo facturas con email, no enviadas)
+ * Usado en el banner resumen — siempre muestra pendientes reales independientemente del filtro de tabla
+ */
+export function usePendientesEnvioCount(filtros = {}) {
+  const { comunidadId, fechaDesde, fechaHasta } = filtros
+
+  return useQuery({
+    queryKey: ['pendientes-envio-count', comunidadId, fechaDesde, fechaHasta],
+    queryFn: async () => {
+      let query = supabase
+        .from('v_facturas_pendientes_envio')
+        .select('id', { count: 'exact', head: true })
+        .eq('estado_envio', 'pendiente')
+
+      if (comunidadId) query = query.eq('comunidad_id', comunidadId)
+      if (fechaDesde) query = query.gte('fecha_factura', fechaDesde)
+      if (fechaHasta) query = query.lte('fecha_factura', fechaHasta)
+
+      const { count, error } = await query
+      if (error) throw error
+      return count ?? 0
+    }
+  })
+}
+
+/**
+ * Fetch all IDs de facturas pendientes de envío (para "Seleccionar todas")
+ * Recorre en lotes de 1000 para superar el límite de PostgREST
+ */
+export async function fetchAllPendienteIds(filtros = {}) {
+  const { comunidadId, fechaDesde, fechaHasta } = filtros
+  const allIds = []
+  let from = 0
+  const batchSize = 1000
+
+  while (true) {
+    let query = supabase
+      .from('v_facturas_pendientes_envio')
+      .select('id')
+      .eq('estado_envio', 'pendiente')
+      .order('fecha_factura', { ascending: false })
+      .range(from, from + batchSize - 1)
+
+    if (comunidadId) query = query.eq('comunidad_id', comunidadId)
+    if (fechaDesde) query = query.gte('fecha_factura', fechaDesde)
+    if (fechaHasta) query = query.lte('fecha_factura', fechaHasta)
+
+    const { data, error } = await query
+    if (error) throw error
+    if (!data || data.length === 0) break
+
+    allIds.push(...data.map(r => r.id))
+    if (data.length < batchSize) break
+    from += batchSize
+  }
+
+  return allIds
 }
 
 /**

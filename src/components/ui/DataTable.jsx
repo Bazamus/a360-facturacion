@@ -14,14 +14,23 @@ export function DataTable({
   pageSize = 10,
   onRowClick,
   sortable = true,
-  className
+  className,
+  // Server-side pagination props
+  totalCount,
+  page,
+  onPageChange
 }) {
+  const isServerSide = totalCount != null && page != null && onPageChange != null
+
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Ordenar datos
+  const effectivePage = isServerSide ? page : currentPage
+  const effectiveSetPage = isServerSide ? onPageChange : setCurrentPage
+
+  // Ordenar datos (solo client-side)
   const sortedData = useMemo(() => {
-    if (!sortConfig.key) return data
+    if (isServerSide || !sortConfig.key) return data
 
     return [...data].sort((a, b) => {
       const aValue = a[sortConfig.key]
@@ -39,15 +48,17 @@ export function DataTable({
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
       return 0
     })
-  }, [data, sortConfig])
+  }, [data, sortConfig, isServerSide])
 
-  // Paginar datos
+  // Paginar datos (solo client-side)
   const paginatedData = useMemo(() => {
+    if (isServerSide) return data
     const start = (currentPage - 1) * pageSize
     return sortedData.slice(start, start + pageSize)
-  }, [sortedData, currentPage, pageSize])
+  }, [sortedData, currentPage, pageSize, isServerSide, data])
 
-  const totalPages = Math.ceil(data.length / pageSize)
+  const effectiveTotalCount = isServerSide ? totalCount : data.length
+  const totalPages = Math.ceil(effectiveTotalCount / pageSize)
 
   const handleSort = (key) => {
     if (!sortable) return
@@ -140,25 +151,25 @@ export function DataTable({
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
           <div className="text-sm text-gray-500">
-            Mostrando {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, data.length)} de {data.length}
+            Mostrando {((effectivePage - 1) * pageSize) + 1} - {Math.min(effectivePage * pageSize, effectiveTotalCount)} de {effectiveTotalCount}
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              onClick={() => effectiveSetPage(isServerSide ? effectivePage - 1 : p => Math.max(1, p - 1))}
+              disabled={effectivePage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm text-gray-700">
-              Página {currentPage} de {totalPages}
+              Página {effectivePage} de {totalPages}
             </span>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => effectiveSetPage(isServerSide ? effectivePage + 1 : p => Math.min(totalPages, p + 1))}
+              disabled={effectivePage === totalPages}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

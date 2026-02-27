@@ -3,12 +3,15 @@ import { DataTable, Checkbox } from '../../../components/ui'
 import { EstadoEnvioBadge } from './EstadoEnvioBadge'
 import { Mail, AlertTriangle, Eye } from 'lucide-react'
 
-export function EnvioFacturasTable({ 
-  facturas = [], 
-  selectedIds = [], 
+export function EnvioFacturasTable({
+  facturas = [],
+  selectedIds = [],
   onSelectionChange,
   onViewFactura,
-  isLoading 
+  isLoading,
+  totalCount,
+  page,
+  onPageChange
 }) {
   const facturasConEmail = facturas.filter(f => f.cliente_email && f.estado_envio !== 'enviado')
   
@@ -152,14 +155,18 @@ export function EnvioFacturasTable({
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => onSelectionChange(facturasConEmail.map(f => f.id))}
+            onClick={() => {
+              const pageIds = facturasConEmail.map(f => f.id)
+              const merged = [...new Set([...selectedIds, ...pageIds])]
+              onSelectionChange(merged)
+            }}
             className="text-sm text-primary-600 hover:text-primary-700"
           >
-            Seleccionar todas con email válido ({facturasConEmail.length})
+            Seleccionar página actual ({facturasConEmail.length})
           </button>
           {selectedIds.length > 0 && (
             <span className="text-sm text-gray-600">
-              {selectedIds.length} seleccionadas
+              {selectedIds.length} seleccionadas en total
             </span>
           )}
         </div>
@@ -170,6 +177,10 @@ export function EnvioFacturasTable({
         data={facturas}
         isLoading={isLoading}
         emptyMessage="No hay facturas pendientes de envío"
+        pageSize={50}
+        totalCount={totalCount}
+        page={page}
+        onPageChange={onPageChange}
       />
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Send, ArrowLeft, CloudUpload } from 'lucide-react'
+import { Mail, Send, ArrowLeft, CloudUpload, CheckCheck, Loader2 } from 'lucide-react'
 import { Button, Checkbox } from '../components/ui'
 import { useToast } from '../components/ui/Toast'
 import {
@@ -10,19 +10,22 @@ import {
 } from '../features/envios/components'
 import {
   useFacturasPendientesEnvio,
-  useEnviarFacturasMasivo
+  useEnviarFacturasMasivo,
+  usePendientesEnvioCount,
+  fetchAllPendienteIds
 } from '../hooks/useEnvios'
 
 export default function EnviarFacturas() {
   const navigate = useNavigate()
   const toast = useToast()
-  
+
   const [filtros, setFiltros] = useState({
     comunidadId: null,
     estado: '',
     fechaDesde: null,
     fechaHasta: null
   })
+  const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState([])
   const [subirOneDrive, setSubirOneDrive] = useState(true)
   const [modoTest, setModoTest] = useState(false)
@@ -30,15 +33,36 @@ export default function EnviarFacturas() {
   const [progress, setProgress] = useState(null)
   const [resultados, setResultados] = useState(null)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [loadingSelectAll, setLoadingSelectAll] = useState(false)
 
-  const { data: facturasResult, isLoading, refetch } = useFacturasPendientesEnvio(filtros)
-  const facturas = facturasResult?.data ?? facturasResult ?? []
-  const totalCount = facturasResult?.count ?? facturas.length
+  const { data: facturasResult, isLoading, refetch } = useFacturasPendientesEnvio({ ...filtros, page, pageSize: 50 })
+  const facturas = facturasResult?.data ?? []
+  const tableCount = facturasResult?.count ?? 0
   const enviarMasivo = useEnviarFacturasMasivo()
 
-  const facturasConEmail = facturas.filter(
-    f => f.cliente_email && f.estado_envio !== 'enviado'
-  )
+  // Count real de pendientes (siempre = facturas con email, no enviadas, emitidas)
+  const { data: pendientesCount = 0 } = usePendientesEnvioCount(filtros)
+
+  // Seleccionar TODAS las pendientes (fetch IDs en lotes, supera límite 1000)
+  const handleSelectAll = async () => {
+    setLoadingSelectAll(true)
+    try {
+      const ids = await fetchAllPendienteIds(filtros)
+      setSelectedIds(ids)
+      toast.success(`${ids.length} facturas pendientes seleccionadas`)
+    } catch (err) {
+      toast.error('Error al obtener facturas: ' + err.message)
+    } finally {
+      setLoadingSelectAll(false)
+    }
+  }
+
+  // Reset page al cambiar filtros
+  const handleFiltrosChange = (newFiltros) => {
+    setFiltros(newFiltros)
+    setPage(1)
+    setSelectedIds([])
+  }
 
   const handleEnviar = async () => {
     if (selectedIds.length === 0) {
@@ -111,7 +135,7 @@ export default function EnviarFacturas() {
       </div>
 
       {/* Filtros */}
-      <EnvioFilters filtros={filtros} onFiltrosChange={setFiltros} />
+      <EnvioFilters filtros={filtros} onFiltrosChange={handleFiltrosChange} />
 
       {/* Toggle de Modo Test */}
       <div className="flex items-center gap-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -139,8 +163,18 @@ export default function EnviarFacturas() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-primary-800 font-medium">
-              {totalCount} facturas pendientes de envío con email válido
+              {pendientesCount} facturas pendientes de envío con email válido
             </p>
+            {filtros.estado && filtros.estado !== 'pendiente' && (
+              <p className="text-primary-600 text-xs mt-0.5">
+                Mostrando {tableCount} con filtro "{filtros.estado === 'enviado' ? 'Ya enviados' : filtros.estado === 'sin_email' ? 'Sin email' : filtros.estado}"
+              </p>
+            )}
+            {!filtros.estado && tableCount !== pendientesCount && (
+              <p className="text-primary-600 text-xs mt-0.5">
+                Mostrando {tableCount} facturas en total (todos los estados)
+              </p>
+            )}
             {selectedIds.length > 0 && (
               <p className="text-primary-600 text-sm mt-1">
                 {selectedIds.length} facturas seleccionadas
@@ -148,11 +182,16 @@ export default function EnviarFacturas() {
             )}
           </div>
           <Button
-            onClick={() => setSelectedIds(facturasConEmail.map(f => f.id))}
+            onClick={handleSelectAll}
             variant="outline"
             size="sm"
+            disabled={loadingSelectAll || pendientesCount === 0}
           >
-            Seleccionar todas
+            {loadingSelectAll ? (
+              <><Loader2 size={14} className="animate-spin mr-1" /> Cargando...</>
+            ) : (
+              <><CheckCheck size={14} className="mr-1" /> Seleccionar todas ({pendientesCount})</>
+            )}
           </Button>
         </div>
       </div>
@@ -165,6 +204,9 @@ export default function EnviarFacturas() {
           onSelectionChange={setSelectedIds}
           onViewFactura={handleViewFactura}
           isLoading={isLoading}
+          totalCount={tableCount}
+          page={page}
+          onPageChange={setPage}
         />
       </div>
 
