@@ -224,13 +224,19 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
             <button
               type="button"
               className={cn(
-                'w-full flex items-center justify-center rounded-lg p-3 transition-colors',
+                'relative w-full flex items-center justify-center rounded-lg p-3 transition-colors',
                 isActive
                   ? 'bg-primary-600 text-white'
                   : 'text-primary-100 hover:bg-primary-600 hover:text-white'
               )}
             >
               <item.icon className="h-5 w-5 shrink-0" />
+              {/* Badge colapsado en items padre con children */}
+              {item.hasBadge === 'comunicaciones' && comPendientes > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-primary-700">
+                  {comPendientes > 9 ? '9+' : comPendientes}
+                </span>
+              )}
             </button>
             {/* Flyout submenu — fixed para no ser recortado por overflow del contenedor */}
             {showFlyout && (
@@ -337,6 +343,12 @@ export function Sidebar({ open, onClose, mobile, collapsed, onToggleCollapse }) 
             >
               <item.icon className="h-5 w-5 shrink-0" />
               {item.name}
+              {/* Badge en items padre con children */}
+              {item.hasBadge === 'comunicaciones' && comPendientes > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                  {comPendientes > 99 ? '99+' : comPendientes}
+                </span>
+              )}
               <ChevronDown className={cn(
                 'ml-auto h-4 w-4 transition-transform duration-200',
                 isExpanded && 'rotate-180'

@@ -461,13 +461,9 @@ export function usePendientesCount() {
   return useQuery({
     queryKey: ['comunicaciones-pendientes-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('comunicaciones')
-        .select('id', { count: 'exact', head: true })
-        .eq('estado', 'recibido')
-        .eq('direccion', 'entrante')
+      const { data, error } = await supabase.rpc('get_comunicaciones_pendientes_count')
       if (error) throw error
-      return count ?? 0
+      return data ?? 0
     },
     refetchInterval: 60000,
   })
