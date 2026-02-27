@@ -3,10 +3,14 @@ import {
   ExternalLink,
   AlertTriangle,
   Edit2,
+  ArrowDownLeft,
+  ArrowUpRight,
+  MessageSquare,
 } from 'lucide-react'
 import { useCliente } from '@/hooks/useClientes'
 import { useFacturas } from '@/hooks/useFacturas'
 import { useComentarios } from '@/hooks/useComentarios'
+import { useHistorialCliente } from '@/hooks/useComunicaciones'
 import { FacturasEmbedded } from '@/features/facturacion/components/FacturasEmbedded'
 import { ComentariosTab } from '@/features/comentarios/ComentariosTab'
 
@@ -117,6 +121,10 @@ export function ClienteQuickViewModal({ clienteId, open, onClose }) {
               <TabsTrigger value="notas">
                 Notas{notasAbiertas > 0 ? ` (${notasAbiertas})` : numNotas > 0 ? ` (${numNotas})` : ''}
               </TabsTrigger>
+              <TabsTrigger value="comunicaciones">
+                <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                Comunicaciones
+              </TabsTrigger>
               <TabsTrigger value="bancarios">Datos Bancarios</TabsTrigger>
             </TabsList>
 
@@ -134,6 +142,10 @@ export function ClienteQuickViewModal({ clienteId, open, onClose }) {
 
             <TabsContent value="notas">
               <ComentariosTab entidadTipo="cliente" entidadId={clienteId} />
+            </TabsContent>
+
+            <TabsContent value="comunicaciones">
+              <ComunicacionesClienteTab clienteId={clienteId} />
             </TabsContent>
 
             <TabsContent value="bancarios">
@@ -300,4 +312,79 @@ function formatIBAN(iban) {
   if (!iban) return ''
   const clean = iban.replace(/\s/g, '')
   return clean.replace(/(.{4})/g, '$1 ').trim()
+}
+
+/* ── Pestaña Comunicaciones del Cliente ───────────────────────── */
+
+const ESTADO_VARIANTS = {
+  recibido: 'warning',
+  leido: 'info',
+  respondido: 'success',
+  archivado: 'default',
+  enviado: 'primary',
+  entregado: 'success',
+  fallido: 'danger',
+}
+
+function ComunicacionesClienteTab({ clienteId }) {
+  const { data: mensajes = [], isLoading } = useHistorialCliente(clienteId, true)
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2 py-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse h-10 bg-gray-100 rounded" />
+        ))}
+      </div>
+    )
+  }
+
+  if (mensajes.length === 0) {
+    return (
+      <EmptyState
+        icon={MessageSquare}
+        title="Sin comunicaciones"
+        description="No hay mensajes registrados para este cliente"
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-1 max-h-[400px] overflow-y-auto">
+      {mensajes.map((msg) => (
+        <div
+          key={msg.id}
+          className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          {msg.direccion === 'entrante' ? (
+            <ArrowDownLeft className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+          ) : (
+            <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+          )}
+
+          <span className="flex-1 text-sm text-gray-700 truncate">
+            {msg.contenido || '(sin contenido)'}
+          </span>
+
+          <Badge
+            variant={ESTADO_VARIANTS[msg.estado] || 'default'}
+            className="text-[9px] flex-shrink-0"
+          >
+            {msg.estado}
+          </Badge>
+
+          <span className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">
+            {msg.created_at
+              ? new Date(msg.created_at).toLocaleDateString('es-ES', {
+                  day: '2-digit',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : ''}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }

@@ -16,12 +16,15 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  AlertTriangle,
+  Link2,
 } from 'lucide-react'
 import {
   useConversaciones,
   useMensajesConversacion,
   useArchivarComunicacion,
   useArchivarConversacion,
+  useSyncChatwootId,
 } from '@/hooks/useComunicaciones'
 import { ClienteQuickViewModal } from './ClienteQuickViewModal'
 import { UsarPlantillaModal } from './UsarPlantillaModal'
@@ -237,14 +240,16 @@ export function ConversacionesList({ chatwootUrl = '', chatwootAccountId = 1, ca
 
 function ConversacionCard({ conv, chatwootUrl, chatwootAccountId, isExpanded, onToggleExpand, navigate }) {
   const archivarConv = useArchivarConversacion()
+  const syncChatwoot = useSyncChatwootId()
   const [showClienteModal, setShowClienteModal] = useState(false)
   const [showPlantillaModal, setShowPlantillaModal] = useState(false)
+  const [showConfirmArchive, setShowConfirmArchive] = useState(false)
   const Icon = CANAL_ICONS[conv.canal] || MessageSquare
   const hasConversation = !!conv.chatwoot_conversation_id
   const hasCliente = !!conv.cliente_id
   const displayName = conv.cliente_nombre || conv.remitente_nombre || conv.remitente_telefono || 'Desconocido'
 
-  function handleChatwootClick() {
+  async function handleChatwootClick() {
     if (!chatwootUrl) return
     if (hasConversation) {
       window.open(
@@ -253,12 +258,31 @@ function ConversacionCard({ conv, chatwootUrl, chatwootAccountId, isExpanded, on
         'noopener,noreferrer'
       )
     } else {
+      // Intentar sincronizar el ID desde registros existentes
+      try {
+        const updated = await syncChatwoot.mutateAsync(conv.remitente_telefono)
+        if (updated > 0) {
+          // Se encontró ID — las queries se refrescan automáticamente
+          return
+        }
+      } catch { /* ignore */ }
+      // No se encontró enlace, abrir Chatwoot general
       window.open(
         `${chatwootUrl}/app/accounts/${chatwootAccountId}/conversations`,
         '_blank',
         'noopener,noreferrer'
       )
     }
+  }
+
+  function handleArchivar() {
+    archivarConv.mutate(
+      {
+        telefono: conv.remitente_telefono,
+        chatwootConversationId: conv.chatwoot_conversation_id,
+      },
+      { onSuccess: () => setShowConfirmArchive(false) }
+    )
   }
 
   function handleClienteClick() {
@@ -344,19 +368,28 @@ function ConversacionCard({ conv, chatwootUrl, chatwootAccountId, isExpanded, on
         {/* Chatwoot */}
         <button
           onClick={handleChatwootClick}
+          disabled={syncChatwoot.isPending}
           title={
             hasConversation
               ? `Abrir conversación #${conv.chatwoot_conversation_id}`
-              : 'Abrir Chatwoot'
+              : 'Sin enlace — clic para intentar vincular'
           }
           className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
             hasConversation
               ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
-              : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+              : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
           }`}
         >
-          <ExternalLink className="h-3.5 w-3.5" />
-          {hasConversation ? `Conv. #${conv.chatwoot_conversation_id}` : 'Chatwoot'}
+          {syncChatwoot.isPending ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          ) : hasConversation ? (
+            <ExternalLink className="h-3.5 w-3.5" />
+          ) : (
+            <Link2 className="h-3.5 w-3.5" />
+          )}
+          {hasConversation
+            ? `Conv. #${conv.chatwoot_conversation_id}`
+            : syncChatwoot.isPending ? 'Buscando...' : 'Sin enlace'}
         </button>
 
         {/* Ver ficha */}
@@ -384,15 +417,33 @@ function ConversacionCard({ conv, chatwootUrl, chatwootAccountId, isExpanded, on
         </button>
 
         {/* Archivar conversación completa */}
-        <button
-          onClick={() => archivarConv.mutate(conv.remitente_telefono)}
-          disabled={archivarConv.isPending}
-          title="Archivar toda la conversación"
-          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
-        >
-          <Archive className="h-3.5 w-3.5" />
-          Archivar
-        </button>
+        {showConfirmArchive ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-500">Archivar?</span>
+            <button
+              onClick={handleArchivar}
+              disabled={archivarConv.isPending}
+              className="py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-red-500 text-white hover:bg-red-600 disabled:opacity-40 transition-all"
+            >
+              {archivarConv.isPending ? 'Archivando...' : 'Sí'}
+            </button>
+            <button
+              onClick={() => setShowConfirmArchive(false)}
+              className="py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all"
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowConfirmArchive(true)}
+            title="Archivar toda la conversación"
+            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500"
+          >
+            <Archive className="h-3.5 w-3.5" />
+            Archivar
+          </button>
+        )}
 
         {/* Spacer */}
         <div className="flex-1" />

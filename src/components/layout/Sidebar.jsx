@@ -50,6 +50,23 @@ const sections = [
     ]
   },
   {
+    label: 'COMUNICACIONES',
+    requiredRoles: ['admin', 'encargado'],
+    items: [
+      {
+        name: 'Comunicaciones',
+        href: '/comunicaciones',
+        icon: MessageSquare,
+        children: [
+          { name: 'Dashboard', href: '/comunicaciones', icon: MessageSquare },
+          { name: 'Historial', href: '/comunicaciones/historial', icon: History },
+          { name: 'Plantillas', href: '/comunicaciones/plantillas', icon: BookTemplate },
+          { name: 'Canales', href: '/comunicaciones/configuracion', icon: Sliders },
+        ]
+      },
+    ]
+  },
+  {
     label: 'GESTIÓN',
     items: [
       { name: 'Comunidades', href: '/comunidades', icon: Building2 },
@@ -93,19 +110,9 @@ const sections = [
     ]
   },
   {
-    label: 'CRM / SAT',
+    label: 'SAT',
     requiredRoles: ['admin', 'tecnico', 'encargado'],
     items: [
-      {
-        name: 'Comunicaciones',
-        href: '/comunicaciones',
-        icon: MessageSquare,
-        children: [
-          { name: 'Dashboard', href: '/comunicaciones', icon: MessageSquare },
-          { name: 'Plantillas', href: '/comunicaciones/plantillas', icon: BookTemplate },
-          { name: 'Canales', href: '/comunicaciones/configuracion', icon: Sliders },
-        ]
-      },
       {
         name: 'SAT',
         href: '/sat',

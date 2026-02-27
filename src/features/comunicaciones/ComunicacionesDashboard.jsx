@@ -15,11 +15,15 @@ import {
   RefreshCw,
   BarChart3,
   ChevronDown,
+  CheckCircle2,
+  Wifi,
+  Timer,
 } from 'lucide-react'
 import {
   useComunicacionesStats,
   useComunicacionesTrend,
   useComunicacionesConfig,
+  useRealtimeComunicaciones,
 } from '@/hooks/useComunicaciones'
 import { ConversacionesList } from './ConversacionesList'
 import {
@@ -73,6 +77,9 @@ export function ComunicacionesDashboard() {
   const [showStats, setShowStats] = useState(false)
   const { chatwootUrl, chatwootAccountId } = useComunicacionesConfig()
 
+  // Suscripción Realtime — invalida queries + notificaciones navegador
+  useRealtimeComunicaciones()
+
   const today = new Date()
   const fechaFin = format(today, 'yyyy-MM-dd')
   const fechaInicio = format(subDays(today, preset), 'yyyy-MM-dd')
@@ -105,11 +112,17 @@ export function ComunicacionesDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {fetchingStats && (
-            <span className="flex items-center gap-1 text-xs text-gray-400">
-              <RefreshCw className="h-3 w-3 animate-spin" />
-              Actualizando...
+          {/* Indicador conexión en tiempo real */}
+          <span className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+            <Wifi className="h-3 w-3" />
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
+            En vivo
+          </span>
+          {fetchingStats && (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin text-gray-400" />
           )}
           <a
             href={chatwootUrl}
@@ -160,6 +173,20 @@ export function ComunicacionesDashboard() {
             iconColor="text-violet-600"
             value={stats?.clientes_contactados ?? 0}
             label="Clientes"
+            loading={loadingStats}
+          />
+          <KpiChip
+            icon={Timer}
+            iconColor="text-cyan-600"
+            value={stats?.tiempo_respuesta_medio_min ? `${stats.tiempo_respuesta_medio_min}m` : '-'}
+            label="Tiempo resp."
+            loading={loadingStats}
+          />
+          <KpiChip
+            icon={CheckCircle2}
+            iconColor="text-gray-500"
+            value={stats?.archivadas_periodo ?? 0}
+            label="Resueltas"
             loading={loadingStats}
           />
         </div>

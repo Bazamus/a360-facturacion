@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
@@ -198,19 +198,38 @@ export function useArchivarComunicacion() {
 }
 
 // Archiva TODOS los mensajes pendientes de una conversación (por teléfono)
+// Opcionalmente resuelve la conversación en Chatwoot via n8n webhook
 export function useArchivarConversacion() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (telefono) => {
+    mutationFn: async ({ telefono, chatwootConversationId }) => {
+      // 1. Archivar localmente en Supabase
       const { error } = await supabase.rpc('archivar_conversacion', { p_telefono: telefono })
       if (error) throw error
+
+      // 2. Resolver en Chatwoot via n8n webhook (best-effort)
+      if (chatwootConversationId) {
+        try {
+          const n8nWebhookUrl = import.meta.env.VITE_N8N_RESOLVE_WEBHOOK
+          if (n8nWebhookUrl) {
+            await fetch(n8nWebhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ conversation_id: chatwootConversationId }),
+            })
+          }
+        } catch (e) {
+          console.warn('No se pudo resolver la conversación en Chatwoot:', e)
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comunicaciones'] })
       queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
       queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
       queryClient.invalidateQueries({ queryKey: ['conversacion-mensajes'] })
+      queryClient.invalidateQueries({ queryKey: ['conversaciones-archivadas'] })
     },
   })
 }
@@ -339,5 +358,135 @@ export function useUpdateCanalConfig() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['canales-config'] })
     }
+  })
+}
+
+// =====================================================
+// Nuevos hooks — Mejoras Dashboard Comunicaciones
+// =====================================================
+
+// Intenta propagar chatwoot_conversation_id desde registros que lo tienen
+// a registros huérfanos del mismo teléfono
+export function useSyncChatwootId() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (telefono) => {
+      const { data, error } = await supabase.rpc('backfill_chatwoot_conversation_id', {
+        p_telefono: telefono,
+      })
+      if (error) throw error
+      return data // número de registros actualizados
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
+    },
+  })
+}
+
+// Conversaciones archivadas/resueltas para la página de historial
+export function useConversacionesArchivadas({ canal, search, page = 0, pageSize = 20 } = {}) {
+  return useQuery({
+    queryKey: ['conversaciones-archivadas', { canal, search, page, pageSize }],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_conversaciones_archivadas', {
+        p_canal: canal || null,
+        p_search: search || null,
+        p_limit: pageSize,
+        p_offset: page * pageSize,
+      })
+      if (error) throw error
+      return data ?? []
+    },
+    refetchInterval: 60000,
+  })
+}
+
+// Restaura una conversación archivada (vuelve a 'recibido')
+export function useRestaurarConversacion() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (telefono) => {
+      const { data, error } = await supabase.rpc('restaurar_conversacion', {
+        p_telefono: telefono,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['conversaciones-archivadas'] })
+      queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
+    },
+  })
+}
+
+// Suscripción Supabase Realtime para mensajes entrantes
+// Invalida queries al recibir INSERT y muestra notificación del navegador
+export function useRealtimeComunicaciones() {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('comunicaciones-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comunicaciones' },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ['conversaciones'] })
+          queryClient.invalidateQueries({ queryKey: ['comunicaciones-stats'] })
+
+          // Notificación del navegador para mensajes entrantes
+          if (payload.new.direccion === 'entrante' && Notification.permission === 'granted') {
+            new Notification('Nuevo mensaje entrante', {
+              body: `${payload.new.remitente_nombre || payload.new.remitente_telefono}: ${payload.new.contenido?.slice(0, 80) || ''}`,
+              icon: '/favicon.ico',
+              tag: 'com-' + payload.new.id,
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [queryClient])
+}
+
+// Mensajes de una conversación archivada (todos los estados, por teléfono)
+export function useMensajesArchivados(telefono) {
+  return useQuery({
+    queryKey: ['historial-mensajes', telefono],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('comunicaciones')
+        .select('id, canal, direccion, contenido, contenido_tipo, estado, remitente_nombre, created_at')
+        .eq('remitente_telefono', telefono)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!telefono,
+  })
+}
+
+// Historial de comunicaciones de un cliente específico (para el modal QuickView)
+export function useHistorialCliente(clienteId, enabled = false) {
+  return useQuery({
+    queryKey: ['historial-cliente', clienteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('v_comunicaciones_resumen')
+        .select('*')
+        .eq('cliente_id', clienteId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!clienteId && enabled,
   })
 }
