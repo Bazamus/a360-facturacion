@@ -95,7 +95,7 @@ Dotar de funcionalidad plena a las 3 secciones del modulo **Comunicaciones** que
 
 | Servicio | URL |
 |----------|-----|
-| Chatwoot | `https://crm-chatwoot-a360.vcheqs.easypanel.host` |
+| Chatwoot | `https://chat.a360se.com` |
 | Evolution API | `https://crm-evolution-api-a360.vcheqs.easypanel.host` |
 | n8n | `https://n8n-n8n.vcheqs.easypanel.host` |
 | Evolution API Key | `429683C4C977415CAAFCCE10F7D57E11` |

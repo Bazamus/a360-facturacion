@@ -60,7 +60,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/search?q={{ encodeURIComponent($json.telefono || $json.email || '') }}",
+        "url": "=https://chat.a360se.com/api/v1/accounts/1/contacts/search?q={{ encodeURIComponent($json.telefono || $json.email || '') }}",
         "authentication": "none",
         "sendHeaders": true,
         "specifyHeaders": "keypair",
@@ -133,7 +133,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/{{ $json.chatwootId }}",
+        "url": "=https://chat.a360se.com/api/v1/accounts/1/contacts/{{ $json.chatwootId }}",
         "authentication": "none",
         "sendBody": true,
         "contentType": "json",
@@ -165,7 +165,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts",
+        "url": "https://chat.a360se.com/api/v1/accounts/1/contacts",
         "authentication": "none",
         "sendBody": true,
         "contentType": "json",

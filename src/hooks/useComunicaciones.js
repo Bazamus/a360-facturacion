@@ -284,12 +284,12 @@ export function useCanalesConfig() {
 }
 
 const CONFIG_DEFAULTS = {
-  chatwootUrl: 'https://crm-chatwoot-a360.vcheqs.easypanel.host',
+  chatwootUrl: 'https://chat.a360se.com',
   chatwootAccountId: 1,
   fromEmail: 'facturacion@a360se.com',
   fromName: 'A360 Servicios Energéticos',
   enlaces: {
-    chatwoot: 'https://crm-chatwoot-a360.vcheqs.easypanel.host',
+    chatwoot: 'https://chat.a360se.com',
     evolution: 'https://api-wa.a360se.com/manager',
     n8n: 'https://n8n.a360se.com',
   },

@@ -58,7 +58,7 @@ Estos atributos deben existir en Chatwoot > Settings > Custom Attributes > **Con
 
 ## Paso 1: Obtener el Chatwoot API Token
 
-1. Abre Chatwoot en tu navegador: `https://crm-chatwoot-a360.vcheqs.easypanel.host`
+1. Abre Chatwoot en tu navegador: `https://chat.a360se.com`
 2. Inicia sesion con tu cuenta de administrador
 3. Click en tu **avatar** (esquina inferior izquierda)
 4. Click en **Profile Settings** (o Configuracion de perfil)

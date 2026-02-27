@@ -178,7 +178,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/search?q={{ $('Extraer Datos Mensaje').item.json.telefono }}&include_contacts=true",
+        "url": "=https://chat.a360se.com/api/v1/accounts/1/contacts/search?q={{ $('Extraer Datos Mensaje').item.json.telefono }}&include_contacts=true",
         "authentication": "none",
         "sendHeaders": true,
         "specifyHeaders": "keypair",
@@ -242,7 +242,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://crm-chatwoot-a360.vcheqs.easypanel.host/api/v1/accounts/1/contacts/{{ $json.contact_id }}/conversations",
+        "url": "=https://chat.a360se.com/api/v1/accounts/1/contacts/{{ $json.contact_id }}/conversations",
         "authentication": "none",
         "sendHeaders": true,
         "specifyHeaders": "keypair",

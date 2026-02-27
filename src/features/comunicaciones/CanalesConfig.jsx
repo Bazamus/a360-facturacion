@@ -25,9 +25,9 @@ const CANAL_META = {
     bg: 'bg-green-50',
     description: 'Comunicación vía Evolution API + Chatwoot. Canal principal de mensajería con clientes.',
     fields: [
-      { key: 'chatwoot_url', label: 'URL de Chatwoot', placeholder: 'https://crm-chatwoot-a360.vcheqs.easypanel.host' },
+      { key: 'chatwoot_url', label: 'URL de Chatwoot', placeholder: 'https://chat.a360se.com' },
       { key: 'chatwoot_account_id', label: 'Chatwoot Account ID', placeholder: '1', type: 'number' },
-      { key: 'enlace_chatwoot', label: 'Enlace rápido — Chatwoot', placeholder: 'https://crm-chatwoot-a360.vcheqs.easypanel.host' },
+      { key: 'enlace_chatwoot', label: 'Enlace rápido — Chatwoot', placeholder: 'https://chat.a360se.com' },
       { key: 'enlace_evolution', label: 'Enlace rápido — Evolution API Manager', placeholder: 'https://api-wa.a360se.com/manager' },
       { key: 'enlace_n8n', label: 'Enlace rápido — n8n Workflows', placeholder: 'https://n8n.a360se.com' },
     ],
