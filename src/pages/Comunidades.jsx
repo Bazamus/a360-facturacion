@@ -362,19 +362,20 @@ function ComunidadDetail() {
   const [isExporting, setIsExporting] = useState(false)
 
   const { data: comunidad, isLoading, error } = useComunidad(id)
-  const { data: clientesResult } = useClientes({ comunidadId: id })
+  const { data: clientesResult } = useClientes({ comunidadId: id, pageSize: 5000 })
   const clientesComunidad = clientesResult?.data || []
-  const { data: contadoresResult } = useContadores({ comunidadId: id })
+  const { data: contadoresResult } = useContadores({ comunidadId: id, pageSize: 5000 })
   const contadoresComunidad = contadoresResult?.data || []
-  const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 500 })
+  const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 5000, withCount: true })
   const { data: notasComunidad } = useComentarios('comunidad', id)
   const { data: agrupacionesComunidad } = useAgrupaciones(id)
   const { data: ubicacionesComunidad } = useUbicacionesByComunidad(id)
   const { data: preciosComunidad } = usePrecios(id)
 
-  const numClientes = clientesComunidad?.length || 0
-  const numContadores = contadoresComunidad?.length || 0
-  const numFacturas = Array.isArray(facturasComunidad) ? facturasComunidad.length : 0
+  const numClientes = clientesResult?.count ?? clientesComunidad?.length ?? 0
+  const numContadores = contadoresResult?.count ?? contadoresComunidad?.length ?? 0
+  const numFacturas = facturasComunidad?.total ?? (Array.isArray(facturasComunidad) ? facturasComunidad.length : facturasComunidad?.data?.length ?? 0)
+  const numUbicaciones = ubicacionesComunidad?.length || 0
   const numNotas = notasComunidad?.length || 0
   const notasAbiertas = notasComunidad?.filter(n => n.estado !== 'resuelto').length || 0
 
@@ -387,7 +388,7 @@ function ComunidadDetail() {
         ubicaciones:  ubicacionesComunidad  || [],
         clientes:     clientesComunidad     || [],
         contadores:   contadoresComunidad   || [],
-        facturas:     Array.isArray(facturasComunidad) ? facturasComunidad : [],
+        facturas:     Array.isArray(facturasComunidad) ? facturasComunidad : facturasComunidad?.data || [],
         notas:        notasComunidad        || [],
         precios:      preciosComunidad      || [],
       })
@@ -456,7 +457,7 @@ function ComunidadDetail() {
               {comunidad.nombre_agrupacion}es
             </TabsTrigger>
             <TabsTrigger value="ubicaciones">
-              {comunidad.nombre_ubicacion}s
+              {comunidad.nombre_ubicacion}s{numUbicaciones > 0 ? ` (${numUbicaciones})` : ''}
             </TabsTrigger>
             <TabsTrigger value="clientes">
               Clientes{numClientes > 0 ? ` (${numClientes})` : ''}

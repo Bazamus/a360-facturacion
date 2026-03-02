@@ -97,6 +97,43 @@ export function useFacturas(options = {}) {
   })
 }
 
+// Obtener TODAS las facturas en lotes (para exportación)
+export async function fetchAllFacturas(filters = {}) {
+  const { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, emailEnviado, sortBy = 'fecha_factura', sortDirection = 'desc' } = filters
+  const all = []
+  let from = 0
+  const batchSize = 1000
+
+  while (true) {
+    let query = supabase
+      .from('v_facturas_resumen')
+      .select('*')
+      .order(sortBy, { ascending: sortDirection === 'asc' })
+      .range(from, from + batchSize - 1)
+
+    if (comunidadId) query = query.eq('comunidad_id', comunidadId)
+    if (estado) query = query.eq('estado', estado)
+    if (emailEnviado != null) query = query.eq('email_enviado', emailEnviado)
+    if (clienteId) query = query.eq('cliente_id', clienteId)
+    if (search) query = query.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
+    if (fechaDesde) query = query.gte('fecha_factura', fechaDesde)
+    if (fechaHasta) query = query.lte('fecha_factura', fechaHasta)
+
+    if (sortBy !== 'created_at') {
+      query = query.order('created_at', { ascending: false })
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < batchSize) break
+    from += batchSize
+  }
+
+  return all
+}
+
 export function useFactura(id) {
   return useQuery({
     queryKey: ['facturas', id],

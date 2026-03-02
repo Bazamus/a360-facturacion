@@ -10,7 +10,7 @@ export function ComunidadContadoresTab({ comunidad }) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const { data: contadoresResult, isLoading } = useContadores({ comunidadId: comunidad.id })
+  const { data: contadoresResult, isLoading } = useContadores({ comunidadId: comunidad.id, pageSize: 5000 })
   const contadores = contadoresResult?.data || []
 
   // Reset página cuando cambia el filtro de búsqueda

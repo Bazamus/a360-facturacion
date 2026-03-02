@@ -139,7 +139,7 @@ export function FacturasEmbedded({
     fechaHasta: fechaHasta || undefined,
     sortBy,
     sortDirection,
-    limit: 500
+    limit: 5000
   })
 
   const listaFacturas = Array.isArray(facturas) ? facturas : facturas?.data || []

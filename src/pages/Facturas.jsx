@@ -14,7 +14,8 @@ import {
   useMarcarPagada,
   useEstadisticasFacturacion,
   useEmitirFacturasMasivo,
-  useEliminarFacturas
+  useEliminarFacturas,
+  fetchAllFacturas
 } from '@/hooks/useFacturas'
 import { useEnviarFactura } from '@/hooks/useEnvios'
 import { useExportarFacturas } from '@/features/facturacion/hooks/useExportarFacturas'
@@ -284,7 +285,7 @@ export default function Facturas() {
 
   // Handler abrir modal de exportación
   const handleAbrirModalExportar = () => {
-    if (!facturas || facturas.length === 0) {
+    if (totalFacturas === 0 && (!facturas || facturas.length === 0)) {
       toast.error('No hay facturas para exportar')
       return
     }
@@ -295,17 +296,28 @@ export default function Facturas() {
   const handleExportarExcel = async (config) => {
     try {
       setModalExport(false)
-      setProgresoExportacion({ current: 0, total: 100, message: 'Iniciando...' })
+      setProgresoExportacion({ current: 0, total: 100, message: 'Obteniendo todas las facturas...' })
+
+      // Fetchear TODAS las facturas con filtros actuales (no solo la página visible)
+      const todasFacturas = await fetchAllFacturas({
+        comunidadId: filters.comunidadId || undefined,
+        estado: filters.estado || undefined,
+        search: filters.search || undefined,
+        fechaDesde: filters.fechaDesde || undefined,
+        fechaHasta: filters.fechaHasta || undefined,
+        sortBy,
+        sortDirection
+      })
 
       await exportar.mutateAsync({
-        facturas,
+        facturas: todasFacturas,
         config,
         onProgress: (progreso) => {
           setProgresoExportacion(progreso)
         }
       })
 
-      toast.success(`${facturas.length} factura${facturas.length > 1 ? 's' : ''} exportada${facturas.length > 1 ? 's' : ''} a Excel`)
+      toast.success(`${todasFacturas.length} factura${todasFacturas.length > 1 ? 's' : ''} exportada${todasFacturas.length > 1 ? 's' : ''} a Excel`)
 
       // Limpiar progreso después de un delay
       setTimeout(() => {
@@ -438,7 +450,7 @@ export default function Facturas() {
           <Button
             variant="outline"
             onClick={handleAbrirModalExportar}
-            disabled={!facturas || facturas.length === 0 || exportar.isPending}
+            disabled={(totalFacturas === 0 && (!facturas || facturas.length === 0)) || exportar.isPending}
             title="Exportar facturas a Excel"
           >
             <FileSpreadsheet className="w-4 h-4 mr-2" />
@@ -810,7 +822,7 @@ export default function Facturas() {
         isOpen={modalExport}
         onClose={() => setModalExport(false)}
         onExport={handleExportarExcel}
-        totalFacturas={facturas?.length || 0}
+        totalFacturas={totalFacturas || facturas?.length || 0}
         isExporting={exportar.isPending}
       />
 

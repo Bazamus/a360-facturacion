@@ -11,6 +11,7 @@ import {
   useComunidades,
   useEstadosCliente
 } from '@/hooks'
+import { fetchAllClientes } from '@/hooks/useClientes'
 import { getBadgeVariant } from '@/utils/estadosCliente'
 import { 
   Button, 
@@ -110,9 +111,17 @@ function ClientesList() {
   const handleExportar = async (config) => {
     try {
       setIsExporting(true)
-      
+
+      // Fetchear TODOS los clientes con filtros actuales (no solo la página visible)
+      const todosClientes = await fetchAllClientes({
+        search,
+        tipo: filtroTipo || undefined,
+        comunidadId: filtroComunidad || undefined,
+        estadoId: filtroEstado || undefined
+      })
+
       const result = await exportar.mutateAsync({
-        clientes: clientes || [],
+        clientes: todosClientes,
         config
       })
 

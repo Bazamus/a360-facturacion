@@ -290,6 +290,88 @@ export function useAsignarClienteUbicacion() {
   })
 }
 
+// Obtener TODOS los clientes en lotes (para exportación)
+export async function fetchAllClientes(filters = {}) {
+  const { search, tipo, estadoId, comunidadId } = filters
+  const all = []
+  let from = 0
+  const batchSize = 1000
+
+  // Pre-filtrar por comunidad (mismo patrón que useClientes)
+  let clienteIdsFiltro = null
+  if (comunidadId) {
+    const { data: agrupData, error: errAgrup } = await supabase
+      .from('agrupaciones')
+      .select('id')
+      .eq('comunidad_id', comunidadId)
+
+    if (errAgrup) throw errAgrup
+
+    const agrupacionIds = agrupData?.map(a => a.id) || []
+    if (agrupacionIds.length === 0) return []
+
+    const { data: ubicData, error: errUbic } = await supabase
+      .from('ubicaciones')
+      .select('id')
+      .in('agrupacion_id', agrupacionIds)
+
+    if (errUbic) throw errUbic
+
+    const ubicacionIds = ubicData?.map(u => u.id) || []
+    if (ubicacionIds.length === 0) return []
+
+    const { data: ucData, error: errUc } = await supabase
+      .from('ubicaciones_clientes')
+      .select('cliente_id')
+      .in('ubicacion_id', ubicacionIds)
+
+    if (errUc) throw errUc
+
+    clienteIdsFiltro = [...new Set(ucData?.map(uc => uc.cliente_id).filter(Boolean))]
+    if (clienteIdsFiltro.length === 0) return []
+  }
+
+  while (true) {
+    let query = supabase
+      .from('clientes')
+      .select(`
+        *,
+        estado:estados_cliente(*),
+        ubicaciones_clientes(
+          ubicacion_id,
+          es_actual,
+          ubicacion:ubicaciones(
+            id,
+            nombre,
+            agrupacion:agrupaciones(
+              nombre,
+              comunidad:comunidades(id, nombre, codigo)
+            )
+          )
+        )
+      `)
+      .order('apellidos')
+      .order('nombre')
+      .range(from, from + batchSize - 1)
+
+    if (search) {
+      query = query.or(`nombre.ilike.%${search}%,apellidos.ilike.%${search}%,nif.ilike.%${search}%,codigo_cliente.ilike.%${search}%,email.ilike.%${search}%`)
+    }
+    if (tipo) query = query.eq('tipo', tipo)
+    if (estadoId) query = query.eq('estado_id', estadoId)
+    if (clienteIdsFiltro) query = query.in('id', clienteIdsFiltro)
+
+    const { data, error } = await query
+    if (error) throw error
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < batchSize) break
+    from += batchSize
+  }
+
+  return all
+}
+
 // Finalizar ocupación de cliente
 export function useFinalizarOcupacion() {
   const queryClient = useQueryClient()
