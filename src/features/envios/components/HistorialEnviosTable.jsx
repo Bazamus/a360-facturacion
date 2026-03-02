@@ -1,12 +1,13 @@
 import { DataTable } from '../../../components/ui'
 import { EstadoEnvioBadge } from './EstadoEnvioBadge'
-import { Eye, RefreshCw } from 'lucide-react'
+import { Eye, RefreshCw, OctagonX } from 'lucide-react'
 
-export function HistorialEnviosTable({ 
-  envios = [], 
+export function HistorialEnviosTable({
+  envios = [],
   isLoading,
   onViewDetalle,
   onReintentar,
+  onMarcarFallido,
   pagination
 }) {
   const formatFecha = (fecha) => {
@@ -127,6 +128,18 @@ export function HistorialEnviosTable({
           >
             <Eye size={16} />
           </button>
+          {row?.estado === 'enviando' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onMarcarFallido?.(row?.id)
+              }}
+              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+              title="Marcar como fallido"
+            >
+              <OctagonX size={16} />
+            </button>
+          )}
           {(row?.estado === 'fallido' || row?.estado === 'rebotado') &&
            row?.tipo_rebote !== 'hard' &&
            row?.intentos < row?.max_intentos && (

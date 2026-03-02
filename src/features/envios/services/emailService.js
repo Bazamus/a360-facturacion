@@ -278,8 +278,8 @@ function parseMultipleEmails(emailString) {
     .map(email => email.trim())
     .filter(email => email.length > 0)
     .filter(email => {
-      // Validación básica de email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      // Validación estricta: solo ASCII, sin acentos ni caracteres especiales
+      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
       return emailRegex.test(email)
     })
   

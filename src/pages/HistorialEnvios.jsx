@@ -10,7 +10,8 @@ import {
 import {
   useHistorialEnvios,
   useEnvio,
-  useReintentarEnvio
+  useReintentarEnvio,
+  useMarcarEnvioFallido
 } from '../hooks/useEnvios'
 
 export default function HistorialEnvios() {
@@ -29,6 +30,17 @@ export default function HistorialEnvios() {
   const { data: historial, isLoading, refetch } = useHistorialEnvios(filtros)
   const { data: envioDetalle, isLoading: detalleLoading } = useEnvio(selectedEnvioId)
   const reintentarEnvio = useReintentarEnvio()
+  const marcarFallido = useMarcarEnvioFallido()
+
+  const handleMarcarFallido = async (envioId) => {
+    try {
+      await marcarFallido.mutateAsync(envioId)
+      toast.success('Envío marcado como fallido')
+      refetch()
+    } catch (error) {
+      toast.error('Error: ' + error.message)
+    }
+  }
 
   const handleReintentar = async (envioId) => {
     try {
@@ -87,6 +99,7 @@ export default function HistorialEnvios() {
         isLoading={isLoading}
         onViewDetalle={setSelectedEnvioId}
         onReintentar={handleReintentar}
+        onMarcarFallido={handleMarcarFallido}
         pagination={{
           currentPage: historial?.page || 1,
           totalPages: historial?.totalPages || 1,

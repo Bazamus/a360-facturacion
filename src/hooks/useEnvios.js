@@ -444,6 +444,35 @@ export function useReintentarEnvio() {
 }
 
 /**
+ * Hook para marcar un envío atascado en 'enviando' como fallido
+ */
+export function useMarcarEnvioFallido() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (envioId) => {
+      const { error } = await supabase
+        .from('envios_email')
+        .update({
+          estado: 'fallido',
+          error_mensaje: 'Marcado como fallido manualmente — envío atascado',
+          error_codigo: 'MANUAL_CANCEL'
+        })
+        .eq('id', envioId)
+        .eq('estado', 'enviando')
+
+      if (error) throw error
+      return { success: true }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['historial-envios'] })
+      queryClient.invalidateQueries({ queryKey: ['envios-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['facturas-pendientes-envio'] })
+    }
+  })
+}
+
+/**
  * Hook para actualizar configuración de email
  */
 export function useUpdateEmailConfig() {
