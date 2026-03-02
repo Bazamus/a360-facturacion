@@ -31,11 +31,11 @@ export function HistorialEnviosTable({
       )
     },
     {
-      key: 'factura',
+      key: 'numero_completo',
       header: 'Factura',
-      render: (_, row) => (
+      render: (value) => (
         <span className="font-medium text-gray-900 text-sm">
-          {row?.factura?.numero_completo || '-'}
+          {value || '-'}
         </span>
       ),
       sortable: false
@@ -43,9 +43,9 @@ export function HistorialEnviosTable({
     {
       key: 'codigo_cliente',
       header: 'Cód.',
-      render: (_, row) => (
+      render: (value) => (
         <span className="font-mono text-xs text-gray-600">
-          {row?.cliente?.codigo_cliente || '-'}
+          {value || '-'}
         </span>
       ),
       sortable: false
@@ -55,9 +55,9 @@ export function HistorialEnviosTable({
       header: 'Destinatario',
       render: (value, row) => (
         <div>
-          {row?.cliente && (
+          {row?.cliente_nombre && (
             <p className="text-sm text-gray-900 truncate max-w-[150px]">
-              {row.cliente.nombre} {row.cliente.apellidos}
+              {row.cliente_nombre}
             </p>
           )}
           <p className="text-xs text-gray-500 truncate max-w-[150px]">{value || '-'}</p>
@@ -92,8 +92,8 @@ export function HistorialEnviosTable({
         if (row?.fecha_abierto) {
           eventos.push(`Abie: ${formatFecha(row.fecha_abierto)}`)
         }
-        if (row?.fecha_rebote) {
-          eventos.push(`Reb: ${formatFecha(row.fecha_rebote)}`)
+        if (row?.fecha_rebotado) {
+          eventos.push(`Reb: ${formatFecha(row.fecha_rebotado)}`)
         }
 
         return (
