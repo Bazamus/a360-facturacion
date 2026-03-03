@@ -58,19 +58,28 @@ export function useExportarFacturas() {
       // Obtener IDs de facturas
       const facturasIds = facturas.map(f => f.id)
 
-      // Obtener líneas de todas las facturas
+      // Obtener líneas de todas las facturas en lotes (evita URL demasiado larga con muchos UUIDs)
       reportProgress(20, 100, 'Obteniendo detalles de facturas...')
-      const { data: lineas, error } = await supabase
-        .from('facturas_lineas')
-        .select(`
-          *,
-          factura:facturas!inner(numero_completo)
-        `)
-        .in('factura_id', facturasIds)
-        .order('factura_id')
-        .order('orden')
+      const lineas = []
+      const batchSize = 200 // ~200 UUIDs por lote para no exceder límite URL
+      for (let i = 0; i < facturasIds.length; i += batchSize) {
+        const batch = facturasIds.slice(i, i + batchSize)
+        const { data: batchLineas, error } = await supabase
+          .from('facturas_lineas')
+          .select(`
+            *,
+            factura:facturas!inner(numero_completo)
+          `)
+          .in('factura_id', batch)
+          .order('factura_id')
+          .order('orden')
 
-      if (error) throw error
+        if (error) throw error
+        if (batchLineas) lineas.push(...batchLineas)
+
+        const progreso = 20 + Math.round((i / facturasIds.length) * 20)
+        reportProgress(progreso, 100, `Obteniendo detalles... (${Math.min(i + batchSize, facturasIds.length)}/${facturasIds.length})`)
+      }
 
       // Ordenar líneas según orden predefinido de conceptos (por factura)
       const lineasOrdenadas = ordenarLineasPorFactura(lineas)
