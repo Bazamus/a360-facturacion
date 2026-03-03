@@ -126,7 +126,11 @@ export async function fetchAllFacturas(filters = {}) {
     const { data, error } = await query
     if (error) throw error
     if (!data || data.length === 0) break
-    all.push(...data)
+    // Mapear cliente_codigo_cliente → codigo_cliente (compatibilidad con export)
+    all.push(...data.map(f => ({
+      ...f,
+      codigo_cliente: f.cliente_codigo_cliente || f.codigo_cliente || null
+    })))
     if (data.length < batchSize) break
     from += batchSize
   }
