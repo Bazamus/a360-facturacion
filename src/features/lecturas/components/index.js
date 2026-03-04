@@ -8,7 +8,7 @@ export { ColumnMapper } from './ColumnMapper'
 export { ExcelPreview } from './ExcelPreview'
 export { ImportacionProgress } from './ImportacionProgress'
 export { ValidacionStats } from './ValidacionStats'
-export { ValidacionTable } from './ValidacionTable'
+export { ValidacionTable, agruparPorContador } from './ValidacionTable'
 export { DetallePanel } from './DetallePanel'
 
 

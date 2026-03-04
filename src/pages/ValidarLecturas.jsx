@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Check, X, ArrowLeft, Filter, Trash2 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { Check, X, ArrowLeft, Filter, Trash2, FileSpreadsheet } from 'lucide-react'
 import { Button, Card, LoadingSpinner } from '@/components/ui'
-import { ValidacionStats, ValidacionTable, DetallePanel } from '@/features/lecturas/components'
+import { ValidacionStats, ValidacionTable, DetallePanel, agruparPorContador } from '@/features/lecturas/components'
 import { contarPorEstado } from '@/features/lecturas/utils/alertDetector'
 import { 
   useImportacion, 
@@ -19,6 +20,26 @@ const FILTROS = [
   { value: 'alerta', label: 'Con alertas' },
   { value: 'error', label: 'Errores' }
 ]
+
+/** Formato decimal europeo: coma como separador (ej. 0,25  456,28) */
+function formatEuropean(value, decimals = 2) {
+  if (value == null || Number.isNaN(Number(value))) return ''
+  const num = Number(value)
+  const fixed = num.toFixed(decimals)
+  return fixed.replace('.', ',')
+}
+
+/** Nombre de archivo seguro a partir de comunidad: ej. 309_VI_TORRE_VIANA_1_LECTURA */
+function nombreArchivoLecturas(comunidad) {
+  if (!comunidad) return 'LECTURA'
+  const codigo = (comunidad.codigo ?? '').toString().trim()
+  const nombre = (comunidad.nombre ?? '')
+    .replace(/\s+/g, '_')
+    .replace(/[/\\:*?"<>|]/g, '')
+    .trim()
+  const base = nombre ? `${codigo}_${nombre}` : codigo || 'LECTURA'
+  return `${base}_LECTURA`
+}
 
 export default function ValidarLecturas() {
   const { id: importacionId } = useParams()
@@ -54,6 +75,65 @@ export default function ValidarLecturas() {
       (f.estado === 'valido' || (f.estado === 'alerta' && !f.alertas?.some(a => a.bloquea)))
     )
   }, [detalles, selectedIds])
+
+  // Datos agrupados y filtrados (misma lógica que la tabla) para exportar a Excel
+  const datosParaExportar = useMemo(() => {
+    if (!detalles) return []
+    const agrupadas = agruparPorContador(detalles)
+    return agrupadas.filter(grupo => {
+      if (filter === 'todas' || filter === 'todos') return true
+      if (filter === 'valido') return grupo.estado === 'valido'
+      if (filter === 'alerta') return grupo.estado === 'alerta'
+      if (filter === 'error') return grupo.estado === 'error'
+      return true
+    })
+  }, [detalles, filter])
+
+  // Orden de columnas de conceptos para Excel (único, alfabético)
+  const columnasConceptosExport = useMemo(() => {
+    const codigos = new Set()
+    datosParaExportar.forEach(grupo => {
+      grupo.conceptos.forEach(c => codigos.add(c.concepto_codigo))
+    })
+    return Array.from(codigos).sort()
+  }, [datosParaExportar])
+
+  const getEstadoLabel = (estado) => {
+    switch (estado) {
+      case 'valido': return 'Válida'
+      case 'alerta': return 'Con alertas'
+      case 'error': return 'Error'
+      default: return estado || '—'
+    }
+  }
+
+  const handleExportarExcel = () => {
+    const filasExcel = datosParaExportar.map(grupo => {
+      const mapConceptos = {}
+      grupo.conceptos.forEach(c => {
+        mapConceptos[c.concepto_codigo] = formatEuropean(c.consumo_calculado, 1)
+      })
+      const row = {
+        PORTAL: grupo.portal ?? '—',
+        VIVIENDA: grupo.vivienda ?? '—',
+        CLIENTE: grupo.cliente_nombre || 'Sin asignar',
+        CONTADOR: grupo.numero_contador ?? '—'
+      }
+      columnasConceptosExport.forEach(cod => {
+        row[cod] = mapConceptos[cod] ?? ''
+      })
+      row.ESTADO = getEstadoLabel(grupo.estado)
+      return row
+    })
+
+    const ws = XLSX.utils.json_to_sheet(filasExcel)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Validación lecturas')
+    const baseNombre = nombreArchivoLecturas(importacion?.comunidad)
+    const nombreArchivo = `${baseNombre}.xlsx`
+    XLSX.writeFile(wb, nombreArchivo)
+    toast.success(`${filasExcel.length} filas exportadas a Excel`)
+  }
 
   const handleConfirmar = async () => {
     if (filasConfirmables.length === 0) {
@@ -199,6 +279,15 @@ export default function ValidarLecturas() {
                 </Button>
               </>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportarExcel}
+              disabled={!datosParaExportar.length}
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Exportar a Excel
+            </Button>
             <Button
               onClick={handleConfirmar}
               disabled={filasConfirmables.length === 0}

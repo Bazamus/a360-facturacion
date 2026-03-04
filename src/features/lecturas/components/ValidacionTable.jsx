@@ -11,9 +11,10 @@ import { formatNumber } from '../utils/numberParsers'
 import { getAlertaLabel } from '../utils/alertDetector'
 
 /**
- * Agrupa los detalles por contador para la visualización
+ * Agrupa los detalles por contador para la visualización.
+ * Exportado para uso en exportación Excel (ValidarLecturas).
  */
-function agruparPorContador(filas) {
+export function agruparPorContador(filas) {
   if (!filas || filas.length === 0) return []
   
   const grupos = {}
