@@ -15,7 +15,8 @@ import {
   Loader2,
   CheckCircle2,
   Clock,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react'
 import { Button, Card, Modal, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -67,6 +68,11 @@ export default function FacturaDetalle({ showPdf = false }) {
   const marcarPagada = useMarcarPagada()
   const enviarFactura = useEnviarFactura()
   const eliminarFacturas = useEliminarFacturas()
+
+  const puedeEditar = factura && (
+    factura.estado === 'borrador' ||
+    (factura.estado === 'emitida' && !factura.email_enviado)
+  )
 
   const handleDescargarPDF = async () => {
     if (!factura) return
@@ -186,6 +192,16 @@ export default function FacturaDetalle({ showPdf = false }) {
         
         {/* Acciones según estado */}
         <div className="flex items-center gap-2">
+          {puedeEditar && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/facturacion/facturas/${id}/editar`)}
+            >
+              <Pencil className="w-4 h-4 mr-2" />
+              Editar
+            </Button>
+          )}
+
           {factura.estado === 'borrador' && (
             <Button onClick={handleEmitir} disabled={emitirFactura.isPending}>
               <FileText className="w-4 h-4 mr-2" />

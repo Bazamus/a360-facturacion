@@ -325,13 +325,17 @@ export function FacturasTable({
                       </Button>
                     )}
 
-                    {/* Editar - solo borradores */}
-                    {factura.estado === 'borrador' && (
+                    {/* Editar - borradores y emitidas no enviadas */}
+                    {(factura.estado === 'borrador' || (factura.estado === 'emitida' && !factura.email_enviado)) && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit?.(factura)}
-                        title="Editar"
+                        title={
+                          factura.estado === 'borrador'
+                            ? 'Editar borrador'
+                            : 'Editar factura emitida no enviada'
+                        }
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>

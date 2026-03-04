@@ -46,11 +46,19 @@ export default function FacturaEditar() {
   const [conceptoSeleccionado, setConceptoSeleccionado] = useState(null)
   const [guardando, setGuardando] = useState(false)
 
-  // Validar que la factura sea borrador
+  // Validar que la factura sea editable:
+  // - borrador, o
+  // - emitida pero aún no enviada por email
   useEffect(() => {
-    if (factura && factura.estado !== 'borrador') {
-      toast.error('Solo se pueden editar facturas en borrador')
-      navigate(`/facturacion/facturas/${id}`)
+    if (factura) {
+      const esEditable =
+        factura.estado === 'borrador' ||
+        (factura.estado === 'emitida' && !factura.email_enviado)
+
+      if (!esEditable) {
+        toast.error('Solo se pueden editar facturas en borrador o emitidas no enviadas')
+        navigate(`/facturacion/facturas/${id}`)
+      }
     }
   }, [factura, id, navigate, toast])
 
@@ -196,7 +204,8 @@ export default function FacturaEditar() {
         importe_iva: nuevoIva,
         total: nuevoTotal,
         periodo_inicio: periodoInicio || factura.periodo_inicio,
-        periodo_fin: periodoFin || factura.periodo_fin
+        periodo_fin: periodoFin || factura.periodo_fin,
+        pdf_generado: false
       }
 
       const { error: errorActualizacion } = await supabase
@@ -272,7 +281,8 @@ export default function FacturaEditar() {
           importe_iva: nuevoIva,
           total: nuevoTotal,
           periodo_inicio: periodoInicio || factura.periodo_inicio,
-          periodo_fin: periodoFin || factura.periodo_fin
+          periodo_fin: periodoFin || factura.periodo_fin,
+          pdf_generado: false
         })
         .eq('id', id)
 
@@ -326,7 +336,11 @@ export default function FacturaEditar() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Editar Factura</h1>
-            <p className="text-gray-500 mt-1">Borrador en edición</p>
+            <p className="text-gray-500 mt-1">
+              {factura.estado === 'emitida' && !factura.email_enviado
+                ? 'Factura emitida (no enviada) en edición'
+                : 'Borrador en edición'}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -338,14 +352,16 @@ export default function FacturaEditar() {
             <Save className="w-4 h-4 mr-2" />
             {guardando ? 'Guardando...' : 'Guardar cambios'}
           </Button>
-          <Button
-            onClick={handleEmitir}
-            disabled={guardando}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Emitir factura
-          </Button>
+          {factura.estado === 'borrador' && (
+            <Button
+              onClick={handleEmitir}
+              disabled={guardando}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Emitir factura
+            </Button>
+          )}
         </div>
       </div>
 
