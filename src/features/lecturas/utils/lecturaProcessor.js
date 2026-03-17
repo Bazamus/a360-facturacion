@@ -35,6 +35,7 @@ export async function processRow({
     findContadorConcepto,
     getClienteActualUbicacion,
     getUltimaLectura,
+    getContadorTieneHistorial,
     getPrecioVigente,
     getAlertasConfig
   } = dataServices
@@ -208,7 +209,25 @@ export async function processRow({
     const lecturaAnterior = await getUltimaLectura(contador.id, conceptoInfo.concepto_id)
     registro.lectura_anterior = lecturaAnterior?.lectura_valor ?? contadorConcepto.lectura_inicial ?? 0
     registro.fecha_lectura_anterior = lecturaAnterior?.fecha_lectura ?? contadorConcepto.fecha_lectura_inicial
-    
+
+    // Detectar concepto nuevo en contador con historial previo de facturación.
+    // Cuando esto ocurre, fecha_lectura_anterior cae al valor inicial del contador (fecha de alta),
+    // que puede ser mucho más antigua que el último ciclo facturado de los demás conceptos.
+    // Esto produciría un periodo_inicio incorrecto en la factura si no se avisa al usuario.
+    if (!lecturaAnterior && typeof getContadorTieneHistorial === 'function') {
+      const tieneHistorial = await getContadorTieneHistorial(contador.id, conceptoInfo.concepto_id)
+      if (tieneHistorial) {
+        registro.alertas.push({
+          tipo: 'concepto_nuevo_primer_ciclo',
+          severidad: 'warning',
+          mensaje: `El concepto ${conceptoInfo.concepto_codigo} se factura por primera vez en este contador. ` +
+            `Se usará como lectura anterior la fecha inicial del contador (${registro.fecha_lectura_anterior}), ` +
+            `que puede diferir del último ciclo facturado de otros conceptos. Revisa el periodo de factura.`,
+          bloquea: false
+        })
+      }
+    }
+
     // 10. Calcular consumo
     registro.consumo_calculado = round4(lecturaValor - registro.lectura_anterior)
     

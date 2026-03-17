@@ -181,6 +181,30 @@ export async function getUltimaLectura(contadorId, conceptoId) {
 }
 
 /**
+ * Comprueba si un contador tiene lecturas facturadas (en cualquier concepto distinto al indicado).
+ * Se usa para detectar cuando un concepto nuevo se factura por primera vez en un contador
+ * que ya tiene historial, y así generar la alerta 'concepto_nuevo_primer_ciclo'.
+ */
+export async function getContadorTieneHistorial(contadorId, excluirConceptoId) {
+  if (!contadorId) return false
+
+  let query = supabase
+    .from('lecturas')
+    .select('id', { count: 'exact', head: true })
+    .eq('contador_id', contadorId)
+    .eq('facturada', true)
+
+  if (excluirConceptoId) {
+    query = query.neq('concepto_id', excluirConceptoId)
+  }
+
+  const { count, error } = await query
+
+  if (error) return false
+  return (count ?? 0) > 0
+}
+
+/**
  * Obtiene el precio vigente de un concepto para una comunidad
  */
 export async function getPrecioVigente(comunidadId, conceptoId) {
@@ -515,6 +539,7 @@ export function createDataServices() {
     findContadorConcepto,
     getClienteActualUbicacion,
     getUltimaLectura,
+    getContadorTieneHistorial,
     getPrecioVigente,
     getAlertasConfig
   }

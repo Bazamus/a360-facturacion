@@ -101,6 +101,43 @@ export default function GenerarFacturas() {
     return contadores
   }, [lecturas, selectedIds])
 
+  // Detectar contadores con fechas_lectura_anterior muy dispares entre conceptos (spread > 30 días).
+  // Esto ocurre cuando se añade un concepto nuevo que nunca ha sido facturado:
+  // su fecha_lectura_anterior cae al valor inicial del contador (fecha de alta),
+  // que puede ser mucho más antigua que el último ciclo facturado de los demás conceptos.
+  // El bug de GenerarFacturas tomaba el mínimo como periodo_inicio — ya corregido a máximo —
+  // pero este aviso permite al usuario revisar la situación antes de generar.
+  const contadoresConFechasDispares = useMemo(() => {
+    const advertencias = []
+    for (const contadorId of contadoresSeleccionados) {
+      const grupo = lecturasPorContador[contadorId]
+      if (!grupo) continue
+      const lecturasSeleccionadas = grupo.lecturas.filter(l => selectedIds.includes(l.id))
+      const fechas = lecturasSeleccionadas
+        .map(l => l.fecha_lectura_anterior)
+        .filter(Boolean)
+        .map(f => new Date(f).getTime())
+      if (fechas.length < 2) continue
+      const minFecha = Math.min(...fechas)
+      const maxFecha = Math.max(...fechas)
+      const spreadDias = (maxFecha - minFecha) / (1000 * 60 * 60 * 24)
+      if (spreadDias > 30) {
+        const conceptosNuevos = lecturasSeleccionadas
+          .filter(l => l.fecha_lectura_anterior && new Date(l.fecha_lectura_anterior).getTime() === minFecha)
+          .map(l => l.concepto_codigo)
+        advertencias.push({
+          contador: grupo.contador_numero_serie,
+          cliente: grupo.cliente_nombre,
+          spreadDias: Math.round(spreadDias),
+          conceptosNuevos,
+          fechaMin: new Date(minFecha).toLocaleDateString('es-ES'),
+          fechaMax: new Date(maxFecha).toLocaleDateString('es-ES')
+        })
+      }
+    }
+    return advertencias
+  }, [contadoresSeleccionados, lecturasPorContador, selectedIds])
+
   // Buscar lecturas
   const handleBuscar = () => {
     if (!comunidadId || !periodo.inicio || !periodo.fin) {
@@ -241,7 +278,7 @@ export default function GenerarFacturas() {
             .filter(Boolean)
 
           const periodoRealInicio = fechasAnteriores.length > 0
-            ? fechasAnteriores.sort()[0]  // Fecha más antigua
+            ? fechasAnteriores.sort().reverse()[0]  // Fecha más reciente (evita que un concepto nuevo arrastre el periodo al pasado)
             : periodo.inicio  // Fallback si no hay fechas
 
           const periodoRealFin = fechasActuales.length > 0
@@ -628,6 +665,39 @@ export default function GenerarFacturas() {
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
               />
+
+              {/* Aviso: conceptos con fechas de lectura anterior muy dispares */}
+              {contadoresConFechasDispares.length > 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-800 font-medium">
+                    <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                    <span>
+                      {contadoresConFechasDispares.length === 1
+                        ? '1 contador con concepto nuevo detectado'
+                        : `${contadoresConFechasDispares.length} contadores con concepto nuevo detectados`}
+                    </span>
+                  </div>
+                  <p className="text-sm text-amber-700">
+                    Los siguientes contadores tienen un concepto que se factura por primera vez.
+                    Su fecha de lectura anterior es la fecha de alta del contador, no la del último ciclo facturado.
+                    El periodo de la factura se calculará desde la fecha del ciclo previo (la más reciente). Revisa que sea correcto antes de generar.
+                  </p>
+                  <ul className="text-sm text-amber-800 space-y-1 mt-1">
+                    {contadoresConFechasDispares.map((w, i) => (
+                      <li key={i} className="flex flex-wrap gap-x-2">
+                        <span className="font-mono font-semibold">{w.contador}</span>
+                        <span className="text-amber-600">— {w.cliente}</span>
+                        <span className="text-amber-600">
+                          · Concepto(s) nuevo(s): <strong>{w.conceptosNuevos.join(', ')}</strong>
+                        </span>
+                        <span className="text-amber-600">
+                          · Fechas ant.: {w.fechaMin} / {w.fechaMax} ({w.spreadDias} días de diferencia)
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="flex justify-between pt-4">
                 <Button variant="outline" onClick={() => setStep(1)}>
