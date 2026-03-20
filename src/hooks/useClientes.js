@@ -372,6 +372,50 @@ export async function fetchAllClientes(filters = {}) {
   return all
 }
 
+// Historial de cambios de un cliente
+export function useHistorialCliente(clienteId) {
+  return useQuery({
+    queryKey: ['historial-clientes', clienteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('historial_clientes')
+        .select('*')
+        .eq('cliente_id', clienteId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!clienteId
+  })
+}
+
+// Insertar entradas en el historial del cliente
+export function useCreateHistorialCliente() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (entradas) => {
+      const items = Array.isArray(entradas) ? entradas : [entradas]
+      if (items.length === 0) return []
+
+      const { data, error } = await supabase
+        .from('historial_clientes')
+        .insert(items)
+        .select()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (_, variables) => {
+      const clienteId = Array.isArray(variables) ? variables[0]?.cliente_id : variables?.cliente_id
+      if (clienteId) {
+        queryClient.invalidateQueries({ queryKey: ['historial-clientes', clienteId] })
+      }
+    }
+  })
+}
+
 // Finalizar ocupación de cliente
 export function useFinalizarOcupacion() {
   const queryClient = useQueryClient()

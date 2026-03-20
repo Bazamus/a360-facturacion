@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
-import { Users, Plus, Eye, Edit2, Ban, CheckCircle, MoreVertical, Upload, Download, FileSpreadsheet } from 'lucide-react'
+import { Users, Plus, Eye, Edit2, Ban, CheckCircle, MoreVertical, Upload, Download, FileSpreadsheet, History, MapPin, AlertTriangle } from 'lucide-react'
 import {
   useClientes,
   useCliente,
@@ -11,7 +11,8 @@ import {
   useComunidades,
   useEstadosCliente
 } from '@/hooks'
-import { fetchAllClientes } from '@/hooks/useClientes'
+import { fetchAllClientes, useHistorialCliente, useCreateHistorialCliente } from '@/hooks/useClientes'
+import { supabase } from '@/lib/supabase'
 import { getBadgeVariant } from '@/utils/estadosCliente'
 import { 
   Button, 
@@ -29,7 +30,8 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  TabsContent
+  TabsContent,
+  Modal
 } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { ClienteForm } from '@/features/clientes/ClienteForm'
@@ -542,6 +544,7 @@ function ClienteDetail() {
               Notas{notasAbiertas > 0 ? ` (${notasAbiertas})` : numNotas > 0 ? ` (${numNotas})` : ''}
             </TabsTrigger>
             <TabsTrigger value="bancarios">Datos Bancarios</TabsTrigger>
+            <TabsTrigger value="historial">Historial</TabsTrigger>
           </TabsList>
 
           <TabsContent value="datos" className="p-6">
@@ -562,6 +565,10 @@ function ClienteDetail() {
 
           <TabsContent value="bancarios" className="p-6">
             <DatosBancariosTab cliente={cliente} />
+          </TabsContent>
+
+          <TabsContent value="historial" className="p-6">
+            <HistorialTab clienteId={id} />
           </TabsContent>
         </Tabs>
       </Card>
@@ -713,6 +720,25 @@ function DatosBancariosTab({ cliente }) {
   )
 }
 
+// Etiquetas legibles para cada campo del cliente
+const CAMPOS_HISTORIAL = {
+  nombre: 'Nombre',
+  apellidos: 'Apellidos',
+  nif: 'NIF/CIF',
+  email: 'Email',
+  telefono: 'Teléfono',
+  telefono_secundario: 'Teléfono Secundario',
+  tipo: 'Tipo de Cliente',
+  estado_id: 'Estado',
+  iban: 'IBAN',
+  titular_cuenta: 'Titular de Cuenta',
+  direccion_correspondencia: 'Dirección',
+  cp_correspondencia: 'Código Postal',
+  ciudad_correspondencia: 'Ciudad',
+  provincia_correspondencia: 'Provincia',
+  observaciones: 'Observaciones',
+}
+
 function ClienteEditar() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -720,31 +746,103 @@ function ClienteEditar() {
   const updateMutation = useUpdateCliente()
   const asignarUbicacion = useAsignarClienteUbicacion()
   const finalizarOcupacion = useFinalizarOcupacion()
+  const createHistorial = useCreateHistorialCliente()
+  const { data: estados } = useEstadosCliente()
   const toast = useToast()
 
-  const handleSubmit = async (data) => {
+  const [modalBaja, setModalBaja] = useState({ open: false, pendingData: null, ubicacionNombre: '' })
+  const [guardando, setGuardando] = useState(false)
+
+  const estadoBajaId = estados?.find(e => e.codigo === 'BAJA')?.id
+
+  const registrarHistorial = async (dataNueva, clienteAnterior, estadosLista, liberarUbicacion) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('nombre_completo')
+      .eq('id', user?.id)
+      .single()
+
+    const usuarioNombre = perfil?.nombre_completo || user?.email || 'Usuario desconocido'
+    const usuarioId = user?.id || null
+
+    const entradas = []
+
+    // Comparar campos campo a campo
+    for (const [campo, label] of Object.entries(CAMPOS_HISTORIAL)) {
+      let valorAnterior = clienteAnterior[campo] ?? null
+      let valorNuevo = dataNueva[campo] ?? null
+
+      // Normalizar a string para comparar
+      const strAnterior = valorAnterior === null || valorAnterior === undefined ? '' : String(valorAnterior)
+      const strNuevo = valorNuevo === null || valorNuevo === undefined ? '' : String(valorNuevo)
+
+      if (strAnterior === strNuevo) continue
+
+      // Para estado_id: mostrar nombre del estado, no UUID
+      if (campo === 'estado_id' && estadosLista) {
+        const estadoAnterior = estadosLista.find(e => e.id === valorAnterior)
+        const estadoNuevo = estadosLista.find(e => e.id === valorNuevo)
+        valorAnterior = estadoAnterior?.nombre ?? valorAnterior
+        valorNuevo = estadoNuevo?.nombre ?? valorNuevo
+      }
+
+      entradas.push({
+        cliente_id: id,
+        tipo_cambio: 'campo_editado',
+        campo,
+        campo_label: label,
+        valor_anterior: valorAnterior !== null ? String(valorAnterior) : null,
+        valor_nuevo: valorNuevo !== null ? String(valorNuevo) : null,
+        usuario_id: usuarioId,
+        usuario_nombre: usuarioNombre,
+      })
+    }
+
+    // Evento de ubicación liberada
+    if (liberarUbicacion) {
+      const uc = clienteAnterior.ubicaciones_clientes?.find(u => u.es_actual)
+      const nombreUbic = uc?.ubicacion
+        ? [uc.ubicacion.agrupacion?.nombre, uc.ubicacion.nombre].filter(Boolean).join(' - ')
+        : 'Ubicación'
+      entradas.push({
+        cliente_id: id,
+        tipo_cambio: 'ubicacion_liberada',
+        descripcion: nombreUbic,
+        usuario_id: usuarioId,
+        usuario_nombre: usuarioNombre,
+      })
+    }
+
+    if (entradas.length > 0) {
+      await createHistorial.mutateAsync(entradas)
+    }
+  }
+
+  const ejecutarGuardado = async (data, liberarUbicacion = false) => {
+    setGuardando(true)
     try {
-      // Extraer ubicacion_id del data
       const { ubicacion_id, ...clienteData } = data
-      
-      // Actualizar datos del cliente
+
+      // Guardar datos del cliente
       await updateMutation.mutateAsync({ id, ...clienteData })
-      
-      // Obtener ubicación actual
+
+      // Gestionar ubicación
       const ubicacionActual = cliente?.ubicaciones_clientes?.find(uc => uc.es_actual)
       const ubicacionActualId = ubicacionActual?.ubicacion?.id
-      
-      // Si la ubicación cambió
-      if (ubicacion_id !== ubicacionActualId) {
-        // Finalizar la ocupación anterior si existe
+
+      if (liberarUbicacion && ubicacionActual) {
+        await finalizarOcupacion.mutateAsync({
+          id: ubicacionActual.id,
+          fecha_fin: new Date().toISOString().split('T')[0]
+        })
+      } else if (!liberarUbicacion && ubicacion_id !== ubicacionActualId) {
         if (ubicacionActual) {
           await finalizarOcupacion.mutateAsync({
             id: ubicacionActual.id,
             fecha_fin: new Date().toISOString().split('T')[0]
           })
         }
-        
-        // Asignar nueva ubicación si se seleccionó una
         if (ubicacion_id) {
           await asignarUbicacion.mutateAsync({
             cliente_id: id,
@@ -753,12 +851,36 @@ function ClienteEditar() {
           })
         }
       }
-      
+
+      // Registrar historial de cambios
+      await registrarHistorial(clienteData, cliente, estados, liberarUbicacion)
+
       toast.success('Cliente actualizado')
       navigate(`/clientes/${id}`)
     } catch (error) {
       toast.error(error.message)
+    } finally {
+      setGuardando(false)
+      setModalBaja({ open: false, pendingData: null, ubicacionNombre: '' })
     }
+  }
+
+  const handleSubmit = async (data) => {
+    const { ubicacion_id, ...clienteData } = data
+    const ubicacionActual = cliente?.ubicaciones_clientes?.find(uc => uc.es_actual)
+    const esBaja = estadoBajaId && clienteData.estado_id === estadoBajaId
+
+    // Si cambia a Baja y tiene ubicación activa → preguntar
+    if (esBaja && ubicacionActual) {
+      const uc = ubicacionActual.ubicacion
+      const nombreUbic = uc
+        ? [uc.agrupacion?.nombre, uc.nombre].filter(Boolean).join(' - ')
+        : 'la ubicación asignada'
+      setModalBaja({ open: true, pendingData: data, ubicacionNombre: nombreUbic })
+      return
+    }
+
+    await ejecutarGuardado(data)
   }
 
   if (isLoading) return <LoadingSpinner />
@@ -785,10 +907,200 @@ function ClienteEditar() {
           <ClienteForm 
             cliente={cliente}
             onSubmit={handleSubmit}
-            loading={updateMutation.isPending}
+            loading={updateMutation.isPending || guardando}
           />
         </CardContent>
       </Card>
+
+      {/* Modal de confirmación al dar de baja */}
+      <ModalBajaUbicacion
+        open={modalBaja.open}
+        ubicacionNombre={modalBaja.ubicacionNombre}
+        guardando={guardando}
+        onLiberarYGuardar={() => ejecutarGuardado(modalBaja.pendingData, true)}
+        onSoloGuardar={() => ejecutarGuardado(modalBaja.pendingData, false)}
+        onCancelar={() => setModalBaja({ open: false, pendingData: null, ubicacionNombre: '' })}
+      />
     </div>
   )
+}
+
+function ModalBajaUbicacion({ open, ubicacionNombre, guardando, onLiberarYGuardar, onSoloGuardar, onCancelar }) {
+  if (!open) return null
+  return (
+    <Modal open={open} onClose={onCancelar} title="Cliente dado de baja">
+      <div className="space-y-4">
+        <div className="flex gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Ubicación asignada detectada</p>
+            <p className="text-sm text-amber-700 mt-1">
+              El cliente tiene asignada la ubicación <strong>{ubicacionNombre}</strong>.
+              ¿Deseas liberar también esta ubicación para que quede disponible para un nuevo cliente?
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 pt-2">
+          <Button
+            onClick={onLiberarYGuardar}
+            disabled={guardando}
+            className="w-full"
+          >
+            {guardando ? 'Guardando...' : 'Liberar ubicación y guardar'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onSoloGuardar}
+            disabled={guardando}
+            className="w-full"
+          >
+            Solo guardar (mantener ubicación)
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={onCancelar}
+            disabled={guardando}
+            className="w-full"
+          >
+            Cancelar
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ─── Pestaña Historial ────────────────────────────────────────────────────────
+
+function HistorialTab({ clienteId }) {
+  const { data: entradas, isLoading } = useHistorialCliente(clienteId)
+
+  if (isLoading) return <LoadingSpinner />
+
+  if (!entradas || entradas.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <History className="w-10 h-10 text-gray-300 mb-3" />
+        <p className="text-gray-500 font-medium">Sin cambios registrados</p>
+        <p className="text-sm text-gray-400 mt-1">
+          Los cambios en los datos del cliente quedarán registrados aquí.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1">
+      <p className="text-sm text-gray-500 mb-4">
+        {entradas.length} {entradas.length === 1 ? 'registro' : 'registros'} de cambios
+      </p>
+      <div className="relative">
+        {/* Línea vertical de la línea de tiempo */}
+        <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" aria-hidden="true" />
+
+        <ul className="space-y-4 pl-12">
+          {entradas.map((entrada) => (
+            <HistorialEntrada key={entrada.id} entrada={entrada} />
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function HistorialEntrada({ entrada }) {
+  const fecha = new Date(entrada.created_at)
+  const fechaFormateada = fecha.toLocaleDateString('es-ES', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  })
+  const horaFormateada = fecha.toLocaleTimeString('es-ES', {
+    hour: '2-digit', minute: '2-digit'
+  })
+
+  const { icono, colorFondo, colorIcono } = getHistorialEstilo(entrada.tipo_cambio, entrada.campo)
+
+  return (
+    <li className="relative">
+      {/* Punto en la línea de tiempo */}
+      <div className={`absolute -left-8 flex items-center justify-center w-8 h-8 rounded-full border-2 border-white ${colorFondo}`}>
+        <span className={`w-4 h-4 ${colorIcono}`}>{icono}</span>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-lg p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            {entrada.tipo_cambio === 'campo_editado' ? (
+              <>
+                <p className="text-sm font-medium text-gray-900">
+                  {entrada.campo_label}
+                </p>
+                <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 flex-wrap">
+                  {entrada.valor_anterior ? (
+                    <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded line-through text-xs">
+                      {entrada.valor_anterior}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs italic">vacío</span>
+                  )}
+                  <span className="text-gray-400">→</span>
+                  {entrada.valor_nuevo ? (
+                    <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-medium">
+                      {entrada.valor_nuevo}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs italic">vacío</span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm font-medium text-gray-900">
+                {entrada.tipo_cambio === 'ubicacion_liberada'
+                  ? `Ubicación liberada: ${entrada.descripcion || ''}`
+                  : `Ubicación asignada: ${entrada.descripcion || ''}`}
+              </p>
+            )}
+          </div>
+
+          <div className="text-right flex-shrink-0">
+            <p className="text-xs text-gray-500">{fechaFormateada}</p>
+            <p className="text-xs text-gray-400">{horaFormateada}</p>
+            {entrada.usuario_nombre && (
+              <p className="text-xs text-gray-500 mt-1 font-medium">{entrada.usuario_nombre}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </li>
+  )
+}
+
+function getHistorialEstilo(tipo, campo) {
+  if (tipo === 'ubicacion_liberada') {
+    return {
+      icono: <MapPin className="w-4 h-4" />,
+      colorFondo: 'bg-orange-100',
+      colorIcono: 'text-orange-600',
+    }
+  }
+  if (tipo === 'ubicacion_asignada') {
+    return {
+      icono: <MapPin className="w-4 h-4" />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600',
+    }
+  }
+  // campo_editado
+  if (campo === 'estado_id') {
+    return {
+      icono: <AlertTriangle className="w-4 h-4" />,
+      colorFondo: 'bg-amber-100',
+      colorIcono: 'text-amber-600',
+    }
+  }
+  return {
+    icono: <History className="w-4 h-4" />,
+    colorFondo: 'bg-gray-100',
+    colorIcono: 'text-gray-500',
+  }
 }
