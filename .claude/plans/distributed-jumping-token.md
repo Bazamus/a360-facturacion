@@ -1,320 +1,313 @@
-# Plan de Desarrollo — Gestión de Precios
+# Plan: Paginación Tabs Comunidad + Exportación Excel Completa
 
 ## Contexto
 
-El cliente solicita una página centralizada para gestionar las actualizaciones periódicas de precios en las comunidades. Actualmente los precios se gestionan individualmente desde la pestaña "Precios" de cada comunidad. El nuevo desarrollo debe permitir:
+El usuario reporta dos problemas relacionados:
 
-1. **Actualización por Factor de Conversión** (conceptos energéticos CAL/CLI): Basado en índices P6 NATURGY o MIBGAS publicados mensualmente
-2. **Actualización por IPC** (conceptos fijos TF/ACS): Porcentaje anual del gobierno
-3. **Descuentos puntuales**: Con fecha de expiración, reflejados en factura PDF
-4. **Aplicación masiva**: A una, varias o todas las comunidades
-5. **Retroactividad**: Opción de recalcular facturas en borrador/emitidas no enviadas
+1. **Detalle Comunidad — Tabs con datos truncados**: Las pestañas Clientes, Contadores y Facturas en la página de detalle de comunidad solo muestran los primeros 50 registros (o 500 para facturas). Los contadores de la cabecera de cada tab (`numClientes`, `numContadores`, `numFacturas`) usan `data.length` que refleja solo los datos cargados, no el total real. La pestaña Viviendas (Ubicaciones) no muestra ningún count en el tab header.
 
-**Riesgo:** MEDIO — Crea objetos nuevos en DB y añade integración con generación de facturas existente. La página nueva es independiente (bajo riesgo) pero la integración con descuentos en facturación requiere cuidado.
+2. **Exportación Excel incompleta**: Las páginas Clientes y Facturas exportan solo los datos de la página visible (50 registros). Contadores funciona correctamente (usa `exportarEntidad` que fetchea todo). Se necesita opción "Exportar todo" que descargue TODOS los registros.
 
 ---
 
-## Estado actual del sistema
+## Tarea 1: Tabs Comunidad — Mostrar todos los registros + counts reales
 
-- **Tabla `precios`**: precio_unitario DECIMAL(10,4), vigencia con fecha_inicio/fecha_fin, activo flag
-- **Tabla `facturas_lineas`**: YA tiene `descuento_porcentaje` DECIMAL(5,2) y `descuento_importe` DECIMAL(10,2) — pero nunca se populan (siempre 0)
-- **`calcularSubtotal()`** en `calculos.js`: YA acepta `descuentoPorcentaje` como 3er parámetro — pero siempre se llama con 0
-- **PDF factura** (`generarPDF.js`): 5 columnas (Concepto, Lecturas, Consumo, Precio, Importe) — NO muestra descuento
-- **Hook `useCreatePrecio()`**: Cierra precio anterior y crea nuevo (por comunidad+concepto individual)
-- **Tabla `comunidades`**: NO tiene campo para indicar referencia energética (P6/MIBGAS)
-- **Última migración**: 046
+### Problema actual
 
----
+En `src/pages/Comunidades.jsx` (ComunidadDetail, líneas 359-508):
 
-## Fase 1 — Migración 047 (Base de datos)
+```js
+// Línea 365-368: Hooks sin pageSize → default 50
+const { data: clientesResult } = useClientes({ comunidadId: id })        // default pageSize=50
+const { data: contadoresResult } = useContadores({ comunidadId: id })    // default pageSize=50
+const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 500 })
 
-**Archivo:** `supabase/migrations/047_gestion_precios.sql`
-
-### 1.1 Nueva columna en `comunidades`
-```sql
-ALTER TABLE comunidades
-  ADD COLUMN referencia_energia TEXT DEFAULT NULL
-    CHECK (referencia_energia IN ('P6_NATURGY', 'MIBGAS'));
+// Línea 375-377: Counts basados en .length (max 50/500)
+const numClientes = clientesComunidad?.length || 0
+const numContadores = contadoresComunidad?.length || 0
+const numFacturas = Array.isArray(facturasComunidad) ? facturasComunidad.length : 0
 ```
 
-### 1.2 Tabla `precios_referencias_mercado`
-Almacena valores mensuales de P6 NATURGY y MIBGAS introducidos por el usuario.
-```sql
-CREATE TABLE precios_referencias_mercado (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tipo TEXT NOT NULL CHECK (tipo IN ('P6_NATURGY', 'MIBGAS')),
-  anio INTEGER NOT NULL,
-  mes INTEGER NOT NULL CHECK (mes BETWEEN 1 AND 12),
-  valor DECIMAL(12,6) NOT NULL,
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(tipo, anio, mes)
-);
+Los tabs ya implementan paginación LOCAL con PAGE_SIZE=50, pero solo sobre los 50 registros recibidos.
+
+### Solución
+
+**Enfoque: Subir `pageSize` a 5000 en las llamadas de los tabs + usar `count` del hook para headers.**
+
+Las comunidades normalmente tienen cientos de clientes/contadores, no decenas de miles. Pasar `pageSize: 5000` es suficiente y evita complejidad de paginación server-side en los tabs embebidos. Los tabs internos ya tienen paginación local funcional.
+
+**Alternativa descartada:** Paginación server-side en cada tab — añade complejidad innecesaria cuando los datasets por comunidad son manejables (<5000).
+
+### Cambios
+
+#### 1.1 `src/pages/Comunidades.jsx` — ComunidadDetail (líneas 365-377)
+
+Pasar `pageSize: 5000` a los hooks de clientes y contadores. Usar `count` del hook para los tab headers en lugar de `.length`:
+
+```js
+// ANTES
+const { data: clientesResult } = useClientes({ comunidadId: id })
+const clientesComunidad = clientesResult?.data || []
+const { data: contadoresResult } = useContadores({ comunidadId: id })
+const contadoresComunidad = contadoresResult?.data || []
+const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 500 })
+
+const numClientes = clientesComunidad?.length || 0
+const numContadores = contadoresComunidad?.length || 0
+const numFacturas = Array.isArray(facturasComunidad) ? facturasComunidad.length : 0
+
+// DESPUÉS
+const { data: clientesResult } = useClientes({ comunidadId: id, pageSize: 5000 })
+const clientesComunidad = clientesResult?.data || []
+const { data: contadoresResult } = useContadores({ comunidadId: id, pageSize: 5000 })
+const contadoresComunidad = contadoresResult?.data || []
+const { data: facturasComunidad } = useFacturas({ comunidadId: id, limit: 5000, withCount: true })
+
+const numClientes = clientesResult?.count ?? clientesComunidad?.length ?? 0
+const numContadores = contadoresResult?.count ?? contadoresComunidad?.length ?? 0
+const numFacturas = facturasComunidad?.total ?? (Array.isArray(facturasComunidad) ? facturasComunidad.length : facturasComunidad?.data?.length ?? 0)
 ```
 
-### 1.3 Tabla `descuentos`
-Descuentos puntuales por concepto+comunidad con fecha de expiración.
-```sql
-CREATE TABLE descuentos (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  comunidad_id UUID NOT NULL REFERENCES comunidades(id) ON DELETE CASCADE,
-  concepto_id UUID NOT NULL REFERENCES conceptos(id) ON DELETE CASCADE,
-  porcentaje DECIMAL(5,2) NOT NULL CHECK (porcentaje > 0 AND porcentaje <= 100),
-  motivo TEXT,
-  fecha_inicio DATE NOT NULL,
-  fecha_fin DATE NOT NULL,
-  aplicado BOOLEAN NOT NULL DEFAULT false,
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+#### 1.2 Pestaña Viviendas — Añadir count al tab header
+
+El hook `useUbicacionesByComunidad` (`src/hooks/useComunidades.js:221`) retorna un array sin count. Añadir count al tab header usando `ubicacionesComunidad.length` (ya fetcheado en línea 372):
+
+```js
+// Línea 458-460: Añadir count
+<TabsTrigger value="ubicaciones">
+  {comunidad.nombre_ubicacion}s{ubicacionesComunidad?.length > 0 ? ` (${ubicacionesComunidad.length})` : ''}
+</TabsTrigger>
 ```
 
-### 1.4 Tabla `historial_ajustes_precios`
-Log de auditoría de todas las operaciones de ajuste masivo.
-```sql
-CREATE TABLE historial_ajustes_precios (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tipo_ajuste TEXT NOT NULL CHECK (tipo_ajuste IN ('factor_conversion', 'ipc', 'manual', 'descuento')),
-  referencia TEXT,
-  valor_anterior DECIMAL(12,6),
-  valor_actual DECIMAL(12,6),
-  factor DECIMAL(12,8),
-  porcentaje_ipc DECIMAL(5,2),
-  conceptos_aplicados TEXT[],
-  comunidades_aplicadas UUID[],
-  total_precios_actualizados INTEGER,
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+#### 1.3 `src/features/comunidades/ComunidadClientesTab.jsx`
+
+Cambiar hook call para recibir todos los registros (el padre ya los tiene, pero el tab hace su propia call):
+
+```js
+// Línea 14: Añadir pageSize
+const { data: clientesResult, isLoading } = useClientes({ comunidadId: comunidad.id, pageSize: 5000 })
 ```
 
-### 1.5 RPC `aplicar_factor_precios`
-Aplica factor de conversión/IPC de forma atómica a múltiples comunidades+conceptos:
-- Cierra precios actuales (fecha_fin + activo=false)
-- Inserta nuevos precios con precio_unitario * factor
-- Registra en historial_ajustes_precios
-- Retorna JSON `{ precios_actualizados: N }`
+#### 1.4 `src/features/comunidades/ComunidadContadoresTab.jsx`
 
-### 1.6 RPC `get_preview_actualizacion_precios`
-Preview antes de confirmar: muestra tabla comunidad→concepto→precio_actual→precio_nuevo + count de facturas afectadas.
+Mismo cambio:
 
-### 1.7 RPC `recalcular_facturas_con_nuevos_precios`
-Actualiza líneas de facturas en estado borrador/emitida NO enviadas:
-- **Nota**: "No enviada" se determina con `NOT EXISTS (SELECT 1 FROM envios_email ee WHERE ee.factura_id = f.id AND ee.estado = 'enviado')` — no hay campo directo en tabla `facturas`
-- Reemplaza precio_unitario con precio vigente actual
-- Recalcula subtotal respetando descuento_porcentaje
-- Recalcula totales de factura (base + IVA + total)
-- Marca pdf_generado=false para forzar regeneración
-
-### 1.8 RLS + GRANTs
-Policies estándar del proyecto para las 3 nuevas tablas + GRANT EXECUTE en las 3 RPCs.
-
----
-
-## Fase 2 — Hooks (Capa de datos)
-
-**Archivo nuevo:** `src/hooks/useGestionPrecios.js`
-
-| Hook | Tipo | Descripción |
-|------|------|-------------|
-| `useReferenciasEnergia(tipo, anio)` | Query | Valores mensuales P6/MIBGAS |
-| `useDescuentosVigentes(comunidadId?)` | Query | Descuentos activos no expirados |
-| `useHistorialAjustes(options)` | Query | Log de ajustes con paginación |
-| `useRegistrarReferencia()` | Mutation | Upsert valor mensual en referencias |
-| `useAplicarFactorPrecios()` | Mutation | Llama RPC aplicar_factor_precios |
-| `usePreviewActualizacion()` | Mutation | Llama RPC get_preview |
-| `useRecalcularFacturas()` | Mutation | Llama RPC recalcular_facturas |
-| `useCrearDescuento()` | Mutation | INSERT en descuentos |
-| `useEliminarDescuento()` | Mutation | DELETE descuento (solo si aplicado=false) |
-
-**Exportar desde** `src/hooks/index.js`
-
----
-
-## Fase 3 — Página y Componentes
-
-### 3.1 Página principal: `src/pages/GestionPrecios.jsx`
-
-Layout con **4 pestañas**:
-
-```
-[Factor Energético]  [IPC Conceptos Fijos]  [Descuentos]  [Historial]
+```js
+// Línea 13: Añadir pageSize
+const { data: contadoresResult, isLoading } = useContadores({ comunidadId: comunidad.id, pageSize: 5000 })
 ```
 
-### Tab 1 — Factor Energético (CAL, CLI)
-- Dos tarjetas lado a lado: **P6 NATURGY** y **MIBGAS**
-- Cada tarjeta: inputs "Precio mes anterior" / "Precio mes actual"
-- Factor auto-calculado mostrado en grande: `actual / anterior`
-- Nota contextual: P6 = "mes en curso", MIBGAS = "promedio mes anterior"
-- Selector multi-comunidad (con filtro por referencia_energia)
-- Checkboxes de conceptos: CAL, CLI
-- Botón "Vista previa" → modal con tabla old→new
-- Toggle: "Aplicar también a facturas borrador/emitidas no enviadas"
-- Botón "Aplicar" (habilitado solo tras preview)
+#### 1.5 `src/features/facturacion/components/FacturasEmbedded.jsx`
 
-### Tab 2 — IPC Conceptos Fijos (TF, ACS)
-- Input porcentaje IPC (ej: 3%)
-- Factor auto-calculado: `1 + IPC/100`
-- Mismo selector multi-comunidad
-- Checkboxes: TF, ACS
-- Mismo flujo preview → confirmar
+Subir limit de 500 a 5000:
 
-### Tab 3 — Descuentos
-- Tabla de descuentos activos (DataTable con filtros)
-- Botón "Nuevo Descuento" → modal:
-  - Selector comunidad(es)
-  - Selector concepto
-  - Porcentaje descuento
-  - Fecha expiración
-  - Motivo (texto libre)
-- Acciones: eliminar descuento pendiente
-
-### Tab 4 — Historial
-- DataTable con historial_ajustes_precios
-- Columnas: Fecha, Tipo, Factor/IPC, Conceptos, Nº Comunidades, Precios actualizados
-
-### 3.2 Componentes nuevos
-
-```
-src/features/precios/
-  components/
-    FactorEnergeticoTab.jsx
-    IPCFijosTab.jsx
-    DescuentosTab.jsx
-    HistorialAjustesTab.jsx
-    ComunidadMultiSelector.jsx    -- Multi-select con búsqueda y "Seleccionar todas"
-    PreviewPreciosModal.jsx       -- Modal confirmación con tabla old→new
-    DescuentoForm.jsx             -- Modal formulario nuevo descuento
-    FactorCalculator.jsx          -- Tarjeta calculadora P6/MIBGAS
+```js
+// Línea 142: Cambiar limit
+limit: 5000
 ```
 
 ---
 
-## Fase 4 — Router y Sidebar
+## Tarea 2: Exportación Excel — Opción "Exportar Todo"
 
-### 4.1 `src/App.jsx`
-```jsx
-<Route path="gestion-precios" element={<GestionPreciosPage />} />
-```
+### Problema actual
 
-### 4.2 `src/components/layout/Sidebar.jsx`
-Añadir en sección OPERACIONES, después de Facturación:
-```javascript
-{ name: 'Gestión Precios', href: '/gestion-precios', icon: TrendingUp }
-```
+| Página | Estado actual | Problema |
+|--------|--------------|----------|
+| **Contadores** (`Contadores.jsx:96`) | `exportarEntidad('contadores')` → `getContadoresParaExport()` | OK — fetchea todo |
+| **Clientes** (`Clientes.jsx:114`) | `exportar.mutateAsync({ clientes: clientes })` | BUG — `clientes` = solo página actual (50) |
+| **Facturas** (`Facturas.jsx:300`) | `exportar.mutateAsync({ facturas })` | BUG — `facturas` = solo página actual (50) |
 
----
+### Solución
 
-## Fase 5 — PDF Factura (columna Dto)
+Para **Clientes** y **Facturas**: crear funciones `fetchAllClientes()` y `fetchAllFacturas()` que obtienen todos los registros en lotes de 1000 (patrón `fetchAllPendienteIds` de `useEnvios.js:80-108`), y añadir opción "Exportar todo" en los modales de exportación.
 
-**Archivo:** `src/features/facturacion/pdf/generarPDF.js`
+### Cambios
 
-**Estrategia**: Condicional — solo mostrar columna Dto si alguna línea tiene descuento > 0.
+#### 2.1 `src/hooks/useClientes.js` — Nueva función `fetchAllClientes`
 
-```javascript
-const hasDescuentos = lineasOrdenadas.some(l => (l.descuento_porcentaje || 0) > 0)
+Función async (no hook) que fetchea todos los clientes con los mismos filtros aplicados, en lotes de 1000:
 
-if (hasDescuentos) {
-  // 6 columnas: Concepto(42) | Lecturas(40) | Consumo(30) | Precio(26) | Dto(16) | Importe(26) = 180mm
-  // Dto muestra: "25%" o vacío
-} else {
-  // 5 columnas actuales sin cambios (zero-risk para facturas existentes)
+```js
+export async function fetchAllClientes(filters = {}) {
+  const { search, tipo, estadoId, comunidadId } = filters
+  const all = []
+  let from = 0
+  const batchSize = 1000
+
+  // Pre-filtrar por comunidad (mismo patrón que useClientes)
+  let clienteIdsFiltro = null
+  if (comunidadId) {
+    // ... same community filter logic as useClientes ...
+  }
+
+  while (true) {
+    let query = supabase
+      .from('clientes')
+      .select(`*, estado:estados_cliente(*), ubicaciones_clientes(...)`)
+      .order('apellidos').order('nombre')
+      .range(from, from + batchSize - 1)
+
+    if (search) query = query.or(...)
+    if (tipo) query = query.eq('tipo', tipo)
+    if (estadoId) query = query.eq('estado_id', estadoId)
+    if (clienteIdsFiltro) query = query.in('id', clienteIdsFiltro)
+
+    const { data, error } = await query
+    if (error) throw error
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < batchSize) break
+    from += batchSize
+  }
+  return all
 }
 ```
 
----
+#### 2.2 `src/hooks/useFacturas.js` — Nueva función `fetchAllFacturas`
 
-## Fase 6 — Integración con Generación de Facturas
+Misma idea, para facturas:
 
-### 6.1 `src/pages/GenerarFacturas.jsx`
-Al construir líneas de factura, buscar descuento vigente:
-```javascript
-const descuento = descuentosVigentes?.find(
-  d => d.concepto_id === lectura.concepto_id && d.comunidad_id === comunidadId && !d.aplicado
-)
-// Pasar descuento.porcentaje a calcularSubtotal()
-// Popular descuento_porcentaje y descuento_importe en facturas_lineas
-// Marcar descuento como aplicado=true tras crear factura
+```js
+export async function fetchAllFacturas(filters = {}) {
+  const { comunidadId, estado, clienteId, search, fechaDesde, fechaHasta, sortBy, sortDirection } = filters
+  const all = []
+  let from = 0
+  const batchSize = 1000
+
+  while (true) {
+    let query = supabase
+      .from('v_facturas_resumen')
+      .select('*')
+      .order(sortBy || 'fecha_factura', { ascending: sortDirection === 'asc' })
+      .range(from, from + batchSize - 1)
+
+    // Apply same filters as useFacturas
+    if (comunidadId) query = query.eq('comunidad_id', comunidadId)
+    if (estado) query = query.eq('estado', estado)
+    if (clienteId) query = query.eq('cliente_id', clienteId)
+    if (search) query = query.or(...)
+    if (fechaDesde) query = query.gte('fecha_factura', fechaDesde)
+    if (fechaHasta) query = query.lte('fecha_factura', fechaHasta)
+
+    const { data, error } = await query
+    if (error) throw error
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < batchSize) break
+    from += batchSize
+  }
+  return all
+}
 ```
 
-### 6.2 `src/features/facturacion/utils/calculos.js`
-`generarDatosFactura()` — añadir parámetro opcional `descuentos` para buscar descuentos aplicables al generar datos.
+#### 2.3 `src/pages/Clientes.jsx` — Exportar con todos los datos
 
----
+Modificar `handleExportar` para fetchear todos los clientes antes de exportar:
 
-## Fase 7 — Mejoras en PreciosTab existente
+```js
+import { fetchAllClientes } from '@/hooks/useClientes'
 
-**Archivo:** `src/features/comunidades/PreciosTab.jsx`
+const handleExportar = async (config) => {
+  try {
+    setIsExporting(true)
+    // Fetchear TODOS los clientes con filtros actuales
+    const todosClientes = await fetchAllClientes({ search, tipo, estadoId, comunidadId })
 
-- Mostrar descuentos activos para esa comunidad (filas destacadas en amarillo)
-- Añadir selector de `referencia_energia` (P6/MIBGAS/Sin configurar)
-- Link "Ir a Gestión de Precios" para operaciones masivas
-
----
-
-## Archivos a crear/modificar
-
-| Archivo | Acción | Fase |
-|---------|--------|------|
-| `supabase/migrations/047_gestion_precios.sql` | CREAR | 1 |
-| `src/hooks/useGestionPrecios.js` | CREAR | 2 |
-| `src/hooks/index.js` | MODIFICAR — exports | 2 |
-| `src/pages/GestionPrecios.jsx` | CREAR | 3 |
-| `src/features/precios/components/*.jsx` | CREAR (8 archivos) | 3 |
-| `src/App.jsx` | MODIFICAR — nueva ruta | 4 |
-| `src/components/layout/Sidebar.jsx` | MODIFICAR — nuevo item menú | 4 |
-| `src/features/facturacion/pdf/generarPDF.js` | MODIFICAR — columna Dto condicional | 5 |
-| `src/pages/GenerarFacturas.jsx` | MODIFICAR — integrar descuentos | 6 |
-| `src/features/facturacion/utils/calculos.js` | MODIFICAR — parámetro descuentos | 6 |
-| `src/features/comunidades/PreciosTab.jsx` | MODIFICAR — descuentos + referencia | 7 |
-
----
-
-## Orden de ejecución
-
-```
-Fase 1 → Migración 047 (deploy en Supabase)
-   ↓
-Fase 2 → Hooks useGestionPrecios.js
-   ↓
-Fase 3 → Página GestionPrecios + componentes (4 tabs)
-   ↓
-Fase 4 → Router + Sidebar
-   ↓
-Fase 5 → PDF columna Dto (condicional)
-   ↓
-Fase 6 → Integración descuentos en GenerarFacturas
-   ↓
-Fase 7 → Mejoras PreciosTab existente
-   ↓
-npm run build → verificar 0 errores → commit
+    const result = await exportar.mutateAsync({
+      clientes: todosClientes,
+      config
+    })
+    // ...
+  }
+}
 ```
 
+Actualizar texto del botón para indicar que exporta todo:
+```js
+// En el botón/modal — mostrar totalCount del hook
+`Exportar ${totalCount} clientes`
+```
+
+#### 2.4 `src/pages/Facturas.jsx` — Exportar con todos los datos
+
+Mismo patrón:
+
+```js
+import { fetchAllFacturas } from '@/hooks/useFacturas'
+
+const handleExportarExcel = async (config) => {
+  try {
+    setModalExport(false)
+    setProgresoExportacion({ current: 0, total: 100, message: 'Obteniendo facturas...' })
+
+    // Fetchear TODAS las facturas con filtros actuales
+    const todasFacturas = await fetchAllFacturas({
+      comunidadId: filters.comunidadId,
+      estado: filters.estado,
+      clienteId: filters.clienteId,
+      search: filters.search,
+      fechaDesde: filters.fechaDesde,
+      fechaHasta: filters.fechaHasta,
+      sortBy, sortDirection
+    })
+
+    await exportar.mutateAsync({
+      facturas: todasFacturas,
+      config,
+      onProgress: (progreso) => setProgresoExportacion(progreso)
+    })
+    // ...
+  }
+}
+```
+
+#### 2.5 Modales de exportación — Mostrar count total
+
+En `ModalExportarClientes` y `ModalExportarFacturas`: mostrar el número total de registros que se van a exportar en el botón de confirmación.
+
+Pasar prop `totalCount` al modal desde la página padre (viene del hook con `count: 'exact'`).
+
 ---
 
-## Casos borde y seguridad
+## Archivos a modificar
 
-1. **Comunidad sin referencia_energia**: Warning en selector, se puede seleccionar pero se sugiere configurarla primero
-2. **Comunidad sin precio activo para un concepto**: Se omite silenciosamente, preview muestra "Sin precio" para esa combinación
-3. **División por cero en factor**: Validación UI — precio_anterior debe ser > 0, botón Aplicar deshabilitado
-4. **Descuento en concepto sin precio**: Form valida que exista precio activo antes de permitir crear descuento
-5. **Doble aplicación**: RPCs atómicas en transacción, historial de auditoría
-6. **Facturas ya enviadas**: RPC `recalcular_facturas` filtra por `email_enviado = false`
-7. **Regeneración PDF**: Al recalcular, `pdf_generado = false` fuerza regeneración con nuevos importes
-8. **Concurrencia**: SECURITY DEFINER + transacción PostgreSQL serializa actualizaciones
+| # | Archivo | Cambios |
+|---|---------|---------|
+| 1 | `src/pages/Comunidades.jsx` | pageSize:5000 en hooks, counts reales en tab headers, count viviendas |
+| 2 | `src/features/comunidades/ComunidadClientesTab.jsx` | pageSize:5000 en useClientes |
+| 3 | `src/features/comunidades/ComunidadContadoresTab.jsx` | pageSize:5000 en useContadores |
+| 4 | `src/features/facturacion/components/FacturasEmbedded.jsx` | limit:5000 |
+| 5 | `src/hooks/useClientes.js` | Nueva función `fetchAllClientes()` |
+| 6 | `src/hooks/useFacturas.js` | Nueva función `fetchAllFacturas()` |
+| 7 | `src/pages/Clientes.jsx` | Usar `fetchAllClientes` en export handler |
+| 8 | `src/pages/Facturas.jsx` | Usar `fetchAllFacturas` en export handler |
+
+---
+
+## Orden de implementación
+
+| # | Tarea |
+|---|-------|
+| 1 | Comunidades.jsx — pageSize + counts reales en tab headers |
+| 2 | ComunidadClientesTab — pageSize:5000 |
+| 3 | ComunidadContadoresTab — pageSize:5000 |
+| 4 | FacturasEmbedded — limit:5000 |
+| 5 | useClientes.js — fetchAllClientes() |
+| 6 | useFacturas.js — fetchAllFacturas() |
+| 7 | Clientes.jsx — export con fetchAllClientes |
+| 8 | Facturas.jsx — export con fetchAllFacturas |
+| 9 | Build + verificación |
 
 ---
 
 ## Verificación
 
-1. Navegar a `/gestion-precios` — página carga con 4 pestañas
-2. Tab Factor: Introducir P6 enero=0.14185, febrero=0.14421 → Factor = 1.01663
-3. Seleccionar comunidad + CAL → Preview muestra precios old→new correctos
-4. Aplicar → Verificar en pestaña Precios de la comunidad que el precio se actualizó
-5. Tab IPC: Introducir 3% → Factor = 1.03, aplicar a TF → Verificar nuevo precio
-6. Tab Descuentos: Crear descuento 25% ACS en una comunidad → Verificar en tabla
-7. Generar factura para comunidad con descuento → Línea muestra descuento_porcentaje=25
-8. Descargar PDF → Columna "Dto" visible con "25%"
-9. Factura sin descuento → PDF mantiene 5 columnas sin "Dto"
-10. Historial: Verificar que todas las operaciones aparecen registradas
-11. `npm run build` → 0 errores
+1. **Tab Clientes**: Ir a detalle comunidad con >50 clientes → tab header muestra count real (ej: "Clientes (234)"), tabla muestra todos paginados localmente
+2. **Tab Contadores**: Igual → "Contadores (156)", todos visibles con paginación local
+3. **Tab Facturas**: Igual → "Facturas (1200)", todas visibles
+4. **Tab Viviendas**: Muestra count en header → "Viviendas (89)"
+5. **Export Clientes**: Ir a /clientes → Exportar Excel → archivo contiene TODOS los clientes (no solo 50)
+6. **Export Facturas**: Ir a /facturacion/facturas → Exportar Excel → archivo contiene TODAS las facturas
+7. **Export Contadores**: Verificar sigue funcionando (ya exporta todo)
+8. **Build**: `npm run build` sin errores

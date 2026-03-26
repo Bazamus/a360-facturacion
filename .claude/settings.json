@@ -11,7 +11,8 @@
       "WebFetch(domain:blog.saeloun.com)",
       "WebFetch(domain:n8n.io)",
       "Read(//c/Users/david-rey/.claude/projects/c--Users-david-rey-Desktop-DAVID-CODE-ENER-FACTU/memory/**)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npx vite build:*)"
     ]
   },
   "enabledPlugins": {
