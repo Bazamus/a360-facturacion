@@ -5,6 +5,8 @@ import { LoadingSpinner } from './LoadingSpinner'
 const variants = {
   primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
   secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-primary-500',
+  // Alias de secondary (mismo estilo) para pantallas que usan variant="outline"
+  outline: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-primary-500',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
   ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-gray-500',
   link: 'text-primary-600 hover:text-primary-700 underline-offset-4 hover:underline',

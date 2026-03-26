@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -19,7 +19,9 @@ import {
   Pencil,
   RotateCcw,
   ExternalLink,
-  ArrowRightLeft
+  ArrowRightLeft,
+  MoreHorizontal,
+  ChevronDown
 } from 'lucide-react'
 import { Button, Card, Modal, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -60,6 +62,26 @@ export default function FacturaDetalle({ showPdf = false }) {
   const [modoTestEmail, setModoTestEmail] = useState(false)
   const [abonoModal, setAbonoModal] = useState(false)
   const [lineasSeleccionadas, setLineasSeleccionadas] = useState(new Set())
+  const [menuMasOpen, setMenuMasOpen] = useState(false)
+  const menuMasRef = useRef(null)
+
+  useEffect(() => {
+    if (!menuMasOpen) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuMasOpen(false)
+    }
+    const onPointer = (e) => {
+      if (menuMasRef.current && !menuMasRef.current.contains(e.target)) {
+        setMenuMasOpen(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onPointer)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onPointer)
+    }
+  }, [menuMasOpen])
 
   const { data: factura, isLoading, refetch } = useFactura(id)
   const { data: lineas } = useFacturaLineas(id)
@@ -216,16 +238,23 @@ export default function FacturaDetalle({ showPdf = false }) {
     )
   }
 
+  const mostrarAnularEnMenu = factura.estado === 'emitida'
+  const mostrarEliminarEnMenu = ['emitida', 'pagada', 'anulada'].includes(factura.estado)
+  const mostrarMenuMas = mostrarAnularEnMenu || mostrarEliminarEnMenu
+  const mostrarPdfToolbar = ['emitida', 'pagada', 'abonada_completa', 'abonada_parcial'].includes(factura.estado)
+
+  const cerrarMenuMas = () => setMenuMasOpen(false)
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-center gap-4 min-w-0">
+          <Button variant="ghost" size="md" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver
           </Button>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900">
                 {factura.numero_completo || 'Factura en borrador'}
@@ -249,87 +278,47 @@ export default function FacturaDetalle({ showPdf = false }) {
             </p>
           </div>
         </div>
-        
-        {/* Acciones según estado */}
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+
+        {/* Barra de acciones unificada */}
+        <div className="flex flex-wrap items-center gap-2 justify-start lg:justify-end rounded-xl border border-gray-200 bg-gray-50/80 px-3 py-2 shrink-0">
           {puedeEditar && (
             <Button
-              variant="outline"
-              onClick={() => navigate(`/facturacion/facturas/${id}/editar`)}
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                cerrarMenuMas()
+                navigate(`/facturacion/facturas/${id}/editar`)
+              }}
             >
               <Pencil className="w-4 h-4 mr-2" />
               Editar
             </Button>
           )}
 
-          {factura.estado === 'borrador' && (
-            <Button onClick={handleEmitir} disabled={emitirFactura.isPending}>
-              <FileText className="w-4 h-4 mr-2" />
-              {emitirFactura.isPending ? 'Emitiendo...' : 'Emitir factura'}
-            </Button>
-          )}
-
           {factura.estado === 'emitida' && (
-            <>
-              <Button
-                variant={factura.email_enviado ? "ghost" : "outline"}
-                onClick={() => setEmailModalOpen(true)}
-                disabled={!factura.cliente?.email && !factura.cliente_email}
-                title={!factura.cliente?.email && !factura.cliente_email ? 'Cliente sin email configurado' : ''}
-              >
-                <Mail className={`w-4 h-4 mr-2 ${factura.email_enviado ? 'text-green-500' : ''}`} />
-                {factura.email_enviado ? 'Reenviar' : 'Enviar por email'}
-              </Button>
-              <Button
-                className="bg-green-600 hover:bg-green-700"
-                onClick={handleMarcarPagada}
-                disabled={marcarPagada.isPending}
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Marcar pagada
-              </Button>
-              <Button
-                variant="outline"
-                className="text-red-600 border-red-300 hover:bg-red-50"
-                onClick={() => setAnularModal(true)}
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Anular
-              </Button>
-            </>
-          )}
-
-          {/* Botón Crear Abono — visible para facturas de cargo emitidas/pagadas sin abono previo */}
-          {puedeAbonar && (
             <Button
-              variant="outline"
-              className="text-violet-700 border-violet-300 hover:bg-violet-50"
+              variant="secondary"
+              size="md"
               onClick={() => {
-                setLineasSeleccionadas(new Set(lineasOrdenadas?.map(l => l.id) || []))
-                setAbonoModal(true)
+                cerrarMenuMas()
+                setEmailModalOpen(true)
               }}
+              disabled={!factura.cliente?.email && !factura.cliente_email}
+              title={!factura.cliente?.email && !factura.cliente_email ? 'Cliente sin email configurado' : ''}
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Crear Abono
+              <Mail className={`w-4 h-4 mr-2 shrink-0 ${factura.email_enviado ? 'text-green-600' : ''}`} />
+              {factura.email_enviado ? 'Reenviar email' : 'Enviar email'}
             </Button>
           )}
 
-          {/* Eliminar - solo emitidas/pagadas/anuladas */}
-          {['emitida', 'pagada', 'anulada'].includes(factura.estado) && (
+          {mostrarPdfToolbar && (
             <Button
-              variant="danger"
-              onClick={() => setEliminarModal(true)}
-              title="Eliminar factura completamente"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Eliminar Permanentemente
-            </Button>
-          )}
-
-          {['emitida', 'pagada', 'abonada_completa', 'abonada_parcial'].includes(factura.estado) && (
-            <Button 
-              variant="outline" 
-              onClick={handleDescargarPDF}
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                cerrarMenuMas()
+                handleDescargarPDF()
+              }}
               disabled={generandoPDF}
             >
               {generandoPDF ? (
@@ -339,6 +328,106 @@ export default function FacturaDetalle({ showPdf = false }) {
               )}
               {generandoPDF ? 'Generando...' : 'Descargar PDF'}
             </Button>
+          )}
+
+          {puedeAbonar && (
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                cerrarMenuMas()
+                setLineasSeleccionadas(new Set(lineasOrdenadas?.map(l => l.id) || []))
+                setAbonoModal(true)
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-2 shrink-0 text-violet-600" />
+              Crear abono
+            </Button>
+          )}
+
+          {factura.estado === 'borrador' && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => {
+                cerrarMenuMas()
+                handleEmitir()
+              }}
+              disabled={emitirFactura.isPending}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {emitirFactura.isPending ? 'Emitiendo...' : 'Emitir factura'}
+            </Button>
+          )}
+
+          {factura.estado === 'emitida' && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => {
+                cerrarMenuMas()
+                handleMarcarPagada()
+              }}
+              disabled={marcarPagada.isPending}
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              {marcarPagada.isPending ? 'Procesando...' : 'Marcar pagada'}
+            </Button>
+          )}
+
+          {mostrarMenuMas && (
+            <div className="relative" ref={menuMasRef}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                aria-expanded={menuMasOpen}
+                aria-haspopup="menu"
+                onClick={() => setMenuMasOpen((o) => !o)}
+              >
+                <MoreHorizontal className="w-4 h-4 mr-2" />
+                Más
+                <ChevronDown className={`w-3.5 h-3.5 ml-1 transition-transform ${menuMasOpen ? 'rotate-180' : ''}`} />
+              </Button>
+              {menuMasOpen && (
+                <div
+                  className="absolute right-0 top-full z-50 mt-1 min-w-[12rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                  role="menu"
+                >
+                  {mostrarAnularEnMenu && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        setMenuMasOpen(false)
+                        setAnularModal(true)
+                      }}
+                    >
+                      <XCircle className="w-4 h-4 shrink-0" />
+                      Anular factura
+                    </button>
+                  )}
+                  {mostrarAnularEnMenu && mostrarEliminarEnMenu && (
+                    <div className="my-1 border-t border-gray-100" role="separator" />
+                  )}
+                  {mostrarEliminarEnMenu && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        setMenuMasOpen(false)
+                        setEliminarModal(true)
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                      Eliminar
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
