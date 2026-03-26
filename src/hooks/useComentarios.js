@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { applySearchFilters } from '@/utils/buildSearchFilter'
 
 // =====================================================
 // Hooks para Comentarios Internos (Notas)
@@ -74,7 +75,7 @@ export function useAllComentarios(filtros = {}) {
         query = query.eq('etiqueta', filtros.etiqueta)
       }
       if (filtros.search) {
-        query = query.or(`contenido.ilike.%${filtros.search}%,entidad_nombre.ilike.%${filtros.search}%`)
+        query = applySearchFilters(query, filtros.search, ['contenido', 'entidad_nombre'])
       }
 
       const { data, error } = await query

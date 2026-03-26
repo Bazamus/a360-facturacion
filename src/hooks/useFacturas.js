@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/features/auth/AuthContext'
+import { applySearchFilters } from '@/utils/buildSearchFilter'
 
 // =====================================================
 // Hooks para Facturas
@@ -35,7 +36,7 @@ export function useFacturas(options = {}) {
         if (estado) q = q.eq('estado', estado)
         if (emailEnviado != null) q = q.eq('email_enviado', emailEnviado)
         if (clienteId) q = q.eq('cliente_id', clienteId)
-        if (search) q = q.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
+        if (search) q = applySearchFilters(q, search, ['numero_completo', 'cliente_nombre', 'cliente_nif'])
         if (fechaDesde) q = q.gte('fecha_factura', fechaDesde)
         if (fechaHasta) q = q.lte('fecha_factura', fechaHasta)
         return q
@@ -115,7 +116,7 @@ export async function fetchAllFacturas(filters = {}) {
     if (estado) query = query.eq('estado', estado)
     if (emailEnviado != null) query = query.eq('email_enviado', emailEnviado)
     if (clienteId) query = query.eq('cliente_id', clienteId)
-    if (search) query = query.or(`numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,cliente_nif.ilike.%${search}%`)
+    if (search) query = applySearchFilters(query, search, ['numero_completo', 'cliente_nombre', 'cliente_nif'])
     if (fechaDesde) query = query.gte('fecha_factura', fechaDesde)
     if (fechaHasta) query = query.lte('fecha_factura', fechaHasta)
 

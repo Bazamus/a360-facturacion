@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { applySearchFilters } from '@/utils/buildSearchFilter'
 
 // =====================================================
 // Hooks para Contadores
@@ -50,11 +51,11 @@ export function useContadores(options = {}) {
       // Pre-filtro por búsqueda → resolver contador IDs desde la vista (multi-campo)
       let searchContadorIds = null
       if (search) {
-        const { data: searchData, error: searchError } = await supabase
+        let searchQuery = supabase
           .from('v_contadores_completos')
           .select('contador_id')
-          .or(`numero_serie.ilike.%${search}%,ubicacion_nombre.ilike.%${search}%,comunidad_nombre.ilike.%${search}%,agrupacion_nombre.ilike.%${search}%,cliente_nombre.ilike.%${search}%,concepto_codigo.ilike.%${search}%`)
-          .range(0, 9999)
+        searchQuery = applySearchFilters(searchQuery, search, ['numero_serie', 'ubicacion_nombre', 'comunidad_nombre', 'agrupacion_nombre', 'cliente_nombre', 'concepto_codigo'])
+        const { data: searchData, error: searchError } = await searchQuery.range(0, 9999)
         if (searchError) throw searchError
 
         searchContadorIds = [...new Set(searchData?.map(r => r.contador_id))]

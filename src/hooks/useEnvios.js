@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { applySearchFilters } from '@/utils/buildSearchFilter'
 
 // =====================================================
 // QUERIES
@@ -140,7 +141,7 @@ export function useHistorialEnvios(filtros = {}) {
       }
 
       if (search) {
-        query = query.or(`email_destino.ilike.%${search}%,numero_completo.ilike.%${search}%,cliente_nombre.ilike.%${search}%`)
+        query = applySearchFilters(query, search, ['email_destino', 'numero_completo', 'cliente_nombre'])
       }
 
       const { data, error, count } = await query

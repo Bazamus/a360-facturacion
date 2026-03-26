@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { applySearchFilters } from '@/utils/buildSearchFilter'
 
 // =====================================================
 // Hooks para Comunidades
@@ -22,7 +23,7 @@ export function useComunidades(options = {}) {
       }
 
       if (search) {
-        query = query.or(`nombre.ilike.%${search}%,codigo.ilike.%${search}%`)
+        query = applySearchFilters(query, search, ['nombre', 'codigo'])
       }
 
       const { data, error } = await query
