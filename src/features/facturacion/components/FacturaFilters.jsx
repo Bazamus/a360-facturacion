@@ -8,6 +8,8 @@ const ESTADOS = [
   { value: 'emitida', label: 'Emitidas' },
   { value: 'pagada', label: 'Pagadas' },
   { value: 'anulada', label: 'Anuladas' },
+  { value: 'abonada_completa', label: 'Abonadas Completas' },
+  { value: 'abonada_parcial', label: 'Abonadas Parciales' },
   { value: 'email_enviado', label: 'Enviadas por email' },
   { value: 'email_no_enviado', label: 'No enviadas por email' }
 ]

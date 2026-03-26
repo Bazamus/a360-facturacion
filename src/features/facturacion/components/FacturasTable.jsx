@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Eye, FileText, Mail, Pencil, Trash2, CreditCard, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Eye, FileText, Mail, Pencil, Trash2, CreditCard, ArrowUpDown, ArrowUp, ArrowDown, ArrowRightLeft } from 'lucide-react'
 import { Button, Card, Checkbox, Badge } from '@/components/ui'
 import { EstadoBadge } from './EstadoBadge'
 import { formatCurrency, formatDate } from '../utils/calculos'
@@ -54,10 +54,16 @@ export function FacturasTable({
     modo === 'emision'
       ? f.estado === 'borrador'
       : modo === 'descarga'
-        ? ['emitida', 'pagada', 'anulada'].includes(f.estado)
+        ? ['emitida', 'pagada', 'anulada', 'abonada_completa', 'abonada_parcial'].includes(f.estado)
         : modo === 'eliminar'
-          ? ['emitida', 'pagada', 'anulada'].includes(f.estado)
-          : false
+          ? ['emitida', 'pagada', 'anulada', 'abonada_completa', 'abonada_parcial'].includes(f.estado)
+          : modo === 'abono'
+            ? f.tipo !== 'abono' && ['emitida', 'pagada'].includes(f.estado) && !f.factura_rectificada_id
+            : modo === 'anular'
+              ? ['emitida', 'pagada'].includes(f.estado)
+              : modo === 'email'
+                ? ['emitida', 'pagada'].includes(f.estado) && !!f.cliente_email
+                : false
   )
   const facturaIds = facturasSeleccionables.map(f => f.id)
 
@@ -206,8 +212,11 @@ export function FacturasTable({
                 {facturasSeleccionables.length > 0 && (
                   <td className="px-3 py-3 w-10">
                     {(modo === 'emision' && factura.estado === 'borrador') ||
-                     (modo === 'descarga' && ['emitida', 'pagada', 'anulada'].includes(factura.estado)) ||
-                     (modo === 'eliminar' && ['emitida', 'pagada', 'anulada'].includes(factura.estado)) ? (
+                     (modo === 'descarga' && ['emitida', 'pagada', 'anulada', 'abonada_completa', 'abonada_parcial'].includes(factura.estado)) ||
+                     (modo === 'eliminar' && ['emitida', 'pagada', 'anulada', 'abonada_completa', 'abonada_parcial'].includes(factura.estado)) ||
+                     (modo === 'abono' && factura.tipo !== 'abono' && ['emitida', 'pagada'].includes(factura.estado) && !factura.factura_rectificada_id) ||
+                     (modo === 'anular' && ['emitida', 'pagada'].includes(factura.estado)) ||
+                     (modo === 'email' && ['emitida', 'pagada'].includes(factura.estado) && !!factura.cliente_email) ? (
                       <Checkbox
                         checked={localSelectedIds.includes(factura.id)}
                         onChange={handleSelectRow(factura.id)}
@@ -262,7 +271,15 @@ export function FacturasTable({
                   </span>
                 </td>
                 <td className="px-2 py-3 whitespace-nowrap text-center">
-                  <EstadoBadge estado={factura.estado} size="sm" />
+                  <div className="flex flex-col items-center gap-1">
+                    <EstadoBadge estado={factura.estado} size="sm" />
+                    {factura.tipo === 'abono' && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded-full border bg-violet-100 text-violet-700 border-violet-300">
+                        <ArrowRightLeft className="w-2.5 h-2.5" />
+                        ABONO
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center justify-center gap-1">

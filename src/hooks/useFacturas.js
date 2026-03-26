@@ -660,5 +660,39 @@ export function useCreateLineaFactura() {
   })
 }
 
+// =====================================================
+// Hook para crear factura de abono (total o parcial)
+// =====================================================
+
+/**
+ * Crea una factura de abono a partir de una factura de cargo.
+ * @param facturaId  UUID de la factura original
+ * @param lineasIds  Array de UUIDs de facturas_lineas a abonar.
+ *                   null o [] = abono total (todas las líneas)
+ * Devuelve el UUID de la factura de abono creada.
+ */
+export function useCrearFacturaAbono() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ facturaId, lineasIds = null }) => {
+      const { data, error } = await supabase.rpc('crear_factura_abono', {
+        p_factura_id: facturaId,
+        p_lineas_ids: lineasIds && lineasIds.length > 0 ? lineasIds : null
+      })
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (_, { facturaId }) => {
+      queryClient.invalidateQueries({ queryKey: ['facturas'] })
+      queryClient.invalidateQueries({ queryKey: ['facturas', facturaId] })
+      queryClient.invalidateQueries({ queryKey: ['facturas-lineas', facturaId] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas'] })
+      queryClient.invalidateQueries({ queryKey: ['lecturas-pendientes-facturar'] })
+    }
+  })
+}
+
 
 

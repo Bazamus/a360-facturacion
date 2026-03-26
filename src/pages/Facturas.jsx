@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus, Mail, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, FileText, CheckSquare, X, Download, FileSpreadsheet, FilePlus, Mail, Trash2, AlertTriangle, RotateCcw, XCircle, ArrowRightLeft } from 'lucide-react'
 import { Button, Card, Modal, Pagination } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FacturasTable, FacturaFilters, EstadoBadge, ModalExportarFacturas, ProgressoExportacion } from '@/features/facturacion/components'
@@ -15,6 +15,8 @@ import {
   useEstadisticasFacturacion,
   useEmitirFacturasMasivo,
   useEliminarFacturas,
+  useAnularFactura,
+  useCrearFacturaAbono,
   fetchAllFacturas
 } from '@/hooks/useFacturas'
 import { useEnviarFactura } from '@/hooks/useEnvios'
@@ -38,7 +40,14 @@ export default function Facturas() {
   const [selectedIds, setSelectedIds] = useState([])
   const [emitiendo, setEmitiendo] = useState(false)
   const [descargandoPDF, setDescargandoPDF] = useState(null) // ID de la factura siendo descargada
-  const [modo, setModo] = useState('emision') // 'emision' | 'descarga' | 'eliminar'
+  const [modo, setModo] = useState('emision') // 'emision' | 'descarga' | 'eliminar' | 'abono' | 'anular'
+  const [abonoMasivoModal, setAbonoMasivoModal] = useState(false)
+  const [anularMasivoModal, setAnularMasivoModal] = useState({ open: false })
+  const [motivoAnulacionMasivo, setMotivoAnulacionMasivo] = useState('')
+  const [emailMasivoModal, setEmailMasivoModal] = useState(false)
+  const [modoTestEmailMasivo, setModoTestEmailMasivo] = useState(false)
+  const [progresoMasivo, setProgresoMasivo] = useState({ actual: 0, total: 0 })
+  const [ejecutandoMasivo, setEjecutandoMasivo] = useState(false)
   const [descargandoPDFs, setDescargandoPDFs] = useState(false)
   const [progresoDescarga, setProgresoDescarga] = useState({ actual: 0, total: 0 })
   
@@ -75,6 +84,8 @@ export default function Facturas() {
   const emitirMasivo = useEmitirFacturasMasivo()
   const enviarFactura = useEnviarFactura()
   const eliminarFacturas = useEliminarFacturas()
+  const anularFactura = useAnularFactura()
+  const crearAbono = useCrearFacturaAbono()
   const { exportar } = useExportarFacturas()
 
   // Estados para exportación
@@ -436,6 +447,95 @@ export default function Facturas() {
     }
   }
 
+  // Handler abono masivo (abono total de cada factura seleccionada)
+  const handleAbonoMasivo = async () => {
+    if (selectedIds.length === 0) return
+    setEjecutandoMasivo(true)
+    setProgresoMasivo({ actual: 0, total: selectedIds.length })
+    let exitosas = 0
+    let fallidas = 0
+    for (let i = 0; i < selectedIds.length; i++) {
+      setProgresoMasivo({ actual: i + 1, total: selectedIds.length })
+      try {
+        await crearAbono.mutateAsync({ facturaId: selectedIds[i], lineasIds: null })
+        exitosas++
+      } catch {
+        fallidas++
+      }
+    }
+    setEjecutandoMasivo(false)
+    setAbonoMasivoModal(false)
+    setSelectedIds([])
+    if (fallidas === 0) {
+      toast.success(`${exitosas} factura(s) abonada(s) correctamente`)
+    } else {
+      toast.warning(`${exitosas} abonadas, ${fallidas} con errores`)
+    }
+  }
+
+  // Handler anular masivo
+  const handleAnularMasivo = async () => {
+    if (selectedIds.length === 0) return
+    if (!motivoAnulacionMasivo.trim()) {
+      toast.error('Indica el motivo de anulación')
+      return
+    }
+    setEjecutandoMasivo(true)
+    setProgresoMasivo({ actual: 0, total: selectedIds.length })
+    let exitosas = 0
+    let fallidas = 0
+    for (let i = 0; i < selectedIds.length; i++) {
+      setProgresoMasivo({ actual: i + 1, total: selectedIds.length })
+      try {
+        await anularFactura.mutateAsync({ facturaId: selectedIds[i], motivo: motivoAnulacionMasivo })
+        exitosas++
+      } catch {
+        fallidas++
+      }
+    }
+    setEjecutandoMasivo(false)
+    setAnularMasivoModal({ open: false })
+    setMotivoAnulacionMasivo('')
+    setSelectedIds([])
+    if (fallidas === 0) {
+      toast.success(`${exitosas} factura(s) anulada(s) correctamente`)
+    } else {
+      toast.warning(`${exitosas} anuladas, ${fallidas} con errores`)
+    }
+  }
+
+  // Handler envío email masivo
+  const handleEmailMasivo = async () => {
+    if (selectedIds.length === 0) return
+    const facturasSeleccionadas = facturas.filter(f => selectedIds.includes(f.id) && f.cliente_email)
+    if (facturasSeleccionadas.length === 0) {
+      toast.error('Ninguna factura seleccionada tiene email configurado')
+      return
+    }
+    setEjecutandoMasivo(true)
+    setProgresoMasivo({ actual: 0, total: facturasSeleccionadas.length })
+    let exitosas = 0
+    let fallidas = 0
+    for (let i = 0; i < facturasSeleccionadas.length; i++) {
+      setProgresoMasivo({ actual: i + 1, total: facturasSeleccionadas.length })
+      try {
+        await enviarFactura.mutateAsync({ facturaId: facturasSeleccionadas[i].id, modoTest: modoTestEmailMasivo })
+        exitosas++
+      } catch {
+        fallidas++
+      }
+    }
+    setEjecutandoMasivo(false)
+    setEmailMasivoModal(false)
+    setModoTestEmailMasivo(false)
+    setSelectedIds([])
+    if (fallidas === 0) {
+      toast.success(`${exitosas} email(s) enviado(s) correctamente`)
+    } else {
+      toast.warning(`${exitosas} enviados, ${fallidas} con errores`)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -516,9 +616,9 @@ export default function Facturas() {
       />
 
       {/* Toggle de Modo */}
-      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border">
+      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border flex-wrap">
         <span className="text-sm font-medium text-gray-700">Modo:</span>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant={modo === 'emision' ? 'primary' : 'outline'}
             size="sm"
@@ -531,23 +631,50 @@ export default function Facturas() {
             size="sm"
             onClick={() => { setModo('descarga'); setSelectedIds([]) }}
           >
-            Descarga masiva
+            Descarga PDF
+          </Button>
+          <Button
+            variant={modo === 'email' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => { setModo('email'); setSelectedIds([]) }}
+          >
+            <Mail className="w-3.5 h-3.5 mr-1.5" />
+            Envío email
+          </Button>
+          <Button
+            variant={modo === 'abono' ? 'primary' : 'outline'}
+            size="sm"
+            className={modo === 'abono' ? 'bg-violet-600 hover:bg-violet-700' : 'border-violet-300 text-violet-700 hover:bg-violet-50'}
+            onClick={() => { setModo('abono'); setSelectedIds([]) }}
+          >
+            <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+            Abonar
+          </Button>
+          <Button
+            variant={modo === 'anular' ? 'outline' : 'outline'}
+            size="sm"
+            className={modo === 'anular' ? 'bg-amber-100 border-amber-500 text-amber-800' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
+            onClick={() => { setModo('anular'); setSelectedIds([]) }}
+          >
+            <XCircle className="w-3.5 h-3.5 mr-1.5" />
+            Anular
           </Button>
           <Button
             variant={modo === 'eliminar' ? 'danger' : 'outline'}
             size="sm"
             onClick={() => { setModo('eliminar'); setSelectedIds([]) }}
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Eliminar permanente
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+            Eliminar
           </Button>
         </div>
-        <span className="text-xs text-gray-500">
-          {modo === 'emision'
-            ? 'Selecciona borradores para emitir'
-            : modo === 'descarga'
-              ? 'Selecciona facturas emitidas para descargar PDFs'
-              : 'Selecciona facturas para eliminar (solo últimas de la serie)'}
+        <span className="text-xs text-gray-500 ml-auto">
+          {modo === 'emision' ? 'Selecciona borradores para emitir'
+            : modo === 'descarga' ? 'Selecciona facturas para descargar PDFs (ZIP)'
+            : modo === 'email' ? 'Selecciona facturas emitidas/pagadas para enviar por email'
+            : modo === 'abono' ? 'Selecciona facturas de cargo (emitidas/pagadas) para abonar en total'
+            : modo === 'anular' ? 'Selecciona facturas para anular y liberar lecturas'
+            : 'Selecciona facturas para eliminar permanentemente'}
         </span>
       </div>
 
@@ -790,6 +917,30 @@ export default function Facturas() {
                     ? `Descargando ${progresoDescarga.actual}/${progresoDescarga.total}...`
                     : 'Descargar PDFs (ZIP)'}
                 </Button>
+              ) : modo === 'email' ? (
+                <Button
+                  onClick={() => setEmailMasivoModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Enviar {selectedIds.length} factura(s) por email
+                </Button>
+              ) : modo === 'abono' ? (
+                <Button
+                  onClick={() => setAbonoMasivoModal(true)}
+                  className="bg-violet-600 hover:bg-violet-700"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Abonar {selectedIds.length} factura(s)
+                </Button>
+              ) : modo === 'anular' ? (
+                <Button
+                  onClick={() => setAnularMasivoModal({ open: true })}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Anular {selectedIds.length} factura(s)
+                </Button>
               ) : (
                 <Button
                   onClick={() => {
@@ -816,6 +967,159 @@ export default function Facturas() {
           </Card>
         </div>
       )}
+
+      {/* Modal abono masivo */}
+      <Modal
+        open={abonoMasivoModal}
+        onClose={() => !ejecutandoMasivo && setAbonoMasivoModal(false)}
+        title="Abono Masivo de Facturas"
+      >
+        <div className="space-y-4">
+          <div className="bg-violet-50 border border-violet-200 rounded-lg p-4">
+            <p className="text-sm text-violet-800">
+              Se generará una <strong>factura de abono total</strong> para cada una de las{' '}
+              <strong>{selectedIds.length} factura(s)</strong> seleccionadas.
+              Las lecturas de cada factura serán liberadas para poder refacturarlas.
+            </p>
+          </div>
+          {ejecutandoMasivo && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Procesando...</span>
+                <span>{progresoMasivo.actual} / {progresoMasivo.total}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-violet-600 h-2 rounded-full transition-all"
+                  style={{ width: `${progresoMasivo.total ? (progresoMasivo.actual / progresoMasivo.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setAbonoMasivoModal(false)} disabled={ejecutandoMasivo}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-violet-600 hover:bg-violet-700"
+              onClick={handleAbonoMasivo}
+              disabled={ejecutandoMasivo}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {ejecutandoMasivo ? `Procesando ${progresoMasivo.actual}/${progresoMasivo.total}...` : `Confirmar Abono Masivo`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal anular masivo */}
+      <Modal
+        open={anularMasivoModal.open}
+        onClose={() => !ejecutandoMasivo && setAnularMasivoModal({ open: false })}
+        title="Anulación Masiva de Facturas"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Se anularán <strong>{selectedIds.length} factura(s)</strong>. Las lecturas de cada factura
+            serán liberadas para poder refacturarlas. Esta acción no se puede deshacer.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Motivo de anulación *
+            </label>
+            <textarea
+              value={motivoAnulacionMasivo}
+              onChange={(e) => setMotivoAnulacionMasivo(e.target.value)}
+              className="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500"
+              rows={3}
+              placeholder="Indica el motivo de la anulación masiva..."
+              disabled={ejecutandoMasivo}
+            />
+          </div>
+          {ejecutandoMasivo && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Procesando...</span>
+                <span>{progresoMasivo.actual} / {progresoMasivo.total}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-amber-500 h-2 rounded-full transition-all"
+                  style={{ width: `${progresoMasivo.total ? (progresoMasivo.actual / progresoMasivo.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setAnularMasivoModal({ open: false })} disabled={ejecutandoMasivo}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handleAnularMasivo}
+              disabled={ejecutandoMasivo || !motivoAnulacionMasivo.trim()}
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              {ejecutandoMasivo ? `Anulando ${progresoMasivo.actual}/${progresoMasivo.total}...` : `Anular ${selectedIds.length} factura(s)`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal email masivo */}
+      <Modal
+        open={emailMasivoModal}
+        onClose={() => !ejecutandoMasivo && setEmailMasivoModal(false)}
+        title="Envío Masivo de Facturas por Email"
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              Se enviará por email <strong>{selectedIds.length} factura(s)</strong> seleccionadas.
+              Solo se enviarán las facturas cuyos clientes tengan email configurado.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="modo-test-masivo"
+              checked={modoTestEmailMasivo}
+              onChange={(e) => setModoTestEmailMasivo(e.target.checked)}
+              className="w-4 h-4"
+              disabled={ejecutandoMasivo}
+            />
+            <label htmlFor="modo-test-masivo" className="text-sm text-yellow-800">
+              Modo test (envía a dirección de prueba, no a los clientes reales)
+            </label>
+          </div>
+          {ejecutandoMasivo && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Enviando emails...</span>
+                <span>{progresoMasivo.actual} / {progresoMasivo.total}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all"
+                  style={{ width: `${progresoMasivo.total ? (progresoMasivo.actual / progresoMasivo.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setEmailMasivoModal(false)} disabled={ejecutandoMasivo}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEmailMasivo}
+              disabled={ejecutandoMasivo}
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              {ejecutandoMasivo ? `Enviando ${progresoMasivo.actual}/${progresoMasivo.total}...` : `Enviar ${selectedIds.length} email(s)`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal de exportación */}
       <ModalExportarFacturas

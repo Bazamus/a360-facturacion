@@ -16,7 +16,10 @@ import {
   CheckCircle2,
   Clock,
   Trash2,
-  Pencil
+  Pencil,
+  RotateCcw,
+  ExternalLink,
+  ArrowRightLeft
 } from 'lucide-react'
 import { Button, Card, Modal, Badge } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -39,7 +42,8 @@ import {
   useEmitirFactura,
   useAnularFactura,
   useMarcarPagada,
-  useEliminarFacturas
+  useEliminarFacturas,
+  useCrearFacturaAbono
 } from '@/hooks/useFacturas'
 import { useEnviarFactura } from '@/hooks/useEnvios'
 
@@ -54,10 +58,13 @@ export default function FacturaDetalle({ showPdf = false }) {
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const [emailModalOpen, setEmailModalOpen] = useState(false)
   const [modoTestEmail, setModoTestEmail] = useState(false)
+  const [abonoModal, setAbonoModal] = useState(false)
+  const [lineasSeleccionadas, setLineasSeleccionadas] = useState(new Set())
 
   const { data: factura, isLoading, refetch } = useFactura(id)
   const { data: lineas } = useFacturaLineas(id)
   const { data: historico } = useFacturaHistoricoConsumo(id)
+  const { data: facturaRelacionada } = useFactura(factura?.factura_rectificada_id)
 
   // Ordenar líneas según orden predefinido de conceptos
   const lineasOrdenadas = useMemo(() => ordenarLineasFactura(lineas), [lineas])
@@ -68,11 +75,40 @@ export default function FacturaDetalle({ showPdf = false }) {
   const marcarPagada = useMarcarPagada()
   const enviarFactura = useEnviarFactura()
   const eliminarFacturas = useEliminarFacturas()
+  const crearAbono = useCrearFacturaAbono()
 
   const puedeEditar = factura && (
     factura.estado === 'borrador' ||
     (factura.estado === 'emitida' && !factura.email_enviado)
   )
+
+  const puedeAbonar = factura &&
+    factura.tipo !== 'abono' &&
+    ['emitida', 'pagada'].includes(factura.estado) &&
+    !factura.factura_rectificada_id
+
+  // Helpers para el modal de abono
+  const toggleLineaAbono = (lineaId) => {
+    setLineasSeleccionadas(prev => {
+      const next = new Set(prev)
+      next.has(lineaId) ? next.delete(lineaId) : next.add(lineaId)
+      return next
+    })
+  }
+
+  const toggleTodasLineas = () => {
+    if (lineasSeleccionadas.size === lineasOrdenadas?.length) {
+      setLineasSeleccionadas(new Set())
+    } else {
+      setLineasSeleccionadas(new Set(lineasOrdenadas?.map(l => l.id) || []))
+    }
+  }
+
+  const totalSeleccionado = useMemo(() => {
+    return lineasOrdenadas
+      ?.filter(l => lineasSeleccionadas.has(l.id))
+      .reduce((sum, l) => sum + Number(l.subtotal || 0), 0) || 0
+  }, [lineasOrdenadas, lineasSeleccionadas])
 
   const handleDescargarPDF = async () => {
     if (!factura) return
@@ -142,6 +178,24 @@ export default function FacturaDetalle({ showPdf = false }) {
     }
   }
 
+  const handleCrearAbono = async () => {
+    if (lineasSeleccionadas.size === 0) {
+      toast.error('Selecciona al menos una línea para abonar')
+      return
+    }
+    try {
+      const nuevoAbonoId = await crearAbono.mutateAsync({
+        facturaId: id,
+        lineasIds: [...lineasSeleccionadas]
+      })
+      toast.success('Factura de abono creada correctamente')
+      setAbonoModal(false)
+      navigate(`/facturacion/facturas/${nuevoAbonoId}`)
+    } catch (error) {
+      toast.error(`Error: ${error.message}`)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -172,11 +226,17 @@ export default function FacturaDetalle({ showPdf = false }) {
             Volver
           </Button>
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900">
                 {factura.numero_completo || 'Factura en borrador'}
               </h1>
               <EstadoBadge estado={factura.estado} />
+              {factura.tipo === 'abono' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full border bg-violet-100 text-violet-700 border-violet-300">
+                  <ArrowRightLeft size={11} />
+                  ABONO
+                </span>
+              )}
               {factura.email_enviado && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
                   <Mail size={12} />
@@ -191,7 +251,7 @@ export default function FacturaDetalle({ showPdf = false }) {
         </div>
         
         {/* Acciones según estado */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {puedeEditar && (
             <Button
               variant="outline"
@@ -239,6 +299,21 @@ export default function FacturaDetalle({ showPdf = false }) {
             </>
           )}
 
+          {/* Botón Crear Abono — visible para facturas de cargo emitidas/pagadas sin abono previo */}
+          {puedeAbonar && (
+            <Button
+              variant="outline"
+              className="text-violet-700 border-violet-300 hover:bg-violet-50"
+              onClick={() => {
+                setLineasSeleccionadas(new Set(lineasOrdenadas?.map(l => l.id) || []))
+                setAbonoModal(true)
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Crear Abono
+            </Button>
+          )}
+
           {/* Eliminar - solo emitidas/pagadas/anuladas */}
           {['emitida', 'pagada', 'anulada'].includes(factura.estado) && (
             <Button
@@ -251,7 +326,7 @@ export default function FacturaDetalle({ showPdf = false }) {
             </Button>
           )}
 
-          {['emitida', 'pagada'].includes(factura.estado) && (
+          {['emitida', 'pagada', 'abonada_completa', 'abonada_parcial'].includes(factura.estado) && (
             <Button 
               variant="outline" 
               onClick={handleDescargarPDF}
@@ -267,6 +342,73 @@ export default function FacturaDetalle({ showPdf = false }) {
           )}
         </div>
       </div>
+
+      {/* Banner: esta factura es un abono → enlace a la cargo original */}
+      {factura.tipo === 'abono' && facturaRelacionada && (
+        <div className="flex items-center gap-3 p-4 rounded-lg bg-violet-50 border border-violet-200">
+          <ArrowRightLeft className="w-5 h-5 text-violet-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-violet-800">Factura de Abono</p>
+            <p className="text-sm text-violet-700">
+              Abono de la factura de cargo&nbsp;
+              <button
+                onClick={() => navigate(`/facturacion/facturas/${facturaRelacionada.id}`)}
+                className="font-semibold underline hover:no-underline"
+              >
+                {facturaRelacionada.numero_completo}
+              </button>
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-violet-300 text-violet-700 hover:bg-violet-100"
+            onClick={() => navigate(`/facturacion/facturas/${facturaRelacionada.id}`)}
+          >
+            <ExternalLink className="w-3.5 h-3.5 mr-1" />
+            Ver original
+          </Button>
+        </div>
+      )}
+
+      {/* Banner: factura abonada (completa o parcial) → enlace al abono */}
+      {['abonada_completa', 'abonada_parcial'].includes(factura.estado) && facturaRelacionada && (
+        <div className={`flex items-center gap-3 p-4 rounded-lg border ${
+          factura.estado === 'abonada_completa'
+            ? 'bg-slate-50 border-slate-300'
+            : 'bg-orange-50 border-orange-200'
+        }`}>
+          <RotateCcw className={`w-5 h-5 shrink-0 ${
+            factura.estado === 'abonada_completa' ? 'text-slate-600' : 'text-orange-600'
+          }`} />
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-medium ${
+              factura.estado === 'abonada_completa' ? 'text-slate-800' : 'text-orange-800'
+            }`}>
+              {factura.estado === 'abonada_completa' ? 'Abonada Completamente' : 'Abonada Parcialmente'}
+            </p>
+            <p className={`text-sm ${
+              factura.estado === 'abonada_completa' ? 'text-slate-700' : 'text-orange-700'
+            }`}>
+              Factura de abono generada:&nbsp;
+              <button
+                onClick={() => navigate(`/facturacion/facturas/${facturaRelacionada.id}`)}
+                className="font-semibold underline hover:no-underline"
+              >
+                {facturaRelacionada.numero_completo}
+              </button>
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate(`/facturacion/facturas/${facturaRelacionada.id}`)}
+          >
+            <ExternalLink className="w-3.5 h-3.5 mr-1" />
+            Ver abono
+          </Button>
+        </div>
+      )}
 
       {/* Información general */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -510,6 +652,110 @@ export default function FacturaDetalle({ showPdf = false }) {
           </div>
         </Card>
       )}
+
+      {/* Modal crear abono */}
+      <Modal
+        open={abonoModal}
+        onClose={() => setAbonoModal(false)}
+        title="Crear Factura de Abono"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Selecciona los conceptos a abonar. Si seleccionas todos, la factura original quedará como
+            <strong> Abonada Completa</strong>; si seleccionas solo algunos, quedará como
+            <strong> Abonada Parcial</strong> y las lecturas de los conceptos seleccionados se liberarán.
+          </p>
+
+          {/* Cabecera con select all */}
+          <div className="flex items-center justify-between border-b pb-2">
+            <button
+              type="button"
+              onClick={toggleTodasLineas}
+              className="text-sm text-blue-600 hover:underline font-medium"
+            >
+              {lineasSeleccionadas.size === lineasOrdenadas?.length
+                ? 'Deseleccionar todo'
+                : 'Seleccionar todo'}
+            </button>
+            <span className="text-xs text-gray-500">
+              {lineasSeleccionadas.size} de {lineasOrdenadas?.length} líneas seleccionadas
+            </span>
+          </div>
+
+          {/* Lista de líneas con checkboxes */}
+          <div className="divide-y max-h-72 overflow-y-auto">
+            {lineasOrdenadas?.map(linea => (
+              <label
+                key={linea.id}
+                className="flex items-center gap-3 py-3 px-1 cursor-pointer hover:bg-gray-50 rounded"
+              >
+                <input
+                  type="checkbox"
+                  checked={lineasSeleccionadas.has(linea.id)}
+                  onChange={() => toggleLineaAbono(linea.id)}
+                  className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">
+                    {linea.concepto_nombre}
+                  </p>
+                  {!linea.es_termino_fijo && linea.lectura_anterior != null && (
+                    <p className="text-xs text-gray-500">
+                      {Number(linea.lectura_anterior).toFixed(3)} → {Number(linea.lectura_actual ?? 0).toFixed(3)} {linea.unidad_medida}
+                    </p>
+                  )}
+                </div>
+                <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">
+                  {formatCurrency(linea.subtotal)}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          {/* Resumen de importes */}
+          <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm text-violet-700 font-medium">Total a abonar</span>
+            <span className="text-lg font-bold text-violet-800">
+              {formatCurrency(totalSeleccionado)}
+            </span>
+          </div>
+
+          {/* Info tipo abono */}
+          {lineasSeleccionadas.size > 0 && lineasSeleccionadas.size < (lineasOrdenadas?.length || 0) && (
+            <div className="flex items-start gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                Abono parcial: la factura original pasará a estado <strong>Abonada Parcial</strong>.
+                Solo se liberarán las lecturas de los conceptos seleccionados.
+              </span>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => setAbonoModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+              onClick={handleCrearAbono}
+              disabled={crearAbono.isPending || lineasSeleccionadas.size === 0}
+            >
+              {crearAbono.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Crear Factura de Abono
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal anular */}
       <Modal
