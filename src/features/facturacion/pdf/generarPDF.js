@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable'
 import { LOGO_A360_BASE64 } from './logoA360'
 import { formatPrecio, formatLectura, formatConsumo, formatImporte } from '@/utils/precision'
 import { ordenarLineasFactura } from '../utils/ordenConceptos'
+import { getFacturaDatosPresentacion } from '../utils/facturaPresentacion'
 
 // Colores corporativos
 const COLORS = {
@@ -63,6 +64,11 @@ function getMetodoPagoLabel(metodo) {
  * Genera el PDF de una factura - Diseño optimizado para A4 completo
  */
 export function generarFacturaPDF(factura, lineas = [], historico = []) {
+  const presentacion = getFacturaDatosPresentacion(factura, lineas)
+  const lineasDocumento = presentacion.lineas
+  const periodoInicioDocumento = presentacion.periodoInicio || factura.periodo_inicio
+  const periodoFinDocumento = presentacion.periodoFin || factura.periodo_fin
+
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -178,8 +184,13 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFontSize(10)
   doc.setTextColor(...COLORS.text)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Desde: ${formatDate(factura.periodo_inicio)}`, periodoX + 5, y + 18)
-  doc.text(`Hasta: ${formatDate(factura.periodo_fin)}`, periodoX + 5, y + 26)
+  doc.text(`Desde: ${formatDate(periodoInicioDocumento)}`, periodoX + 5, y + 18)
+  doc.text(`Hasta: ${formatDate(periodoFinDocumento)}`, periodoX + 5, y + 26)
+  if (presentacion.agrupada) {
+    doc.setFontSize(7)
+    doc.setTextColor(...COLORS.gray)
+    doc.text('Importes agrupados por concepto para presentacion al cliente', periodoX + 5, y + 34)
+  }
 
   y += boxHeight + 10
 
@@ -188,7 +199,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   // =========================================
   
   // Obtener número de contador (todas las líneas no-fijas deberían tener el mismo)
-  const contadorNumero = lineas.find(l => !l.es_termino_fijo && l.contador_numero_serie)?.contador_numero_serie
+  const contadorNumero = lineasDocumento.find(l => !l.es_termino_fijo && l.contador_numero_serie)?.contador_numero_serie
   
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
@@ -208,7 +219,7 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   y += 5
 
   // Ordenar líneas según orden predefinido de conceptos
-  const lineasOrdenadas = ordenarLineasFactura(lineas)
+  const lineasOrdenadas = ordenarLineasFactura(lineasDocumento)
 
   // Detectar si alguna línea tiene descuento
   const hasDescuentos = lineasOrdenadas.some(l => (l.descuento_porcentaje || 0) > 0)
