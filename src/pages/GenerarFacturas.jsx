@@ -34,6 +34,7 @@ export default function GenerarFacturas() {
   const [advertenciaModal, setAdvertenciaModal] = useState({ open: false, clientesConAdvertencia: [] })
   const [agruparConceptosDocumento, setAgruparConceptosDocumento] = useState(false)
   const [agruparConceptosTouched, setAgruparConceptosTouched] = useState(false)
+  const [cantidadTFPorContador, setCantidadTFPorContador] = useState({})
   
   // Fechas de facturación (con valores por defecto)
   const [fechaEmision, setFechaEmision] = useState(() => {
@@ -121,6 +122,38 @@ export default function GenerarFacturas() {
       }
     }
     return false
+  }, [contadoresSeleccionados, lecturasPorContador, selectedIds])
+
+  const tramosPorContador = useMemo(() => {
+    const result = {}
+    for (const contadorId of contadoresSeleccionados) {
+      const grupo = lecturasPorContador[contadorId]
+      if (!grupo) {
+        result[contadorId] = 1
+        continue
+      }
+
+      const lecturasVariables = grupo.lecturas.filter(
+        (l) => selectedIds.includes(l.id) && !l.es_termino_fijo
+      )
+
+      if (lecturasVariables.length === 0) {
+        result[contadorId] = 1
+        continue
+      }
+
+      const tramos = new Set(
+        lecturasVariables.map((l) => {
+          const inicio = l.fecha_lectura_anterior || 'sin-inicio'
+          const fin = l.fecha_lectura || 'sin-fin'
+          return `${inicio}|${fin}`
+        })
+      )
+
+      result[contadorId] = Math.max(1, tramos.size)
+    }
+
+    return result
   }, [contadoresSeleccionados, lecturasPorContador, selectedIds])
 
   useEffect(() => {
@@ -382,6 +415,13 @@ export default function GenerarFacturas() {
             const precioTF = precios?.find(p => p.concepto_id === conceptoTF.id)
 
             if (precioTF) {
+              const cantidadTFDefault = Number(tramosPorContador[contadorId] || 1)
+              const cantidadTFRaw = cantidadTFPorContador[contadorId]
+              const cantidadTFParsed = Number(cantidadTFRaw)
+              const cantidadTFAplicada = Number.isFinite(cantidadTFParsed) && cantidadTFParsed > 0
+                ? cantidadTFParsed
+                : cantidadTFDefault
+
               // Buscar descuento vigente para término fijo
               const hoyTF = new Date().toISOString().split('T')[0]
               const descuentoTF = descuentosVigentes?.find(
@@ -392,7 +432,7 @@ export default function GenerarFacturas() {
                   && d.fecha_fin >= hoyTF
               )
               const dtoPctTF = descuentoTF?.porcentaje || 0
-              const brutoTF = precioTF.precio_unitario
+              const brutoTF = precioTF.precio_unitario * cantidadTFAplicada
               const dtoImporteTF = dtoPctTF > 0 ? Math.round(brutoTF * dtoPctTF / 100 * 100) / 100 : 0
               const subtotalTF = Math.round((brutoTF - dtoImporteTF) * 100) / 100
 
@@ -407,7 +447,7 @@ export default function GenerarFacturas() {
                 concepto_nombre: conceptoTF.nombre,
                 unidad_medida: conceptoTF.unidad_medida || 'unidad',
                 es_termino_fijo: true,
-                cantidad: 1,
+                cantidad: cantidadTFAplicada,
                 precio_unitario: precioTF.precio_unitario,
                 descuento_porcentaje: dtoPctTF,
                 descuento_importe: dtoImporteTF,
@@ -688,6 +728,47 @@ export default function GenerarFacturas() {
                   en <span className="font-semibold">{Object.keys(lecturasPorContador).length}</span> contadores
                 </p>
               </div>
+
+              {contadoresSeleccionados.size > 0 && (
+                <Card className="p-4 border-amber-200 bg-amber-50 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">
+                      Cantidad de Término Fijo por contador
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Valor inicial automático por tramos detectados. Puedes ajustarlo manualmente antes de generar.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[...contadoresSeleccionados].map((contadorId) => {
+                      const grupo = lecturasPorContador[contadorId]
+                      const sugerida = Number(tramosPorContador[contadorId] || 1)
+                      const value = cantidadTFPorContador[contadorId] ?? sugerida
+                      return (
+                        <label key={contadorId} className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white px-3 py-2">
+                          <span className="text-sm text-gray-700">
+                            {grupo?.contador_numero_serie || contadorId}
+                          </span>
+                          <input
+                            type="number"
+                            min="0.001"
+                            step="0.001"
+                            value={value}
+                            onChange={(e) => {
+                              const raw = e.target.value
+                              setCantidadTFPorContador((prev) => ({
+                                ...prev,
+                                [contadorId]: raw
+                              }))
+                            }}
+                            className="w-24 rounded border-gray-300 text-right focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </label>
+                      )
+                    })}
+                  </div>
+                </Card>
+              )}
 
               <Card className="p-4 border-blue-200 bg-blue-50">
                 <label className="flex items-start gap-3 cursor-pointer">
