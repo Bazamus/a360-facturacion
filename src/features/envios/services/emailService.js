@@ -3,6 +3,7 @@ import { render } from '@react-email/render'
 import { FacturaEmailTemplate } from '../templates/FacturaEmailTemplate'
 import { supabase } from '@/lib/supabase'
 import { getFacturaPDFBlob } from '@/features/facturacion/pdf'
+import { getFacturaDatosPresentacion } from '@/features/facturacion/utils/facturaPresentacion'
 
 /**
  * Envía email a través de nuestra API serverless (evita CORS)
@@ -97,7 +98,7 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
     }
 
     // 8. Preparar datos para la plantilla
-    const datosEmail = prepararDatosEmail(factura)
+    const datosEmail = prepararDatosEmail(factura, factura.lineas || [])
 
     // 9. Preparar asunto del email
     const asunto = config.asunto_template
@@ -249,12 +250,13 @@ export async function enviarFacturaEmail(facturaId, options = {}) {
 /**
  * Prepara los datos de la factura para la plantilla de email
  */
-function prepararDatosEmail(factura) {
+function prepararDatosEmail(factura, lineas = []) {
+  const presentacion = getFacturaDatosPresentacion(factura, lineas)
   return {
     cliente_nombre: factura.cliente_nombre || 'Cliente',
     numero_completo: factura.numero_completo,
     fecha_formateada: formatDate(factura.fecha_factura),
-    periodo_texto: formatPeriodo(factura.periodo_inicio, factura.periodo_fin),
+    periodo_texto: formatPeriodo(presentacion.periodoInicio, presentacion.periodoFin),
     vencimiento_formateado: formatDate(factura.fecha_vencimiento),
     total_formateado: formatCurrency(factura.total),
     metodo_pago: factura.metodo_pago,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, FileText, AlertTriangle, Check } from 'lucide-react'
@@ -32,6 +32,8 @@ export default function GenerarFacturas() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [resultados, setResultados] = useState(null)
   const [advertenciaModal, setAdvertenciaModal] = useState({ open: false, clientesConAdvertencia: [] })
+  const [agruparConceptosDocumento, setAgruparConceptosDocumento] = useState(false)
+  const [agruparConceptosTouched, setAgruparConceptosTouched] = useState(false)
   
   // Fechas de facturación (con valores por defecto)
   const [fechaEmision, setFechaEmision] = useState(() => {
@@ -100,6 +102,32 @@ export default function GenerarFacturas() {
     })
     return contadores
   }, [lecturas, selectedIds])
+
+  const hayMultiPeriodoSeleccion = useMemo(() => {
+    for (const contadorId of contadoresSeleccionados) {
+      const grupo = lecturasPorContador[contadorId]
+      if (!grupo) continue
+      const lecturasSeleccionadas = grupo.lecturas.filter(l => selectedIds.includes(l.id))
+      if (lecturasSeleccionadas.length <= 1) continue
+
+      const porConcepto = new Map()
+      for (const lectura of lecturasSeleccionadas) {
+        const key = lectura.concepto_id || lectura.concepto_codigo
+        porConcepto.set(key, (porConcepto.get(key) || 0) + 1)
+      }
+
+      if ([...porConcepto.values()].some(v => v > 1)) {
+        return true
+      }
+    }
+    return false
+  }, [contadoresSeleccionados, lecturasPorContador, selectedIds])
+
+  useEffect(() => {
+    if (!agruparConceptosTouched) {
+      setAgruparConceptosDocumento(hayMultiPeriodoSeleccion)
+    }
+  }, [hayMultiPeriodoSeleccion, agruparConceptosTouched])
 
   // Detectar contadores con fechas_lectura_anterior muy dispares entre conceptos (spread > 30 días).
   // Esto ocurre cuando se añade un concepto nuevo que nunca ha sido facturado:
@@ -420,7 +448,8 @@ export default function GenerarFacturas() {
             cliente_estado_codigo: cliente.estado?.codigo || null,
             cliente_estado_nombre: cliente.estado?.nombre || null,
             cliente_estado_color: cliente.estado?.color || null,
-            ubicacion_direccion: `${grupo.agrupacion_nombre} ${grupo.ubicacion_nombre}`.trim()
+            ubicacion_direccion: `${grupo.agrupacion_nombre} ${grupo.ubicacion_nombre}`.trim(),
+            agrupar_conceptos_en_documento: hayMultiPeriodoSeleccion ? agruparConceptosDocumento : false
           })
 
           // Crear líneas
@@ -659,6 +688,33 @@ export default function GenerarFacturas() {
                   en <span className="font-semibold">{Object.keys(lecturasPorContador).length}</span> contadores
                 </p>
               </div>
+
+              <Card className="p-4 border-blue-200 bg-blue-50">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={agruparConceptosDocumento}
+                    onChange={(e) => {
+                      setAgruparConceptosTouched(true)
+                      setAgruparConceptosDocumento(e.target.checked)
+                    }}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">
+                      Agrupar conceptos en factura para cliente
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Agrupa lineas del mismo concepto en PDF/email y muestra el periodo global real. El detalle interno se mantiene separado.
+                    </p>
+                    {hayMultiPeriodoSeleccion && !agruparConceptosTouched && (
+                      <p className="text-xs text-blue-700 mt-1">
+                        Activado automaticamente al detectar conceptos con varios tramos de lectura.
+                      </p>
+                    )}
+                  </div>
+                </label>
+              </Card>
 
               <LecturasPendientesTable
                 lecturas={lecturas || []}
