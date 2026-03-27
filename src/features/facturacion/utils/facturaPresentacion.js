@@ -38,18 +38,18 @@ export function agruparLineasParaDocumento(lineas = []) {
     ].join('|')
 
     if (!groups.has(key)) {
+      const inicioTs = toDateValue(linea.fecha_lectura_anterior)
+      const finTs = toDateValue(linea.fecha_lectura_actual || linea.fecha_lectura)
       groups.set(key, {
         ...linea,
         lectura_id: null,
-        lectura_anterior: null,
-        lectura_actual: null,
-        fecha_lectura_anterior: null,
-        fecha_lectura_actual: null,
         cantidad: Number(linea.cantidad || 0),
         consumo: Number(linea.consumo || 0),
         descuento_importe: Number(linea.descuento_importe || 0),
         subtotal: Number(linea.subtotal || 0),
-        orden: Number(linea.orden || 0)
+        orden: Number(linea.orden || 0),
+        _inicioTs: inicioTs,
+        _finTs: finTs
       })
       continue
     }
@@ -60,16 +60,34 @@ export function agruparLineasParaDocumento(lineas = []) {
     curr.descuento_importe += Number(linea.descuento_importe || 0)
     curr.subtotal += Number(linea.subtotal || 0)
     curr.orden = Math.min(curr.orden, Number(linea.orden || 0))
+
+    const inicioTs = toDateValue(linea.fecha_lectura_anterior)
+    const finTs = toDateValue(linea.fecha_lectura_actual || linea.fecha_lectura)
+
+    if (inicioTs != null && (curr._inicioTs == null || inicioTs < curr._inicioTs)) {
+      curr._inicioTs = inicioTs
+      curr.fecha_lectura_anterior = linea.fecha_lectura_anterior
+      curr.lectura_anterior = linea.lectura_anterior
+    }
+
+    if (finTs != null && (curr._finTs == null || finTs > curr._finTs)) {
+      curr._finTs = finTs
+      curr.fecha_lectura_actual = linea.fecha_lectura_actual || linea.fecha_lectura
+      curr.lectura_actual = linea.lectura_actual
+    }
   }
 
   return Array.from(groups.values())
-    .map((linea) => ({
-      ...linea,
-      cantidad: Math.round(linea.cantidad * 10000) / 10000,
-      consumo: Math.round(linea.consumo * 10000) / 10000,
-      descuento_importe: Math.round(linea.descuento_importe * 100) / 100,
-      subtotal: Math.round(linea.subtotal * 100) / 100
-    }))
+    .map((linea) => {
+      const { _inicioTs, _finTs, ...clean } = linea
+      return {
+        ...clean,
+        cantidad: Math.round(clean.cantidad * 10000) / 10000,
+        consumo: Math.round(clean.consumo * 10000) / 10000,
+        descuento_importe: Math.round(clean.descuento_importe * 100) / 100,
+        subtotal: Math.round(clean.subtotal * 100) / 100
+      }
+    })
     .sort((a, b) => (a.orden || 0) - (b.orden || 0))
 }
 
