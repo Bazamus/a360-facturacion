@@ -17,7 +17,8 @@
       "WebFetch(domain:docs.min.io)",
       "WebFetch(domain:developers.chatwoot.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:easypanel.io)"
+      "WebFetch(domain:easypanel.io)",
+      "Bash(npm run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
