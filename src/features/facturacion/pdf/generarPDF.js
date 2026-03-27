@@ -186,11 +186,6 @@ export function generarFacturaPDF(factura, lineas = [], historico = []) {
   doc.setFont('helvetica', 'normal')
   doc.text(`Desde: ${formatDate(periodoInicioDocumento)}`, periodoX + 5, y + 18)
   doc.text(`Hasta: ${formatDate(periodoFinDocumento)}`, periodoX + 5, y + 26)
-  if (presentacion.agrupada) {
-    doc.setFontSize(7)
-    doc.setTextColor(...COLORS.gray)
-    doc.text('Importes agrupados por concepto para presentacion al cliente', periodoX + 5, y + 34)
-  }
 
   y += boxHeight + 10
 
