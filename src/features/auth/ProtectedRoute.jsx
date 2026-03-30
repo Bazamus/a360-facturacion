@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
 export function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, isCliente, profile } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -18,15 +18,13 @@ export function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    // Guardar la ubicación actual para redireccionar después del login
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // Si es cliente y NO está ya en /portal, redirigir al portal
+  if (isCliente && !location.pathname.startsWith('/portal')) {
+    return <Navigate to="/portal/inicio" replace />
   }
 
   return children
 }
-
-
-
-
-
-
