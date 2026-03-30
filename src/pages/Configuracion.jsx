@@ -1074,11 +1074,24 @@ function ConfigUsuarios() {
         toast.success('Usuario actualizado correctamente')
       } else {
         // Crear nuevo usuario
-        await crearMutation.mutateAsync({
+        const result = await crearMutation.mutateAsync({
           email: formData.email,
           password: formData.password,
           nombreCompleto: formData.nombreCompleto
         })
+
+        // Aplicar rol seleccionado (el trigger crea con rol='usuario' por defecto)
+        if (result?.user?.id && (formData.rol !== 'usuario' || formData.puedeGestionarPortal)) {
+          // Esperar a que el trigger cree el perfil
+          await new Promise((r) => setTimeout(r, 1000))
+          await actualizarMutation.mutateAsync({
+            userId: result.user.id,
+            nombreCompleto: formData.nombreCompleto,
+            activo: true,
+            rol: formData.rol,
+            puedeGestionarPortal: formData.puedeGestionarPortal
+          })
+        }
         toast.success(`Usuario creado. Contraseña: ${formData.password}`, { duration: 10000 })
       }
       handleCloseModal()

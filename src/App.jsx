@@ -21,6 +21,13 @@ import { SATPage } from '@/pages/SAT'
 import { CalendarioPage } from '@/pages/Calendario'
 import { PortalPage } from '@/pages/Portal'
 import GestionPreciosPage from '@/pages/GestionPrecios'
+import { useAuth } from '@/features/auth/AuthContext'
+
+// Redirige según rol: cliente va al portal, resto al dashboard
+function HomeRedirect() {
+  const { isCliente } = useAuth()
+  return <Navigate to={isCliente ? '/portal/inicio' : '/dashboard'} replace />
+}
 
 function App() {
   return (
@@ -39,7 +46,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<HomeRedirect />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="comunidades/*" element={<ComunidadesPage />} />
           <Route path="clientes/*" element={<ClientesPage />} />
@@ -81,7 +88,7 @@ function App() {
         } />
 
         {/* Ruta por defecto */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ToastProvider>
     </AuthProvider>
