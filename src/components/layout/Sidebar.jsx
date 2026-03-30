@@ -39,6 +39,7 @@ import {
   TrendingUp,
   TicketCheck,
   Cpu,
+  Globe,
 } from 'lucide-react'
 
 // =====================================================
@@ -130,6 +131,7 @@ const sections = [
         ]
       },
       { name: 'Calendario', href: '/calendario', icon: Calendar },
+      { name: 'Portal Cliente', href: '/portal/inicio', icon: Globe, external: true },
     ]
   },
   {
