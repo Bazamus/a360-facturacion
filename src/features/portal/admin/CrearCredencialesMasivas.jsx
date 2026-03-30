@@ -76,6 +76,9 @@ export function CrearCredencialesMasivas() {
     setProgreso({ total: clientesACrear.length, actual: 0, exitos: 0, errores: 0 })
     const results = []
 
+    // Guardar sesión del admin ANTES de crear usuarios
+    const { data: { session: adminSession } } = await supabase.auth.getSession()
+
     for (let i = 0; i < clientesACrear.length; i++) {
       const cliente = clientesACrear[i]
       const password = generarPassword()
@@ -91,6 +94,15 @@ export function CrearCredencialesMasivas() {
         })
 
         if (signUpError) throw signUpError
+
+        // RESTAURAR sesión del admin inmediatamente después del signUp
+        // (signUp cambia la sesión activa al nuevo usuario)
+        if (adminSession) {
+          await supabase.auth.setSession({
+            access_token: adminSession.access_token,
+            refresh_token: adminSession.refresh_token,
+          })
+        }
 
         // Esperar un momento para que el trigger cree el perfil
         await new Promise((r) => setTimeout(r, 500))
