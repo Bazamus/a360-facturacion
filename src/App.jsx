@@ -69,13 +69,17 @@ function App() {
               <CalendarioPage />
             </RoleProtectedRoute>
           } />
-          <Route path="portal/*" element={
+        </Route>
+
+        {/* Portal de cliente - layout independiente (sin sidebar admin) */}
+        <Route path="portal/*" element={
+          <ProtectedRoute>
             <RoleProtectedRoute roles={['admin', 'cliente']}>
               <PortalPage />
             </RoleProtectedRoute>
-          } />
-        </Route>
-        
+          </ProtectedRoute>
+        } />
+
         {/* Ruta por defecto */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

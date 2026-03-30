@@ -277,6 +277,17 @@ export {
   useActualizarEquipo
 } from './useEquipos'
 
+// Portal de Cliente
+export {
+  usePortalDatos,
+  usePortalFacturas,
+  usePortalTickets,
+  usePortalCrearTicket,
+  usePortalIntervenciones,
+  usePortalContratos,
+  usePortalEquipos
+} from './usePortal'
+
 // Gestión de Precios
 export {
   useReferenciasEnergia,
