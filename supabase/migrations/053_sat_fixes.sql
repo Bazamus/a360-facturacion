@@ -38,6 +38,7 @@ SELECT
   ct.precio_mensual,
   ct.precio_anual,
   ct.renovacion_automatica,
+  ct.created_at,
   -- Cliente
   c.id AS cliente_id,
   c.nombre || ' ' || c.apellidos AS cliente_nombre,

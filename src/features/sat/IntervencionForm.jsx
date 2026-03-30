@@ -1,8 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useCrearIntervencion, useIntervencion, useActualizarIntervencion, useClientesSimple, useUsuarios, useComunidades, useContratos } from '@/hooks'
-import { Button, Card, CardContent, Select, Textarea, Breadcrumb, LoadingSpinner, CommunityPicker, SearchablePicker, Input } from '@/components/ui'
+import {
+  useCrearIntervencion, useIntervencion, useActualizarIntervencion,
+  useClientesSimple, useUsuarios, useComunidades, useContratos, useCliente
+} from '@/hooks'
+import {
+  Button, Card, CardContent, Select, Textarea, Breadcrumb, LoadingSpinner,
+  CommunityPicker, SearchablePicker, Input, Badge, Modal
+} from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
+import { UserPlus, Users, AlertTriangle } from 'lucide-react'
 
 const TIPO_OPTIONS = [
   { value: 'correctiva', label: 'Correctiva' },
@@ -111,6 +118,7 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
   const { data: clientes } = useClientesSimple()
   const { data: usuarios } = useUsuarios()
   const { data: comunidades } = useComunidades({ activa: true })
+  const toast = useToast()
 
   const tecnicos = usuarios?.filter((u) => u.rol === 'tecnico' || u.rol === 'encargado') ?? []
 
@@ -129,14 +137,47 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
     diagnostico: '',
     solucion: '',
     observaciones_internas: '',
+    // Cliente temporal (sin registro en BD)
+    es_cliente_temporal: false,
+    cliente_temporal_nombre: '',
+    cliente_temporal_telefono: '',
   })
 
   const [errors, setErrors] = useState({})
 
-  // Cargar datos para contratos del cliente seleccionado
+  // Obtener datos completos del cliente seleccionado (dirección, comunidades)
+  const { data: clienteCompleto } = useCliente(form.cliente_id || null)
+
+  // Contratos filtrados por cliente seleccionado
   const { data: contratosCliente } = useContratos({
     clienteId: form.cliente_id || undefined,
   })
+
+  // Comunidades del cliente seleccionado (extraer de sus ubicaciones)
+  const comunidadesCliente = useMemo(() => {
+    if (!clienteCompleto?.ubicaciones_clientes) return []
+    const comIds = new Set()
+    const result = []
+    for (const uc of clienteCompleto.ubicaciones_clientes) {
+      const com = uc.ubicacion?.agrupacion?.comunidad
+      if (com && !comIds.has(com.id)) {
+        comIds.add(com.id)
+        result.push(com)
+      }
+    }
+    return result
+  }, [clienteCompleto])
+
+  // Clientes filtrados por comunidad seleccionada
+  const clientesFiltrados = useMemo(() => {
+    if (!clientes) return []
+    // Si no hay comunidad seleccionada, mostrar todos
+    if (!form.comunidad_id) return clientes
+    // Si hay comunidad, necesitaríamos filtrar por ubicaciones
+    // Pero useClientesSimple no trae ubicaciones, así que mostramos todos
+    // y dejamos que el usuario filtre visualmente
+    return clientes
+  }, [clientes, form.comunidad_id])
 
   useEffect(() => {
     if (intervencion) {
@@ -155,13 +196,49 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
         diagnostico: intervencion.diagnostico || '',
         solucion: intervencion.solucion || '',
         observaciones_internas: intervencion.observaciones_internas || '',
+        es_cliente_temporal: false,
+        cliente_temporal_nombre: '',
+        cliente_temporal_telefono: '',
       })
     }
   }, [intervencion])
 
+  // Auto-rellenar datos del cliente cuando se selecciona
+  const handleClienteChange = (clienteId) => {
+    setForm((prev) => ({
+      ...prev,
+      cliente_id: clienteId,
+      contrato_id: '', // Reset contrato al cambiar cliente
+    }))
+  }
+
+  // Cuando llegan los datos completos del cliente, auto-rellenar dirección
+  useEffect(() => {
+    if (!clienteCompleto || isEdit) return
+    // Solo auto-rellenar si los campos están vacíos
+    setForm((prev) => ({
+      ...prev,
+      direccion: prev.direccion || clienteCompleto.direccion_correspondencia || '',
+      codigo_postal: prev.codigo_postal || clienteCompleto.cp_correspondencia || '',
+      ciudad: prev.ciudad || clienteCompleto.ciudad_correspondencia || '',
+      // Auto-seleccionar comunidad si el cliente tiene solo una
+    }))
+
+    // Si el cliente solo pertenece a una comunidad, auto-seleccionarla
+    if (comunidadesCliente.length === 1 && !form.comunidad_id) {
+      setForm((prev) => ({
+        ...prev,
+        comunidad_id: comunidadesCliente[0].id,
+      }))
+    }
+  }, [clienteCompleto, comunidadesCliente])
+
   const validate = () => {
     const errs = {}
     if (!form.titulo.trim()) errs.titulo = 'Título requerido'
+    if (form.es_cliente_temporal && !form.cliente_temporal_nombre.trim()) {
+      errs.cliente_temporal_nombre = 'Nombre del cliente requerido'
+    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -170,38 +247,35 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
     e.preventDefault()
     if (!validate()) return
 
-    const payload = isEdit
-      ? {
-          titulo: form.titulo,
-          tipo: form.tipo,
-          prioridad: form.prioridad,
-          descripcion: form.descripcion || null,
-          cliente_id: form.cliente_id || null,
-          comunidad_id: form.comunidad_id || null,
-          contrato_id: form.contrato_id || null,
-          tecnico_id: form.tecnico_id || null,
-          direccion: form.direccion || null,
-          codigo_postal: form.codigo_postal || null,
-          ciudad: form.ciudad || null,
-          diagnostico: form.diagnostico || null,
-          solucion: form.solucion || null,
-          observaciones_internas: form.observaciones_internas || null,
-        }
-      : {
-          titulo: form.titulo,
-          tipo: form.tipo,
-          prioridad: form.prioridad,
-          descripcion: form.descripcion || null,
-          cliente_id: form.cliente_id || null,
-          comunidad_id: form.comunidad_id || null,
-          contrato_id: form.contrato_id || null,
-          tecnico_id: form.tecnico_id || null,
-          direccion: form.direccion || null,
-          codigo_postal: form.codigo_postal || null,
-          ciudad: form.ciudad || null,
-        }
+    const basePayload = {
+      titulo: form.titulo,
+      tipo: form.tipo,
+      prioridad: form.prioridad,
+      descripcion: form.descripcion || null,
+      cliente_id: form.es_cliente_temporal ? null : (form.cliente_id || null),
+      comunidad_id: form.comunidad_id || null,
+      contrato_id: form.contrato_id || null,
+      tecnico_id: form.tecnico_id || null,
+      direccion: form.direccion || null,
+      codigo_postal: form.codigo_postal || null,
+      ciudad: form.ciudad || null,
+    }
 
-    onSubmit(payload)
+    if (isEdit) {
+      basePayload.diagnostico = form.diagnostico || null
+      basePayload.solucion = form.solucion || null
+      basePayload.observaciones_internas = form.observaciones_internas || null
+    }
+
+    // Si es cliente temporal, guardar datos en metadata o en observaciones
+    if (form.es_cliente_temporal) {
+      basePayload.observaciones_internas = [
+        form.observaciones_internas,
+        `[CLIENTE TEMPORAL] ${form.cliente_temporal_nombre}${form.cliente_temporal_telefono ? ` — Tel: ${form.cliente_temporal_telefono}` : ''}`,
+      ].filter(Boolean).join('\n')
+    }
+
+    onSubmit(basePayload)
   }
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
@@ -246,46 +320,127 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
         />
       </div>
 
-      {/* Cliente y Comunidad */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <SearchablePicker
-            value={form.cliente_id || ''}
-            onChange={(id) => setForm({ ...form, cliente_id: id })}
-            options={(clientes || []).map((c) => ({
-              value: c.id,
-              label: `${c.nombre} ${c.apellidos}`.trim()
-            }))}
-            placeholder="Sin asignar"
-            allowEmpty
-            emptyOptionLabel="Sin asignar"
-            label="Cliente"
-            modalTitle="Seleccionar cliente"
-            searchPlaceholder="Buscar por nombre o apellidos..."
-          />
+      {/* Selector de modo cliente */}
+      <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-700">Cliente</h3>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, es_cliente_temporal: false, cliente_temporal_nombre: '', cliente_temporal_telefono: '' })}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                !form.es_cliente_temporal
+                  ? 'bg-primary-100 text-primary-700 border border-primary-300'
+                  : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" />
+              Cliente existente
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, es_cliente_temporal: true, cliente_id: '' })}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                form.es_cliente_temporal
+                  ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                  : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Cliente temporal
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Comunidad</label>
-          <CommunityPicker
-            value={form.comunidad_id}
-            onChange={(v) => setForm({ ...form, comunidad_id: v })}
-            comunidades={comunidades ?? []}
-            placeholder="Sin asignar"
-            allowEmpty
-          />
-        </div>
+
+        {form.es_cliente_temporal ? (
+          /* Campos de cliente temporal */
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 p-2 bg-amber-50 rounded-md">
+              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-700">
+                Este cliente no se registrará en la base de datos. Sus datos se guardarán en las observaciones de la intervención.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del cliente *</label>
+                <Input
+                  value={form.cliente_temporal_nombre}
+                  onChange={set('cliente_temporal_nombre')}
+                  placeholder="Nombre y apellidos"
+                  error={errors.cliente_temporal_nombre}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <Input
+                  value={form.cliente_temporal_telefono}
+                  onChange={set('cliente_temporal_telefono')}
+                  placeholder="600 000 000"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Selector de cliente existente */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <SearchablePicker
+                value={form.cliente_id || ''}
+                onChange={handleClienteChange}
+                options={(clientesFiltrados || []).map((c) => ({
+                  value: c.id,
+                  label: `${c.nombre} ${c.apellidos}`.trim(),
+                  subtitle: c.nif,
+                }))}
+                placeholder="Sin asignar"
+                allowEmpty
+                emptyOptionLabel="Sin asignar"
+                label="Cliente"
+                modalTitle="Seleccionar cliente"
+                searchPlaceholder="Buscar por nombre o apellidos..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Comunidad</label>
+              <CommunityPicker
+                value={form.comunidad_id}
+                onChange={(v) => setForm({ ...form, comunidad_id: v })}
+                comunidades={
+                  // Si el cliente tiene comunidades, mostrar esas primero
+                  comunidadesCliente.length > 0 ? comunidadesCliente : (comunidades ?? [])
+                }
+                placeholder="Sin asignar"
+                allowEmpty
+              />
+              {comunidadesCliente.length > 0 && form.cliente_id && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Mostrando comunidades del cliente seleccionado
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Técnico y Contrato */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Técnico asignado</label>
-          <Select value={form.tecnico_id} onChange={set('tecnico_id')}>
-            <option value="">Sin asignar</option>
-            {tecnicos.map((t) => (
-              <option key={t.id} value={t.id}>{t.nombre_completo}</option>
-            ))}
-          </Select>
+          {tecnicos.length === 0 ? (
+            <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+              <p className="text-xs text-gray-500">
+                No hay técnicos registrados. Crea usuarios con rol "Técnico" desde el panel de administración.
+              </p>
+            </div>
+          ) : (
+            <Select value={form.tecnico_id} onChange={set('tecnico_id')}>
+              <option value="">Sin asignar</option>
+              {tecnicos.map((t) => (
+                <option key={t.id} value={t.id}>{t.nombre_completo}</option>
+              ))}
+            </Select>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Contrato vinculado</label>
@@ -295,12 +450,31 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
               <option key={c.id} value={c.id}>{c.numero_contrato} - {c.titulo}</option>
             ))}
           </Select>
+          {form.cliente_id && contratosCliente?.length === 0 && (
+            <p className="text-xs text-gray-500 mt-1">Este cliente no tiene contratos activos</p>
+          )}
         </div>
       </div>
 
       {/* Dirección */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-gray-700">Dirección</label>
+          {clienteCompleto?.direccion_correspondencia && !form.direccion && (
+            <button
+              type="button"
+              className="text-xs text-primary-600 hover:text-primary-700"
+              onClick={() => setForm({
+                ...form,
+                direccion: clienteCompleto.direccion_correspondencia || '',
+                codigo_postal: clienteCompleto.cp_correspondencia || '',
+                ciudad: clienteCompleto.ciudad_correspondencia || '',
+              })}
+            >
+              Usar dirección del cliente
+            </button>
+          )}
+        </div>
         <Input
           value={form.direccion}
           onChange={set('direccion')}

@@ -7,7 +7,7 @@ import {
 import { useToast } from '@/components/ui/Toast'
 import { useState } from 'react'
 import {
-  Edit2, Play, Square, Truck, XCircle, User, Phone, MapPin,
+  Edit2, Play, Square, Truck, XCircle, RotateCcw, User, Phone, MapPin,
   Calendar, Clock, FileText, AlertTriangle,
 } from 'lucide-react'
 import { IntervencionTimeline } from './IntervencionTimeline'
@@ -112,6 +112,11 @@ export function IntervencionDetalle() {
           {estado === 'completada' && (
             <Button variant="primary" onClick={() => setShowFacturarModal(true)}>
               <FileText className="h-4 w-4 mr-1" /> Facturar
+            </Button>
+          )}
+          {estado === 'cancelada' && (
+            <Button variant="secondary" onClick={() => cambiarEstado('pendiente')}>
+              <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
             </Button>
           )}
           {esEditable && (
