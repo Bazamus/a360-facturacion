@@ -76,41 +76,41 @@ export function CrearCredencialesMasivas() {
     setProgreso({ total: clientesACrear.length, actual: 0, exitos: 0, errores: 0 })
     const results = []
 
-    // Guardar sesión del admin ANTES de crear usuarios
-    const { data: { session: adminSession } } = await supabase.auth.getSession()
+    // Usar API REST directamente para no afectar la sesión del admin
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const { data: { session } } = await supabase.auth.getSession()
+    const adminToken = session?.access_token
 
     for (let i = 0; i < clientesACrear.length; i++) {
       const cliente = clientesACrear[i]
       const password = generarPassword()
 
       try {
-        // Crear usuario en Supabase Auth
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: cliente.email,
-          password,
-          options: {
-            data: { nombre_completo: `${cliente.nombre} ${cliente.apellidos}`.trim() }
-          }
+        // Crear usuario via API REST (sin afectar sesión actual del admin)
+        const response = await fetch(`${supabaseUrl}/auth/v1/signup`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+          },
+          body: JSON.stringify({
+            email: cliente.email,
+            password,
+            data: { nombre_completo: `${cliente.nombre} ${cliente.apellidos}`.trim() },
+          }),
         })
 
-        if (signUpError) throw signUpError
+        const signUpResult = await response.json()
+        if (!response.ok) throw new Error(signUpResult.msg || signUpResult.error?.message || 'Error creando usuario')
 
-        // RESTAURAR sesión del admin inmediatamente después del signUp
-        // (signUp cambia la sesión activa al nuevo usuario)
-        if (adminSession) {
-          await supabase.auth.setSession({
-            access_token: adminSession.access_token,
-            refresh_token: adminSession.refresh_token,
-          })
-        }
+        // Esperar a que el trigger cree el perfil
+        await new Promise((r) => setTimeout(r, 1000))
 
-        // Esperar un momento para que el trigger cree el perfil
-        await new Promise((r) => setTimeout(r, 500))
-
-        // Cambiar rol a 'cliente'
-        if (signUpData?.user?.id) {
+        // Cambiar rol a 'cliente' (usando la sesión del admin que NO se ha perdido)
+        if (signUpResult?.id) {
           await supabase.rpc('actualizar_usuario', {
-            p_user_id: signUpData.user.id,
+            p_user_id: signUpResult.id,
             p_nombre_completo: `${cliente.nombre} ${cliente.apellidos}`.trim(),
             p_activo: true,
             p_rol: 'cliente',
