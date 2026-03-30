@@ -991,12 +991,59 @@ function ConfigUsuarios() {
     puedeGestionarPortal: false
   })
 
+  const [seleccionados, setSeleccionados] = useState([])
+  const [accionMasiva, setAccionMasiva] = useState(null) // 'reset' | 'eliminar'
+
   const { data: usuarios, isLoading } = useUsuarios()
   const crearMutation = useCrearUsuario()
   const actualizarMutation = useActualizarUsuario()
   const resetPasswordMutation = useResetearPassword()
   const eliminarMutation = useEliminarUsuario()
   const toast = useToast()
+
+  // Usuarios seleccionables (excluir admins de eliminación)
+  const usuariosNoAdmin = (usuarios || []).filter((u) => u.rol !== 'admin')
+
+  const toggleSeleccion = (id) => {
+    setSeleccionados((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+
+  const toggleTodos = () => {
+    if (seleccionados.length === usuariosNoAdmin.length) {
+      setSeleccionados([])
+    } else {
+      setSeleccionados(usuariosNoAdmin.map((u) => u.id))
+    }
+  }
+
+  const handleAccionMasiva = async () => {
+    if (!accionMasiva || seleccionados.length === 0) return
+    const selUsers = (usuarios || []).filter((u) => seleccionados.includes(u.id))
+
+    if (accionMasiva === 'reset') {
+      let ok = 0, fail = 0
+      for (const u of selUsers) {
+        try {
+          await resetPasswordMutation.mutateAsync({ email: u.email })
+          ok++
+        } catch { fail++ }
+      }
+      toast.success(`Reset enviado: ${ok} exitosos${fail ? `, ${fail} fallidos` : ''}`)
+    } else if (accionMasiva === 'eliminar') {
+      let ok = 0, fail = 0
+      for (const u of selUsers) {
+        if (u.rol === 'admin') continue
+        try {
+          await eliminarMutation.mutateAsync({ userId: u.id })
+          ok++
+        } catch { fail++ }
+      }
+      toast.success(`Eliminados: ${ok}${fail ? `, ${fail} fallidos` : ''}`)
+    }
+
+    setSeleccionados([])
+    setAccionMasiva(null)
+  }
 
   // Generador de contraseñas simple (6 caracteres - mínimo requerido por Supabase)
   const generarPassword = () => {
@@ -1135,6 +1182,27 @@ function ConfigUsuarios() {
 
   const columns = [
     {
+      key: 'seleccion',
+      header: (
+        <input
+          type="checkbox"
+          checked={seleccionados.length > 0 && seleccionados.length === usuariosNoAdmin.length}
+          onChange={toggleTodos}
+          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        />
+      ),
+      sortable: false,
+      render: (_, row) => row.rol === 'admin' ? null : (
+        <input
+          type="checkbox"
+          checked={seleccionados.includes(row.id)}
+          onChange={() => toggleSeleccion(row.id)}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        />
+      ),
+    },
+    {
       key: 'nombre_completo',
       header: 'Usuario',
       render: (value, row) => (
@@ -1209,6 +1277,27 @@ function ConfigUsuarios() {
             Nuevo Usuario
           </Button>
         </CardHeader>
+        {/* Barra acciones masivas */}
+        {seleccionados.length > 0 && (
+          <div className="px-6 py-3 bg-primary-50 border-b border-primary-200 flex items-center justify-between">
+            <span className="text-sm font-medium text-primary-800">
+              {seleccionados.length} usuario(s) seleccionado(s)
+            </span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setAccionMasiva('reset')}>
+                <Lock className="h-3.5 w-3.5 mr-1" /> Reset contraseña
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setAccionMasiva('eliminar')}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar
+              </Button>
+              <button onClick={() => setSeleccionados([])} className="text-xs text-gray-500 hover:text-gray-700 ml-2">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         <CardContent className="p-0">
           {isLoading ? (
             <div className="py-12 flex justify-center">
@@ -1402,6 +1491,43 @@ function ConfigUsuarios() {
               loading={eliminarMutation.isPending}
             >
               Eliminar Usuario
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Confirmación Acción Masiva */}
+      <Modal
+        open={!!accionMasiva}
+        onClose={() => setAccionMasiva(null)}
+        title={accionMasiva === 'reset' ? 'Reset Masivo de Contraseñas' : 'Eliminación Masiva de Usuarios'}
+      >
+        <div className="space-y-4">
+          <div className={`p-4 rounded-lg border-2 ${accionMasiva === 'eliminar' ? 'bg-red-50 border-red-300' : 'bg-amber-50 border-amber-300'}`}>
+            <div className="flex gap-3">
+              <AlertTriangle className={`h-5 w-5 mt-0.5 shrink-0 ${accionMasiva === 'eliminar' ? 'text-red-600' : 'text-amber-600'}`} />
+              <div>
+                <p className={`text-sm font-medium ${accionMasiva === 'eliminar' ? 'text-red-800' : 'text-amber-800'}`}>
+                  {accionMasiva === 'reset'
+                    ? `Se enviará email de recuperación a ${seleccionados.length} usuario(s)`
+                    : `Se eliminarán permanentemente ${seleccionados.length} usuario(s)`
+                  }
+                </p>
+                <p className={`text-xs mt-1 ${accionMasiva === 'eliminar' ? 'text-red-700' : 'text-amber-700'}`}>
+                  {accionMasiva === 'eliminar' ? 'Esta acción no se puede deshacer.' : 'Los usuarios recibirán un email para establecer nueva contraseña.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setAccionMasiva(null)}>Cancelar</Button>
+            <Button
+              variant={accionMasiva === 'eliminar' ? 'danger' : 'primary'}
+              onClick={handleAccionMasiva}
+              loading={resetPasswordMutation.isPending || eliminarMutation.isPending}
+            >
+              {accionMasiva === 'reset' ? 'Enviar Reset' : 'Eliminar'}
             </Button>
           </div>
         </div>
