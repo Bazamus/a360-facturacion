@@ -269,6 +269,14 @@ export {
   useTicketsStats
 } from './useTickets'
 
+// SAT — Equipos
+export {
+  useEquipos,
+  useEquipo,
+  useCrearEquipo,
+  useActualizarEquipo
+} from './useEquipos'
+
 // Gestión de Precios
 export {
   useReferenciasEnergia,

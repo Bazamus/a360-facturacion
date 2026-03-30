@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   useCrearIntervencion, useIntervencion, useActualizarIntervencion,
-  useClientesSimple, useUsuarios, useComunidades, useContratos, useCliente
+  useClientesSimple, useUsuarios, useComunidades, useContratos, useCliente, useEquipos
 } from '@/hooks'
 import {
   Button, Card, CardContent, Select, Textarea, Breadcrumb, LoadingSpinner,
@@ -130,6 +130,7 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
     cliente_id: '',
     comunidad_id: '',
     contrato_id: '',
+    equipo_id: '',
     tecnico_id: '',
     direccion: '',
     codigo_postal: '',
@@ -151,6 +152,12 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
   // Contratos filtrados por cliente seleccionado
   const { data: contratosCliente } = useContratos({
     clienteId: form.cliente_id || undefined,
+  })
+
+  // Equipos filtrados por cliente seleccionado
+  const { data: equiposCliente } = useEquipos({
+    clienteId: form.cliente_id || undefined,
+    soloActivos: true,
   })
 
   // Comunidades del cliente seleccionado (extraer de sus ubicaciones)
@@ -189,6 +196,7 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
         cliente_id: intervencion.cliente_id || '',
         comunidad_id: intervencion.comunidad_id || '',
         contrato_id: intervencion.contrato_id || '',
+        equipo_id: intervencion.equipo_id || '',
         tecnico_id: intervencion.tecnico_id || '',
         direccion: intervencion.direccion || '',
         codigo_postal: intervencion.codigo_postal || '',
@@ -212,7 +220,8 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
     setForm((prev) => ({
       ...prev,
       cliente_id: clienteId,
-      contrato_id: '', // Reset contrato al cambiar cliente
+      contrato_id: '', // Reset contrato y equipo al cambiar cliente
+      equipo_id: '',
       // Reset dirección para que se re-rellene con el nuevo cliente
       direccion: '',
       codigo_postal: '',
@@ -265,6 +274,7 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
       cliente_id: form.es_cliente_temporal ? null : (form.cliente_id || null),
       comunidad_id: form.comunidad_id || null,
       contrato_id: form.contrato_id || null,
+      equipo_id: form.equipo_id || null,
       tecnico_id: form.tecnico_id || null,
       direccion: form.direccion || null,
       codigo_postal: form.codigo_postal || null,
@@ -465,6 +475,21 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
           )}
         </div>
       </div>
+
+      {/* Equipo */}
+      {form.cliente_id && equiposCliente?.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Equipo asociado</label>
+          <Select value={form.equipo_id} onChange={set('equipo_id')}>
+            <option value="">Ninguno</option>
+            {equiposCliente.map((eq) => (
+              <option key={eq.id} value={eq.id}>
+                {eq.nombre}{eq.marca ? ` — ${eq.marca}` : ''}{eq.modelo ? ` ${eq.modelo}` : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
 
       {/* Dirección */}
       <div>

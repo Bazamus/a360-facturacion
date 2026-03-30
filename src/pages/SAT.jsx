@@ -10,6 +10,9 @@ import { SATDashboard } from '@/features/sat/SATDashboard'
 import { TicketsLista } from '@/features/sat/tickets/TicketsLista'
 import { TicketNuevo } from '@/features/sat/tickets/TicketForm'
 import { TicketDetalle } from '@/features/sat/tickets/TicketDetalle'
+import { EquiposLista } from '@/features/sat/equipos/EquiposLista'
+import { EquipoNuevo, EquipoEditar } from '@/features/sat/equipos/EquipoForm'
+import { EquipoDetalle } from '@/features/sat/equipos/EquipoDetalle'
 
 export function SATPage() {
   return (
@@ -32,6 +35,12 @@ export function SATPage() {
       <Route path="contratos/nuevo" element={<ContratoNuevo />} />
       <Route path="contratos/:id" element={<ContratoDetalle />} />
       <Route path="contratos/:id/editar" element={<ContratoEditar />} />
+
+      {/* Equipos */}
+      <Route path="equipos" element={<EquiposLista />} />
+      <Route path="equipos/nuevo" element={<EquipoNuevo />} />
+      <Route path="equipos/:id" element={<EquipoDetalle />} />
+      <Route path="equipos/:id/editar" element={<EquipoEditar />} />
 
       {/* Materiales */}
       <Route path="materiales" element={<MaterialesCatalogo />} />

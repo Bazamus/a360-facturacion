@@ -38,6 +38,7 @@ import {
   Package,
   TrendingUp,
   TicketCheck,
+  Cpu,
 } from 'lucide-react'
 
 // =====================================================
@@ -124,6 +125,7 @@ const sections = [
           { name: 'Tickets', href: '/sat/tickets', icon: TicketCheck },
           { name: 'Intervenciones', href: '/sat/intervenciones', icon: ClipboardList },
           { name: 'Contratos', href: '/sat/contratos', icon: FileText },
+          { name: 'Equipos', href: '/sat/equipos', icon: Cpu },
           { name: 'Materiales', href: '/sat/materiales', icon: Package },
         ]
       },
