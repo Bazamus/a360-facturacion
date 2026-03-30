@@ -992,6 +992,7 @@ function ConfigUsuarios() {
     email: '',
     nombreCompleto: '',
     password: '',
+    rol: 'usuario',
     activo: true
   })
 
@@ -1026,6 +1027,7 @@ function ConfigUsuarios() {
         email: user.email,
         nombreCompleto: user.nombre_completo,
         password: '',
+        rol: user.rol || 'usuario',
         activo: user.activo
       })
     } else {
@@ -1035,6 +1037,7 @@ function ConfigUsuarios() {
         email: '',
         nombreCompleto: '',
         password: generarPassword(),
+        rol: 'usuario',
         activo: true
       })
     }
@@ -1048,6 +1051,7 @@ function ConfigUsuarios() {
       email: '',
       nombreCompleto: '',
       password: '',
+      rol: 'usuario',
       activo: true
     })
   }
@@ -1061,7 +1065,8 @@ function ConfigUsuarios() {
         await actualizarMutation.mutateAsync({
           userId: editingUser.id,
           nombreCompleto: formData.nombreCompleto,
-          activo: formData.activo
+          activo: formData.activo,
+          rol: formData.rol
         })
         toast.success('Usuario actualizado correctamente')
       } else {
@@ -1125,11 +1130,17 @@ function ConfigUsuarios() {
     {
       key: 'rol',
       header: 'Rol',
-      render: (value) => (
-        <Badge variant={value === 'admin' ? 'warning' : 'default'}>
-          {value === 'admin' ? 'Administrador' : 'Usuario'}
-        </Badge>
-      )
+      render: (value) => {
+        const rolConfig = {
+          admin: { label: 'Administrador', variant: 'warning' },
+          tecnico: { label: 'Técnico', variant: 'info' },
+          encargado: { label: 'Encargado', variant: 'primary' },
+          usuario: { label: 'Usuario', variant: 'default' },
+          cliente: { label: 'Cliente', variant: 'success' },
+        }
+        const config = rolConfig[value] || rolConfig.usuario
+        return <Badge variant={config.variant}>{config.label}</Badge>
+      }
     },
     {
       key: 'activo',
@@ -1249,6 +1260,24 @@ function ConfigUsuarios() {
               placeholder="Nombre y apellidos"
               required
             />
+          </FormField>
+
+          <FormField label="Rol">
+            <Select
+              value={formData.rol}
+              onChange={(e) => setFormData(prev => ({ ...prev, rol: e.target.value }))}
+            >
+              <option value="usuario">Usuario</option>
+              <option value="admin">Administrador</option>
+              <option value="tecnico">Técnico</option>
+              <option value="encargado">Encargado</option>
+            </Select>
+            <p className="mt-1 text-xs text-gray-500">
+              {formData.rol === 'tecnico' && 'Podrá gestionar intervenciones asignadas y su agenda'}
+              {formData.rol === 'encargado' && 'Supervisión global del SAT, asignar intervenciones'}
+              {formData.rol === 'admin' && 'Acceso completo a todo el sistema'}
+              {formData.rol === 'usuario' && 'Acceso básico al sistema de facturación'}
+            </p>
           </FormField>
 
           {!editingUser && (

@@ -203,35 +203,45 @@ function IntervencionFormFields({ intervencion, onSubmit, loading, isEdit = fals
     }
   }, [intervencion])
 
+  // Controlar si se debe auto-rellenar (al cambiar de cliente, no al cargar edición)
+  const [autoFillEnabled, setAutoFillEnabled] = useState(false)
+
   // Auto-rellenar datos del cliente cuando se selecciona
   const handleClienteChange = (clienteId) => {
+    setAutoFillEnabled(true)
     setForm((prev) => ({
       ...prev,
       cliente_id: clienteId,
       contrato_id: '', // Reset contrato al cambiar cliente
+      // Reset dirección para que se re-rellene con el nuevo cliente
+      direccion: '',
+      codigo_postal: '',
+      ciudad: '',
+      comunidad_id: '',
     }))
   }
 
   // Cuando llegan los datos completos del cliente, auto-rellenar dirección
   useEffect(() => {
-    if (!clienteCompleto || isEdit) return
-    // Solo auto-rellenar si los campos están vacíos
+    if (!clienteCompleto || !autoFillEnabled) return
+
     setForm((prev) => ({
       ...prev,
-      direccion: prev.direccion || clienteCompleto.direccion_correspondencia || '',
-      codigo_postal: prev.codigo_postal || clienteCompleto.cp_correspondencia || '',
-      ciudad: prev.ciudad || clienteCompleto.ciudad_correspondencia || '',
-      // Auto-seleccionar comunidad si el cliente tiene solo una
+      direccion: clienteCompleto.direccion_correspondencia || '',
+      codigo_postal: clienteCompleto.cp_correspondencia || '',
+      ciudad: clienteCompleto.ciudad_correspondencia || '',
     }))
 
     // Si el cliente solo pertenece a una comunidad, auto-seleccionarla
-    if (comunidadesCliente.length === 1 && !form.comunidad_id) {
+    if (comunidadesCliente.length === 1) {
       setForm((prev) => ({
         ...prev,
         comunidad_id: comunidadesCliente[0].id,
       }))
     }
-  }, [clienteCompleto, comunidadesCliente])
+
+    setAutoFillEnabled(false)
+  }, [clienteCompleto, comunidadesCliente, autoFillEnabled])
 
   const validate = () => {
     const errs = {}
