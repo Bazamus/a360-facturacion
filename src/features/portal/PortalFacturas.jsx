@@ -91,13 +91,15 @@ export function PortalFacturas() {
           href={value}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded inline-flex"
-          title="Descargar PDF"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-3.5 w-3.5" />
+          PDF
         </a>
-      ) : null,
+      ) : (
+        <span className="text-xs text-gray-400">Sin PDF</span>
+      ),
     },
   ]
 

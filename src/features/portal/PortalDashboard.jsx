@@ -91,19 +91,10 @@ export function PortalDashboard() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          icon={Euro}
-          iconBg="bg-amber-100"
-          iconColor="text-amber-600"
-          label="Facturas pendientes"
-          value={facturas?.pendientes ?? 0}
-          sublabel={facturas?.importe_pendiente ? `${Number(facturas.importe_pendiente).toFixed(2)} €` : null}
-          onClick={() => navigate('/portal/facturas')}
-        />
-        <KpiCard
           icon={FileText}
           iconBg="bg-blue-100"
           iconColor="text-blue-600"
-          label="Total facturas"
+          label="Facturas"
           value={facturas?.total ?? 0}
           onClick={() => navigate('/portal/facturas')}
         />
