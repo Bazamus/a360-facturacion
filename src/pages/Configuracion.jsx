@@ -36,46 +36,40 @@ export function ConfiguracionPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Navegación lateral */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardContent className="p-2">
-              <nav className="space-y-1">
-                {configSections.map((section) => (
-                  <NavLink
-                    key={section.href}
-                    to={section.href}
-                    end={section.href === '/configuracion'}
-                    className={({ isActive }) => cn(
-                      'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                      isActive
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    )}
-                  >
-                    <section.icon className="h-5 w-5" />
-                    {section.name}
-                  </NavLink>
-                ))}
-              </nav>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Navegación horizontal (tabs) */}
+      <div className="border-b border-gray-200 mb-6 -mt-2 overflow-x-auto">
+        <nav className="flex gap-1 min-w-max">
+          {configSections.map((section) => (
+            <NavLink
+              key={section.href}
+              to={section.href}
+              end={section.href === '/configuracion'}
+              className={({ isActive }) => cn(
+                'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                isActive
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              )}
+            >
+              <section.icon className="h-4 w-4" />
+              {section.name}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
 
-        {/* Contenido */}
-        <div className="lg:col-span-3">
-          <Routes>
-            <Route index element={<ConfigGeneral />} />
-            <Route path="conceptos" element={<ConfigConceptos />} />
-            <Route path="estados-cliente" element={<ConfigEstadosCliente />} />
-            <Route path="email" element={<ConfigEmail />} />
-            <Route path="sepa" element={<ConfigSEPA />} />
-            <Route path="importar-exportar" element={<ImportarExportarPage />} />
-            <Route path="usuarios" element={<ConfigUsuarios />} />
-            <Route path="mantenimiento" element={<ConfigMantenimiento />} />
-          </Routes>
-        </div>
+      {/* Contenido (ancho completo) */}
+      <div>
+        <Routes>
+          <Route index element={<ConfigGeneral />} />
+          <Route path="conceptos" element={<ConfigConceptos />} />
+          <Route path="estados-cliente" element={<ConfigEstadosCliente />} />
+          <Route path="email" element={<ConfigEmail />} />
+          <Route path="sepa" element={<ConfigSEPA />} />
+          <Route path="importar-exportar" element={<ImportarExportarPage />} />
+          <Route path="usuarios" element={<ConfigUsuarios />} />
+          <Route path="mantenimiento" element={<ConfigMantenimiento />} />
+        </Routes>
       </div>
     </div>
   )
@@ -1131,38 +1125,38 @@ function ConfigUsuarios() {
     }
   }
 
+  const ROL_CONFIG = {
+    admin: { label: 'Admin', variant: 'warning' },
+    tecnico: { label: 'Técnico', variant: 'info' },
+    encargado: { label: 'Encargado', variant: 'primary' },
+    usuario: { label: 'Usuario', variant: 'default' },
+    cliente: { label: 'Cliente', variant: 'success' },
+  }
+
   const columns = [
     {
-      key: 'email',
-      header: 'Email',
-      render: (value) => (
-        <span className="font-medium text-gray-900">{value}</span>
-      )
-    },
-    {
       key: 'nombre_completo',
-      header: 'Nombre Completo'
+      header: 'Usuario',
+      render: (value, row) => (
+        <div>
+          <span className="text-sm font-medium text-gray-900 block">{value}</span>
+          <span className="text-xs text-gray-500">{row.email}</span>
+        </div>
+      )
     },
     {
       key: 'rol',
       header: 'Rol',
       render: (value) => {
-        const rolConfig = {
-          admin: { label: 'Administrador', variant: 'warning' },
-          tecnico: { label: 'Técnico', variant: 'info' },
-          encargado: { label: 'Encargado', variant: 'primary' },
-          usuario: { label: 'Usuario', variant: 'default' },
-          cliente: { label: 'Cliente', variant: 'success' },
-        }
-        const config = rolConfig[value] || rolConfig.usuario
-        return <Badge variant={config.variant}>{config.label}</Badge>
+        const config = ROL_CONFIG[value] || ROL_CONFIG.usuario
+        return <Badge variant={config.variant} className="text-xs">{config.label}</Badge>
       }
     },
     {
       key: 'activo',
       header: 'Estado',
       render: (value) => (
-        <Badge variant={value ? 'success' : 'default'}>
+        <Badge variant={value ? 'success' : 'default'} className="text-xs">
           {value ? 'Activo' : 'Inactivo'}
         </Badge>
       )
@@ -1170,45 +1164,29 @@ function ConfigUsuarios() {
     {
       key: 'last_sign_in_at',
       header: 'Último Acceso',
-      render: (value) => value 
-        ? new Date(value).toLocaleDateString('es-ES', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-        : 'Nunca'
+      render: (value) => (
+        <span className="text-xs text-gray-500">
+          {value
+            ? new Date(value).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : 'Nunca'}
+        </span>
+      )
     },
     {
       key: 'acciones',
-      header: 'Acciones',
+      header: '',
       sortable: false,
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleOpenModal(row)}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-            title="Editar usuario"
-          >
-            <Edit2 className="h-4 w-4" />
+        <div className="flex items-center gap-1">
+          <button onClick={() => handleOpenModal(row)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded" title="Editar">
+            <Edit2 className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={() => handleResetPassword(row.email)}
-            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
-            title="Enviar email de recuperación"
-            disabled={resetPasswordMutation.isPending}
-          >
-            <Lock className="h-4 w-4" />
+          <button onClick={() => handleResetPassword(row.email)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded" title="Reset contraseña" disabled={resetPasswordMutation.isPending}>
+            <Lock className="h-3.5 w-3.5" />
           </button>
           {row.rol !== 'admin' && (
-            <button
-              onClick={() => handleOpenDeleteModal(row)}
-              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-              title="Eliminar usuario"
-              disabled={eliminarMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
+            <button onClick={() => handleOpenDeleteModal(row)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Eliminar" disabled={eliminarMutation.isPending}>
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
