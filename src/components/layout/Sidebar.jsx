@@ -37,6 +37,7 @@ import {
   Sliders,
   Package,
   TrendingUp,
+  TicketCheck,
 } from 'lucide-react'
 
 // =====================================================
@@ -120,6 +121,7 @@ const sections = [
         href: '/sat',
         icon: Wrench,
         children: [
+          { name: 'Tickets', href: '/sat/tickets', icon: TicketCheck },
           { name: 'Intervenciones', href: '/sat/intervenciones', icon: ClipboardList },
           { name: 'Contratos', href: '/sat/contratos', icon: FileText },
           { name: 'Materiales', href: '/sat/materiales', icon: Package },

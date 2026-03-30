@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSATStats, useIntervenciones } from '@/hooks'
+import { useSATStats, useIntervenciones, useTicketsStats } from '@/hooks'
 import {
   Button, Card, Badge, LoadingSpinner,
 } from '@/components/ui'
 import {
   Wrench, ClipboardList, AlertTriangle, Clock, CheckCircle,
-  Plus, Calendar, TrendingUp, Users, FileText,
+  Plus, Calendar, TrendingUp, Users, FileText, TicketCheck,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -31,6 +31,7 @@ function formatDate(dateStr) {
 export function SATDashboard() {
   const navigate = useNavigate()
   const { data: stats, isLoading: loadingStats } = useSATStats()
+  const { data: ticketStats } = useTicketsStats()
 
   // Intervenciones urgentes/pendientes para la lista
   const { data: urgentesData } = useIntervenciones({
@@ -76,6 +77,10 @@ export function SATDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => navigate('/sat/tickets/nuevo')}>
+            <TicketCheck className="h-4 w-4 mr-2" />
+            Nuevo Ticket
+          </Button>
           <Button variant="secondary" onClick={() => navigate('/calendario')}>
             <Calendar className="h-4 w-4 mr-2" />
             Calendario
@@ -125,6 +130,14 @@ export function SATDashboard() {
             value={tiempoMedio ? `${Math.round(tiempoMedio)}h` : '-'}
             label="Tiempo medio"
             loading={loadingStats}
+          />
+          <KpiChip
+            icon={TicketCheck}
+            iconColor="text-indigo-600"
+            value={ticketStats?.abiertos ?? 0}
+            label="Tickets abiertos"
+            loading={!ticketStats}
+            onClick={() => navigate('/sat/tickets')}
           />
         </div>
       </div>

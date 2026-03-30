@@ -257,6 +257,18 @@ export {
   useActualizarMaterial
 } from './useMateriales'
 
+// SAT — Tickets
+export {
+  useTickets,
+  useTicket,
+  useCrearTicket,
+  useActualizarTicket,
+  useCrearIntervencionDesdeTicket,
+  useTicketComentarios,
+  useCrearComentario,
+  useTicketsStats
+} from './useTickets'
+
 // Gestión de Precios
 export {
   useReferenciasEnergia,
