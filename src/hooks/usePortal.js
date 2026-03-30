@@ -1,17 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
-// Obtener cliente_id del usuario actual (por email)
+// Obtener cliente_id via RPC (SECURITY DEFINER, bypasa RLS)
 async function getClienteId() {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) return null
-  const { data } = await supabase
-    .from('clientes')
-    .select('id')
-    .eq('email', user.email)
-    .limit(1)
-    .single()
-  return data?.id || null
+  const { data, error } = await supabase.rpc('get_mi_cliente_id')
+  if (error) throw error
+  return data
 }
 
 // Dashboard: datos completos del portal (una sola llamada RPC)
@@ -23,62 +17,39 @@ export function usePortalDatos() {
       if (error) throw error
       return data
     },
-    refetchInterval: 120000, // cada 2 minutos
+    refetchInterval: 120000,
   })
 }
 
-// Facturas del cliente con filtros
+// Facturas del cliente via RPC
 export function usePortalFacturas({ anio, estado, page = 0, pageSize = 20 } = {}) {
   return useQuery({
     queryKey: ['portal-facturas', { anio, estado, page, pageSize }],
     queryFn: async () => {
-      const clienteId = await getClienteId()
-      if (!clienteId) throw new Error('Cliente no encontrado')
-
-      let query = supabase
-        .from('facturas')
-        .select('id, serie, numero, fecha_factura, periodo_inicio, periodo_fin, base_imponible, importe_iva, total, estado, pdf_url', { count: 'exact' })
-        .eq('cliente_id', clienteId)
-        .in('estado', ['emitida', 'pagada'])
-        .order('fecha_factura', { ascending: false })
-
-      if (anio) {
-        query = query.gte('fecha_factura', `${anio}-01-01`).lte('fecha_factura', `${anio}-12-31`)
-      }
-      if (estado) query = query.eq('estado', estado)
-
-      const from = page * pageSize
-      query = query.range(from, from + pageSize - 1)
-
-      const { data, count, error } = await query
+      const { data, error } = await supabase.rpc('get_portal_mis_facturas', {
+        p_anio: anio ? parseInt(anio) : null,
+        p_estado: estado || null,
+        p_limit: pageSize,
+        p_offset: page * pageSize,
+      })
       if (error) throw error
-      return { data: data ?? [], count: count ?? 0 }
+      return data || { data: [], count: 0 }
     },
   })
 }
 
-// Tickets del cliente
+// Tickets del cliente via RPC
 export function usePortalTickets({ estado, page = 0, pageSize = 20 } = {}) {
   return useQuery({
     queryKey: ['portal-tickets', { estado, page, pageSize }],
     queryFn: async () => {
-      const clienteId = await getClienteId()
-      if (!clienteId) throw new Error('Cliente no encontrado')
-
-      let query = supabase
-        .from('tickets_sat')
-        .select('id, numero_ticket, asunto, tipo, prioridad, estado, origen, created_at', { count: 'exact' })
-        .eq('cliente_id', clienteId)
-        .order('created_at', { ascending: false })
-
-      if (estado) query = query.eq('estado', estado)
-
-      const from = page * pageSize
-      query = query.range(from, from + pageSize - 1)
-
-      const { data, count, error } = await query
+      const { data, error } = await supabase.rpc('get_portal_mis_tickets', {
+        p_estado: estado || null,
+        p_limit: pageSize,
+        p_offset: page * pageSize,
+      })
       if (error) throw error
-      return { data: data ?? [], count: count ?? 0 }
+      return data || { data: [], count: 0 }
     },
   })
 }
@@ -108,34 +79,25 @@ export function usePortalCrearTicket() {
   })
 }
 
-// Intervenciones del cliente
+// Intervenciones del cliente via RPC
 export function usePortalIntervenciones() {
   return useQuery({
     queryKey: ['portal-intervenciones'],
     queryFn: async () => {
-      const clienteId = await getClienteId()
-      if (!clienteId) throw new Error('Cliente no encontrado')
-
-      const { data, error } = await supabase
-        .from('intervenciones')
-        .select('id, numero_parte, titulo, tipo, prioridad, estado, fecha_solicitud, fecha_fin, diagnostico, solucion')
-        .eq('cliente_id', clienteId)
-        .order('fecha_solicitud', { ascending: false })
-        .limit(50)
-
+      const { data, error } = await supabase.rpc('get_portal_mis_intervenciones')
       if (error) throw error
-      return data ?? []
+      return data || []
     },
   })
 }
 
-// Contratos del cliente
+// Contratos del cliente via RPC
 export function usePortalContratos() {
   return useQuery({
     queryKey: ['portal-contratos'],
     queryFn: async () => {
       const clienteId = await getClienteId()
-      if (!clienteId) throw new Error('Cliente no encontrado')
+      if (!clienteId) return []
 
       const { data, error } = await supabase
         .from('contratos_mantenimiento')
@@ -156,7 +118,7 @@ export function usePortalEquipos() {
     queryKey: ['portal-equipos'],
     queryFn: async () => {
       const clienteId = await getClienteId()
-      if (!clienteId) throw new Error('Cliente no encontrado')
+      if (!clienteId) return []
 
       const { data, error } = await supabase
         .from('equipos')
