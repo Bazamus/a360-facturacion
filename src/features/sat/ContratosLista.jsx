@@ -17,10 +17,10 @@ const ESTADO_OPTIONS = [
 
 const TIPO_OPTIONS = [
   { value: '', label: 'Todos los tipos' },
-  { value: 'mantenimiento_preventivo', label: 'Preventivo' },
-  { value: 'mantenimiento_correctivo', label: 'Correctivo' },
-  { value: 'mantenimiento_integral', label: 'Integral' },
+  { value: 'mantenimiento', label: 'Mantenimiento' },
   { value: 'garantia', label: 'Garantía' },
+  { value: 'servicio_completo', label: 'Servicio Completo' },
+  { value: 'puntual', label: 'Puntual' },
 ]
 
 const ESTADO_VARIANTS = {
@@ -31,10 +31,10 @@ const ESTADO_VARIANTS = {
 }
 
 const TIPO_LABELS = {
-  mantenimiento_preventivo: 'Preventivo',
-  mantenimiento_correctivo: 'Correctivo',
-  mantenimiento_integral: 'Integral',
+  mantenimiento: 'Mantenimiento',
   garantia: 'Garantía',
+  servicio_completo: 'Servicio Completo',
+  puntual: 'Puntual',
 }
 
 function formatDate(dateStr) {

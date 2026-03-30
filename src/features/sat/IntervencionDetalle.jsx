@@ -13,6 +13,8 @@ import {
 import { IntervencionTimeline } from './IntervencionTimeline'
 import { MaterialesIntervencion } from './MaterialesIntervencion'
 import { FirmaDigital } from './FirmaDigital'
+import { FotosIntervencion } from './FotosIntervencion'
+import { FacturarIntervencionModal } from './FacturarIntervencionModal'
 
 const PRIORIDAD_VARIANTS = { urgente: 'danger', alta: 'warning', normal: 'default', baja: 'info' }
 const ESTADO_VARIANTS = { pendiente: 'warning', asignada: 'info', programada: 'info', en_camino: 'primary', en_curso: 'primary', completada: 'success', facturada: 'success', cancelada: 'default' }
@@ -31,6 +33,7 @@ export function IntervencionDetalle() {
   const cerrar = useCerrarIntervencion()
   const toast = useToast()
   const [showCerrarModal, setShowCerrarModal] = useState(false)
+  const [showFacturarModal, setShowFacturarModal] = useState(false)
 
   if (isLoading) return <LoadingSpinner />
   if (error) return <div className="text-red-600">Error: {error.message}</div>
@@ -106,6 +109,11 @@ export function IntervencionDetalle() {
               <Square className="h-4 w-4 mr-1" /> Cerrar
             </Button>
           )}
+          {estado === 'completada' && (
+            <Button variant="primary" onClick={() => setShowFacturarModal(true)}>
+              <FileText className="h-4 w-4 mr-1" /> Facturar
+            </Button>
+          )}
           {esEditable && (
             <>
               <Link to={`/sat/intervenciones/${id}/editar`}>
@@ -128,6 +136,7 @@ export function IntervencionDetalle() {
             <TabsTrigger value="datos">Datos Generales</TabsTrigger>
             <TabsTrigger value="diagnostico">Diagnóstico</TabsTrigger>
             <TabsTrigger value="materiales">Materiales</TabsTrigger>
+            <TabsTrigger value="fotos">Fotos{intervencion.fotos?.length ? ` (${intervencion.fotos.length})` : ''}</TabsTrigger>
             <TabsTrigger value="firma">Firma</TabsTrigger>
             <TabsTrigger value="historial">Historial</TabsTrigger>
           </TabsList>
@@ -225,6 +234,14 @@ export function IntervencionDetalle() {
             <MaterialesIntervencion intervencionId={id} editable={esEditable} />
           </TabsContent>
 
+          <TabsContent value="fotos" className="p-6">
+            <FotosIntervencion
+              intervencionId={id}
+              fotos={intervencion.fotos || []}
+              editable={esEditable}
+            />
+          </TabsContent>
+
           <TabsContent value="firma" className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FirmaDigital
@@ -251,6 +268,13 @@ export function IntervencionDetalle() {
         open={showCerrarModal}
         intervencionId={id}
         onClose={() => setShowCerrarModal(false)}
+      />
+
+      {/* Modal facturar intervención */}
+      <FacturarIntervencionModal
+        open={showFacturarModal}
+        onClose={() => setShowFacturarModal(false)}
+        intervencion={intervencion}
       />
     </div>
   )

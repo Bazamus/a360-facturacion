@@ -11,10 +11,10 @@ import {
 
 const ESTADO_VARIANTS = { activo: 'success', borrador: 'warning', suspendido: 'danger', finalizado: 'default' }
 const TIPO_LABELS = {
-  mantenimiento_preventivo: 'Preventivo',
-  mantenimiento_correctivo: 'Correctivo',
-  mantenimiento_integral: 'Integral',
+  mantenimiento: 'Mantenimiento',
   garantia: 'Garantía',
+  servicio_completo: 'Servicio Completo',
+  puntual: 'Puntual',
 }
 const PERIODICIDAD_LABELS = {
   mensual: 'Mensual',

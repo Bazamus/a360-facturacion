@@ -5,8 +5,9 @@ import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths
 import { es } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { useCitas, useUsuarios } from '@/hooks'
-import { Select, LoadingSpinner } from '@/components/ui'
-import { Calendar as CalendarIcon } from 'lucide-react'
+import { Button, Select, LoadingSpinner } from '@/components/ui'
+import { Calendar as CalendarIcon, Plus } from 'lucide-react'
+import { CitaFormModal } from '@/features/sat/CitaFormModal'
 
 const locales = { es }
 
@@ -47,6 +48,8 @@ export function CalendarioPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState('month')
   const [filtroTecnico, setFiltroTecnico] = useState('')
+  const [showCitaModal, setShowCitaModal] = useState(false)
+  const [slotSelection, setSlotSelection] = useState({ start: null, end: null })
 
   // Calculate date range based on current view
   const fechaInicio = useMemo(() => {
@@ -88,6 +91,11 @@ export function CalendarioPage() {
       navigate(`/sat/intervenciones/${cita.intervencion_id}`)
     }
   }, [navigate])
+
+  const handleSelectSlot = useCallback(({ start, end }) => {
+    setSlotSelection({ start, end })
+    setShowCitaModal(true)
+  }, [])
 
   const eventStyleGetter = useCallback((event) => {
     const cita = event.resource
@@ -132,6 +140,10 @@ export function CalendarioPage() {
               <option key={t.id} value={t.id}>{t.nombre_completo}</option>
             ))}
           </Select>
+          <Button onClick={() => { setSlotSelection({ start: new Date(), end: null }); setShowCitaModal(true) }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Cita
+          </Button>
         </div>
       </div>
 
@@ -166,14 +178,22 @@ export function CalendarioPage() {
               messages={messages}
               culture="es"
               onSelectEvent={handleSelectEvent}
+              onSelectSlot={handleSelectSlot}
               eventPropGetter={eventStyleGetter}
               popup
-              selectable={false}
+              selectable
               style={{ height: '100%' }}
             />
           </div>
         )}
       </div>
+      {/* Modal nueva cita */}
+      <CitaFormModal
+        open={showCitaModal}
+        onClose={() => setShowCitaModal(false)}
+        defaultDate={slotSelection.start}
+        defaultEndDate={slotSelection.end}
+      />
     </div>
   )
 }

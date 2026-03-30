@@ -5,10 +5,10 @@ import { Button, Card, CardContent, Select, Textarea, Breadcrumb, LoadingSpinner
 import { useToast } from '@/components/ui/Toast'
 
 const TIPO_OPTIONS = [
-  { value: 'mantenimiento_preventivo', label: 'Mantenimiento Preventivo' },
-  { value: 'mantenimiento_correctivo', label: 'Mantenimiento Correctivo' },
-  { value: 'mantenimiento_integral', label: 'Mantenimiento Integral' },
+  { value: 'mantenimiento', label: 'Mantenimiento' },
   { value: 'garantia', label: 'Garantía' },
+  { value: 'servicio_completo', label: 'Servicio Completo' },
+  { value: 'puntual', label: 'Puntual' },
 ]
 
 const ESTADO_OPTIONS = [
@@ -120,7 +120,7 @@ function ContratoFormFields({ contrato, onSubmit, loading, isEdit = false }) {
 
   const [form, setForm] = useState({
     titulo: '',
-    tipo: 'mantenimiento_preventivo',
+    tipo: 'mantenimiento',
     estado: 'borrador',
     cliente_id: '',
     comunidad_id: '',

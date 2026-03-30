@@ -194,6 +194,23 @@ export function useEliminarMaterialIntervencion() {
   })
 }
 
+// Historial de cambios de estado de una intervención
+export function useHistorialIntervencion(intervencionId) {
+  return useQuery({
+    queryKey: ['intervencion-historial', intervencionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('intervenciones_historial')
+        .select('*')
+        .eq('intervencion_id', intervencionId)
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!intervencionId,
+  })
+}
+
 // Estadísticas SAT
 export function useSATStats(fechaInicio, fechaFin) {
   return useQuery({

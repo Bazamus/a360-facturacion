@@ -227,7 +227,8 @@ export {
   useMaterialesIntervencion,
   useAnadirMaterialIntervencion,
   useEliminarMaterialIntervencion,
-  useSATStats
+  useSATStats,
+  useHistorialIntervencion
 } from './useIntervenciones'
 
 // SAT — Citas

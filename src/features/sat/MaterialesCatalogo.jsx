@@ -9,7 +9,12 @@ import { useToast } from '@/components/ui/Toast'
 
 const CATEGORIA_OPTIONS = [
   { value: '', label: 'Todas las categorías' },
-  { value: 'repuesto', label: 'Repuesto' },
+  { value: 'general', label: 'General' },
+  { value: 'fontaneria', label: 'Fontanería' },
+  { value: 'electricidad', label: 'Electricidad' },
+  { value: 'climatizacion', label: 'Climatización' },
+  { value: 'calefaccion', label: 'Calefacción' },
+  { value: 'repuestos', label: 'Repuestos' },
   { value: 'consumible', label: 'Consumible' },
   { value: 'herramienta', label: 'Herramienta' },
   { value: 'equipo', label: 'Equipo' },
@@ -225,7 +230,7 @@ function MaterialFormModal({ open, material, onClose }) {
       setForm({
         nombre: material.nombre || '',
         referencia: material.referencia || '',
-        categoria: material.categoria || 'repuesto',
+        categoria: material.categoria || 'general',
         descripcion: material.descripcion || '',
         unidad_medida: material.unidad_medida || 'ud',
         precio_unitario: material.precio_unitario ?? '',
@@ -235,7 +240,7 @@ function MaterialFormModal({ open, material, onClose }) {
       })
     } else {
       setForm({
-        nombre: '', referencia: '', categoria: 'repuesto', descripcion: '',
+        nombre: '', referencia: '', categoria: 'general', descripcion: '',
         unidad_medida: 'ud', precio_unitario: '', stock_actual: '', stock_minimo: '',
         activo: true,
       })
