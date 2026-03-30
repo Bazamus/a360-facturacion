@@ -73,13 +73,14 @@ export function useActualizarUsuario() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ userId, nombreCompleto, activo, rol }) => {
+    mutationFn: async ({ userId, nombreCompleto, activo, rol, puedeGestionarPortal }) => {
       const { error } = await supabase
         .rpc('actualizar_usuario', {
           p_user_id: userId,
           p_nombre_completo: nombreCompleto,
           p_activo: activo,
-          p_rol: rol || null
+          p_rol: rol || null,
+          p_puede_gestionar_portal: puedeGestionarPortal ?? null
         })
       
       if (error) throw error

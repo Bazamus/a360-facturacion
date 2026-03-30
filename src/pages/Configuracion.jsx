@@ -993,7 +993,8 @@ function ConfigUsuarios() {
     nombreCompleto: '',
     password: '',
     rol: 'usuario',
-    activo: true
+    activo: true,
+    puedeGestionarPortal: false
   })
 
   const { data: usuarios, isLoading } = useUsuarios()
@@ -1028,7 +1029,8 @@ function ConfigUsuarios() {
         nombreCompleto: user.nombre_completo,
         password: '',
         rol: user.rol || 'usuario',
-        activo: user.activo
+        activo: user.activo,
+        puedeGestionarPortal: user.puede_gestionar_portal || false
       })
     } else {
       // Nuevo usuario
@@ -1066,7 +1068,8 @@ function ConfigUsuarios() {
           userId: editingUser.id,
           nombreCompleto: formData.nombreCompleto,
           activo: formData.activo,
-          rol: formData.rol
+          rol: formData.rol,
+          puedeGestionarPortal: formData.puedeGestionarPortal
         })
         toast.success('Usuario actualizado correctamente')
       } else {
@@ -1271,14 +1274,27 @@ function ConfigUsuarios() {
               <option value="admin">Administrador</option>
               <option value="tecnico">Técnico</option>
               <option value="encargado">Encargado</option>
+              <option value="cliente">Cliente</option>
             </Select>
             <p className="mt-1 text-xs text-gray-500">
               {formData.rol === 'tecnico' && 'Podrá gestionar intervenciones asignadas y su agenda'}
               {formData.rol === 'encargado' && 'Supervisión global del SAT, asignar intervenciones'}
               {formData.rol === 'admin' && 'Acceso completo a todo el sistema'}
               {formData.rol === 'usuario' && 'Acceso básico al sistema de facturación'}
+              {formData.rol === 'cliente' && 'Acceso al portal de cliente (su email debe coincidir con un registro de clientes)'}
             </p>
           </FormField>
+
+          {formData.rol !== 'cliente' && (
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox
+                checked={formData.puedeGestionarPortal || false}
+                onChange={(e) => setFormData(prev => ({ ...prev, puedeGestionarPortal: e.target.checked }))}
+                label="Acceso gestión Portal Cliente"
+              />
+              <p className="text-xs text-gray-500 ml-1">Permite gestionar credenciales, tickets y datos del portal</p>
+            </div>
+          )}
 
           {!editingUser && (
             <FormField label="Contraseña" required>

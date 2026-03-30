@@ -131,7 +131,7 @@ const sections = [
         ]
       },
       { name: 'Calendario', href: '/calendario', icon: Calendar },
-      { name: 'Portal Cliente', href: '/portal/inicio', icon: Globe, external: true },
+      { name: 'Portal Admin', href: '/sat/portal-admin', icon: Globe },
     ]
   },
   {

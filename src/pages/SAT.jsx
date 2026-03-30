@@ -13,6 +13,7 @@ import { TicketDetalle } from '@/features/sat/tickets/TicketDetalle'
 import { EquiposLista } from '@/features/sat/equipos/EquiposLista'
 import { EquipoNuevo, EquipoEditar } from '@/features/sat/equipos/EquipoForm'
 import { EquipoDetalle } from '@/features/sat/equipos/EquipoDetalle'
+import { PortalAdmin } from '@/features/portal/admin/PortalAdmin'
 
 export function SATPage() {
   return (
@@ -44,6 +45,9 @@ export function SATPage() {
 
       {/* Materiales */}
       <Route path="materiales" element={<MaterialesCatalogo />} />
+
+      {/* Gestión Portal Cliente */}
+      <Route path="portal-admin" element={<PortalAdmin />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/sat" replace />} />
