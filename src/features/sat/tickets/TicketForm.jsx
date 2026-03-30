@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useCrearTicket, useTicket, useActualizarTicket, useClientesSimple, useComunidades, useCliente } from '@/hooks'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useCrearTicket, useClientesSimple, useComunidades, useCliente, useContratos } from '@/hooks'
 import { Button, Card, CardContent, Select, Textarea, Breadcrumb, LoadingSpinner, CommunityPicker, SearchablePicker, Input } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 
@@ -77,26 +77,70 @@ function TicketFormFields({ onSubmit, loading }) {
     descripcion: '',
     cliente_id: '',
     comunidad_id: '',
+    contrato_id: '',
     categoria: '',
     origen: 'interno',
+    direccion: '',
+    codigo_postal: '',
+    ciudad: '',
   })
 
   const [errors, setErrors] = useState({})
+  const [autoFillEnabled, setAutoFillEnabled] = useState(false)
 
-  // Auto-rellenar comunidad cuando se selecciona cliente
+  // Datos completos del cliente seleccionado
   const { data: clienteCompleto } = useCliente(form.cliente_id || null)
 
-  useEffect(() => {
-    if (!clienteCompleto) return
-    const comunidadesCliente = []
-    for (const uc of clienteCompleto.ubicaciones_clientes || []) {
+  // Contratos del cliente
+  const { data: contratosCliente } = useContratos({
+    clienteId: form.cliente_id || undefined,
+  })
+
+  // Comunidades del cliente
+  const comunidadesCliente = useMemo(() => {
+    if (!clienteCompleto?.ubicaciones_clientes) return []
+    const comIds = new Set()
+    const result = []
+    for (const uc of clienteCompleto.ubicaciones_clientes) {
       const com = uc.ubicacion?.agrupacion?.comunidad
-      if (com) comunidadesCliente.push(com)
+      if (com && !comIds.has(com.id)) {
+        comIds.add(com.id)
+        result.push(com)
+      }
     }
-    if (comunidadesCliente.length === 1 && !form.comunidad_id) {
+    return result
+  }, [clienteCompleto])
+
+  // Auto-relleno al seleccionar cliente
+  const handleClienteChange = (clienteId) => {
+    setAutoFillEnabled(true)
+    setForm((prev) => ({
+      ...prev,
+      cliente_id: clienteId,
+      contrato_id: '',
+      comunidad_id: '',
+      direccion: '',
+      codigo_postal: '',
+      ciudad: '',
+    }))
+  }
+
+  useEffect(() => {
+    if (!clienteCompleto || !autoFillEnabled) return
+
+    setForm((prev) => ({
+      ...prev,
+      direccion: clienteCompleto.direccion_correspondencia || '',
+      codigo_postal: clienteCompleto.cp_correspondencia || '',
+      ciudad: clienteCompleto.ciudad_correspondencia || '',
+    }))
+
+    if (comunidadesCliente.length === 1) {
       setForm((prev) => ({ ...prev, comunidad_id: comunidadesCliente[0].id }))
     }
-  }, [clienteCompleto])
+
+    setAutoFillEnabled(false)
+  }, [clienteCompleto, comunidadesCliente, autoFillEnabled])
 
   const validate = () => {
     const errs = {}
@@ -116,8 +160,12 @@ function TicketFormFields({ onSubmit, loading }) {
       descripcion: form.descripcion || null,
       cliente_id: form.cliente_id || null,
       comunidad_id: form.comunidad_id || null,
+      contrato_id: form.contrato_id || null,
       categoria: form.categoria || null,
       origen: form.origen,
+      direccion: form.direccion || null,
+      codigo_postal: form.codigo_postal || null,
+      ciudad: form.ciudad || null,
     })
   }
 
@@ -174,7 +222,7 @@ function TicketFormFields({ onSubmit, loading }) {
         <div>
           <SearchablePicker
             value={form.cliente_id || ''}
-            onChange={(id) => setForm({ ...form, cliente_id: id, comunidad_id: '' })}
+            onChange={handleClienteChange}
             options={(clientes || []).map((c) => ({
               value: c.id,
               label: `${c.nombre} ${c.apellidos}`.trim(),
@@ -192,10 +240,59 @@ function TicketFormFields({ onSubmit, loading }) {
           <CommunityPicker
             value={form.comunidad_id}
             onChange={(v) => setForm({ ...form, comunidad_id: v })}
-            comunidades={comunidades ?? []}
+            comunidades={comunidadesCliente.length > 0 ? comunidadesCliente : (comunidades ?? [])}
             placeholder="Sin asignar"
             allowEmpty
           />
+          {comunidadesCliente.length > 0 && form.cliente_id && (
+            <p className="text-xs text-gray-500 mt-1">Comunidades del cliente seleccionado</p>
+          )}
+        </div>
+      </div>
+
+      {/* Contrato vinculado */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Contrato vinculado</label>
+        <Select value={form.contrato_id} onChange={set('contrato_id')}>
+          <option value="">Ninguno</option>
+          {contratosCliente?.map((c) => (
+            <option key={c.id} value={c.id}>{c.numero_contrato} - {c.titulo}</option>
+          ))}
+        </Select>
+        {form.cliente_id && contratosCliente?.length === 0 && (
+          <p className="text-xs text-gray-500 mt-1">Este cliente no tiene contratos activos</p>
+        )}
+      </div>
+
+      {/* Dirección */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-gray-700">Dirección</label>
+          {clienteCompleto?.direccion_correspondencia && !form.direccion && (
+            <button
+              type="button"
+              className="text-xs text-primary-600 hover:text-primary-700"
+              onClick={() => setForm({
+                ...form,
+                direccion: clienteCompleto.direccion_correspondencia || '',
+                codigo_postal: clienteCompleto.cp_correspondencia || '',
+                ciudad: clienteCompleto.ciudad_correspondencia || '',
+              })}
+            >
+              Usar dirección del cliente
+            </button>
+          )}
+        </div>
+        <Input value={form.direccion} onChange={set('direccion')} placeholder="Dirección del servicio" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Código postal</label>
+          <Input value={form.codigo_postal} onChange={set('codigo_postal')} placeholder="28001" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
+          <Input value={form.ciudad} onChange={set('ciudad')} placeholder="Madrid" />
         </div>
       </div>
 

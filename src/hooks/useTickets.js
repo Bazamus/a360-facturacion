@@ -85,6 +85,9 @@ export function useCrearTicket() {
         p_contrato_id: params.contrato_id || null,
         p_categoria: params.categoria || null,
         p_origen: params.origen || 'interno',
+        p_direccion: params.direccion || null,
+        p_codigo_postal: params.codigo_postal || null,
+        p_ciudad: params.ciudad || null,
       })
       if (error) throw error
       return data
