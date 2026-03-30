@@ -34,6 +34,9 @@ export function useIntervenciones({ estado, tipo, tecnicoId, comunidadId, client
 }
 
 // Intervención individual (desde tabla directa con relaciones)
+// Nota: tecnico_id y encargado_id referencian auth.users, no profiles,
+// por lo que no se puede hacer join directo con profiles via PostgREST.
+// Se obtienen los nombres en una consulta separada.
 export function useIntervencion(id) {
   return useQuery({
     queryKey: ['intervencion', id],
@@ -44,13 +47,28 @@ export function useIntervencion(id) {
           *,
           cliente:clientes(id, nombre, apellidos, telefono, email),
           comunidad:comunidades(id, nombre),
-          contrato:contratos_mantenimiento(id, numero_contrato, titulo),
-          tecnico:profiles!intervenciones_tecnico_id_fkey(id, nombre_completo),
-          encargado:profiles!intervenciones_encargado_id_fkey(id, nombre_completo)
+          contrato:contratos_mantenimiento(id, numero_contrato, titulo)
         `)
         .eq('id', id)
         .single()
       if (error) throw error
+
+      // Obtener nombres de técnico y encargado desde profiles
+      const profileIds = [data.tecnico_id, data.encargado_id].filter(Boolean)
+      if (profileIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, nombre_completo')
+          .in('id', profileIds)
+
+        const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]))
+        data.tecnico = profileMap[data.tecnico_id] || null
+        data.encargado = profileMap[data.encargado_id] || null
+      } else {
+        data.tecnico = null
+        data.encargado = null
+      }
+
       return data
     },
     enabled: !!id,
