@@ -107,14 +107,20 @@ export function CrearCredencialesMasivas() {
         // Esperar a que el trigger cree el perfil
         await new Promise((r) => setTimeout(r, 1000))
 
+        // Obtener ID del usuario (la respuesta puede tener diferentes estructuras)
+        const userId = signUpResult?.id || signUpResult?.user?.id
+
         // Cambiar rol a 'cliente' (usando la sesión del admin que NO se ha perdido)
-        if (signUpResult?.id) {
-          await supabase.rpc('actualizar_usuario', {
-            p_user_id: signUpResult.id,
+        if (userId) {
+          const { error: rpcError } = await supabase.rpc('actualizar_usuario', {
+            p_user_id: userId,
             p_nombre_completo: `${cliente.nombre} ${cliente.apellidos}`.trim(),
             p_activo: true,
             p_rol: 'cliente',
           })
+          if (rpcError) console.warn(`Rol no actualizado para ${cliente.email}:`, rpcError.message)
+        } else {
+          console.warn(`No se pudo obtener ID del usuario ${cliente.email}. Respuesta:`, signUpResult)
         }
 
         results.push({
