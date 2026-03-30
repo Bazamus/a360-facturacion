@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { usePortalDatos } from '@/hooks/usePortal'
+import { useAuth } from '@/features/auth/AuthContext'
 import { Card, CardContent, Badge, LoadingSpinner } from '@/components/ui'
 import {
   FileText, TicketCheck, Wrench, Calendar, Cpu,
-  AlertCircle, Clock, ChevronRight, Euro,
+  AlertCircle, Clock, ChevronRight, Euro, ShieldAlert,
 } from 'lucide-react'
 
 function formatDate(dateStr) {
@@ -22,10 +23,40 @@ function formatDateTime(dateStr) {
 
 export function PortalDashboard() {
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
   const { data: portal, isLoading, error } = usePortalDatos()
 
   if (isLoading) {
     return <div className="py-20 flex justify-center"><LoadingSpinner size="lg" /></div>
+  }
+
+  // Si es admin y no tiene cliente vinculado, mostrar modo preview
+  if (error && isAdmin) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="text-sm font-medium text-amber-800">Modo Administrador</h3>
+            <p className="text-sm text-amber-700 mt-1">
+              Estás viendo el portal como administrador. Tu email no está vinculado a ningún cliente,
+              por lo que no se muestran datos. Para probar el portal completo, crea un usuario con
+              rol "cliente" cuyo email coincida con un registro en la tabla de clientes.
+            </p>
+          </div>
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Portal de Cliente</h1>
+          <p className="text-sm text-gray-500 mt-1">Vista previa del portal — sin datos de cliente vinculados</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard icon={Euro} iconBg="bg-amber-100" iconColor="text-amber-600" label="Facturas pendientes" value={0} />
+          <KpiCard icon={FileText} iconBg="bg-blue-100" iconColor="text-blue-600" label="Total facturas" value={0} />
+          <KpiCard icon={TicketCheck} iconBg="bg-indigo-100" iconColor="text-indigo-600" label="Tickets abiertos" value={0} />
+          <KpiCard icon={Calendar} iconBg="bg-green-100" iconColor="text-green-600" label="Contratos activos" value={0} />
+        </div>
+      </div>
+    )
   }
 
   if (error) {
