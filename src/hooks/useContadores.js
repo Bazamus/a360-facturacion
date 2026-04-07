@@ -1,6 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { applySearchFilters } from '@/utils/buildSearchFilter'
+import { applyTokenizedIlikeOr } from '@/utils/supabaseSearch'
+
+const CONTADOR_VISTA_SEARCH_COLUMNS = [
+  'numero_serie',
+  'ubicacion_nombre',
+  'comunidad_nombre',
+  'agrupacion_nombre',
+  'cliente_nombre',
+  'concepto_codigo'
+]
 
 // =====================================================
 // Hooks para Contadores
@@ -54,7 +63,7 @@ export function useContadores(options = {}) {
         let searchQuery = supabase
           .from('v_contadores_completos')
           .select('contador_id')
-        searchQuery = applySearchFilters(searchQuery, search, ['numero_serie', 'ubicacion_nombre', 'comunidad_nombre', 'agrupacion_nombre', 'cliente_nombre', 'concepto_codigo'])
+        searchQuery = applyTokenizedIlikeOr(searchQuery, search, CONTADOR_VISTA_SEARCH_COLUMNS)
         const { data: searchData, error: searchError } = await searchQuery.range(0, 9999)
         if (searchError) throw searchError
 
@@ -145,6 +154,151 @@ export function useContadores(options = {}) {
       return { data: orderedData, count: count || 0 }
     }
   })
+}
+
+function agruparViewRowsPorContador(viewRows, orderedIds) {
+  const contadoresMap = new Map()
+  viewRows.forEach(row => {
+    if (!contadoresMap.has(row.contador_id)) {
+      contadoresMap.set(row.contador_id, {
+        id: row.contador_id,
+        numero_serie: row.numero_serie,
+        marca: row.marca,
+        modelo: row.modelo,
+        activo: row.contador_activo,
+        ubicacion_id: row.ubicacion_id,
+        ubicacion_nombre: row.ubicacion_nombre,
+        agrupacion_id: row.agrupacion_id,
+        agrupacion_nombre: row.agrupacion_nombre,
+        comunidad_id: row.comunidad_id,
+        comunidad_nombre: row.comunidad_nombre,
+        comunidad_codigo: row.comunidad_codigo,
+        cliente_id: row.cliente_id,
+        cliente_nombre: row.cliente_nombre,
+        cliente_codigo: row.cliente_codigo,
+        conceptos: []
+      })
+    }
+
+    if (row.concepto_id) {
+      contadoresMap.get(row.contador_id).conceptos.push({
+        id: row.concepto_id,
+        codigo: row.concepto_codigo,
+        nombre: row.concepto_nombre,
+        unidad_medida: row.unidad_medida,
+        es_termino_fijo: row.es_termino_fijo,
+        lectura_inicial: row.lectura_inicial,
+        lectura_actual: row.lectura_actual,
+        fecha_lectura_actual: row.fecha_lectura_actual,
+        precio_unitario: row.precio_unitario
+      })
+    }
+  })
+
+  return orderedIds
+    .map(id => contadoresMap.get(id))
+    .filter(Boolean)
+}
+
+/**
+ * Obtener TODOS los contadores filtrados (para exportación).
+ * Reutiliza el mismo criterio que `useContadores` (vista v_contadores_completos + pre-filtros).
+ */
+export async function fetchAllContadores(filters = {}) {
+  const { search, comunidadId, conceptoId, activo } = filters
+
+  // Pre-filtro por comunidad → resolver ubicacion IDs
+  let ubicacionIdsFiltro = null
+  if (comunidadId) {
+    const { data: agrupData, error: errAgrup } = await supabase
+      .from('agrupaciones')
+      .select('id')
+      .eq('comunidad_id', comunidadId)
+    if (errAgrup) throw errAgrup
+
+    const agrupIds = agrupData?.map(a => a.id) || []
+    if (agrupIds.length === 0) return []
+
+    const { data: ubicData, error: errUbic } = await supabase
+      .from('ubicaciones')
+      .select('id')
+      .in('agrupacion_id', agrupIds)
+    if (errUbic) throw errUbic
+
+    ubicacionIdsFiltro = ubicData?.map(u => u.id) || []
+    if (ubicacionIdsFiltro.length === 0) return []
+  }
+
+  // Pre-filtro por concepto → resolver contador IDs
+  let contadorIdsFiltro = null
+  if (conceptoId) {
+    const { data: ccData, error: errCc } = await supabase
+      .from('contadores_conceptos')
+      .select('contador_id')
+      .eq('concepto_id', conceptoId)
+      .eq('activo', true)
+    if (errCc) throw errCc
+
+    contadorIdsFiltro = [...new Set(ccData?.map(cc => cc.contador_id))]
+    if (contadorIdsFiltro.length === 0) return []
+  }
+
+  // Pre-filtro por búsqueda → resolver contador IDs desde la vista (multi-campo)
+  let searchContadorIds = null
+  if (search) {
+    let searchQuery = supabase
+      .from('v_contadores_completos')
+      .select('contador_id')
+    searchQuery = applyTokenizedIlikeOr(searchQuery, search, CONTADOR_VISTA_SEARCH_COLUMNS)
+    const { data: searchData, error: searchError } = await searchQuery.range(0, 9999)
+    if (searchError) throw searchError
+
+    searchContadorIds = [...new Set(searchData?.map(r => r.contador_id))]
+    if (searchContadorIds.length === 0) return []
+  }
+
+  // Obtener IDs de contadores en lotes (para respetar orden y filtros)
+  const allIds = []
+  let from = 0
+  const batchSize = 1000
+
+  while (true) {
+    let query = supabase
+      .from('contadores')
+      .select('id')
+      .order('numero_serie')
+      .range(from, from + batchSize - 1)
+
+    if (searchContadorIds) query = query.in('id', searchContadorIds)
+    if (activo !== undefined) query = query.eq('activo', activo)
+    if (ubicacionIdsFiltro) query = query.in('ubicacion_id', ubicacionIdsFiltro)
+    if (contadorIdsFiltro) query = query.in('id', contadorIdsFiltro)
+
+    const { data, error } = await query
+    if (error) throw error
+    if (!data || data.length === 0) break
+
+    allIds.push(...data.map(r => r.id))
+    if (data.length < batchSize) break
+    from += batchSize
+  }
+
+  if (allIds.length === 0) return []
+
+  // Obtener datos completos desde la vista por chunks de IDs
+  const viewRows = []
+  const idChunkSize = 500
+  for (let i = 0; i < allIds.length; i += idChunkSize) {
+    const chunk = allIds.slice(i, i + idChunkSize)
+    const { data: chunkRows, error: viewError } = await supabase
+      .from('v_contadores_completos')
+      .select('*')
+      .in('contador_id', chunk)
+    if (viewError) throw viewError
+    viewRows.push(...(chunkRows || []))
+  }
+
+  return agruparViewRowsPorContador(viewRows, allIds)
 }
 
 // Lista simple de contadores

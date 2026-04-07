@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { Gauge, Plus, Eye, Edit2, MoreVertical, Upload, Download, FileSpreadsheet, Trash2, AlertTriangle } from 'lucide-react'
 import { 
@@ -35,6 +35,9 @@ import { ConceptosContadorTab } from '@/features/contadores/ConceptosContadorTab
 import { formatDate } from '@/lib/utils'
 import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
+import { ModalExportarContadores } from '@/features/contadores/components/ModalExportarContadores'
+import { useExportarContadores } from '@/features/contadores/hooks/useExportarContadores'
+import { fetchAllContadores } from '@/hooks/useContadores'
 
 export function ContadoresPage() {
   return (
@@ -54,6 +57,9 @@ function ContadoresList() {
   const [soloActivos, setSoloActivos] = useState(true)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
   const [contadorAEliminar, setContadorAEliminar] = useState(null)
   const [showEliminarModal, setShowEliminarModal] = useState(false)
   const [page, setPage] = useState(1)
@@ -76,6 +82,13 @@ function ContadoresList() {
   const totalPages = Math.ceil(totalCount / pageSize)
 
   const { descargarPlantilla, exportarEntidad } = useImportExport()
+  const { exportar } = useExportarContadores()
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
+  const totalSeleccionadosEnPagina = useMemo(
+    () => contadores.filter(c => selectedSet.has(c.id)).length,
+    [contadores, selectedSet]
+  )
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
@@ -93,13 +106,29 @@ function ContadoresList() {
     setPage(1)
   }, [search, filtroComunidad, soloActivos])
 
-  const handleExportar = async () => {
+  const handleAbrirModalExportar = () => {
     setShowActionsMenu(false)
-    const result = await exportarEntidad('contadores')
-    if (result.success) {
+    setShowExportModal(true)
+  }
+
+  const handleExportar = async ({ soloSeleccionados }) => {
+    try {
+      setIsExporting(true)
+      const dataToExport = soloSeleccionados
+        ? contadores.filter(c => selectedSet.has(c.id))
+        : await fetchAllContadores({
+            search,
+            comunidadId: filtroComunidad || undefined,
+            activo: soloActivos ? true : undefined
+          })
+
+      const result = await exportar.mutateAsync({ contadores: dataToExport })
       toast.success(`Exportados ${result.count} registros: ${result.fileName}`)
-    } else {
-      toast.error(result.error)
+      setShowExportModal(false)
+    } catch (err) {
+      toast.error(`Error al exportar: ${err.message}`)
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -138,6 +167,27 @@ function ContadoresList() {
   }
 
   const columns = [
+    {
+      key: '__select',
+      header: '',
+      width: '38px',
+      sortable: false,
+      render: (_, row) => (
+        <input
+          type="checkbox"
+          checked={selectedSet.has(row.id)}
+          onChange={(e) => {
+            const checked = e.target.checked
+            setSelectedIds((prev) => {
+              if (checked) return [...new Set([...prev, row.id])]
+              return prev.filter((id) => id !== row.id)
+            })
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        />
+      )
+    },
     {
       key: 'numero_serie',
       header: 'Nº Serie',
@@ -289,7 +339,7 @@ function ContadoresList() {
                   Importar desde Excel
                 </button>
                 <button
-                  onClick={handleExportar}
+                  onClick={handleAbrirModalExportar}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Download className="w-4 h-4 text-green-500" />
@@ -393,6 +443,15 @@ function ContadoresList() {
         onClose={() => setShowImportModal(false)}
         entidad="contadores"
         onSuccess={handleImportSuccess}
+      />
+
+      <ModalExportarContadores
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportar}
+        total={contadores.length}
+        totalSeleccionados={totalSeleccionadosEnPagina}
+        isExporting={isExporting}
       />
       
       {/* Modal de confirmación de eliminación */}
