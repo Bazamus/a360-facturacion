@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { applySearchFilters } from '@/utils/buildSearchFilter'
 
 // =====================================================
 // Hooks para Clientes
@@ -69,7 +70,7 @@ export function useClientes(options = {}) {
         .range((page - 1) * pageSize, page * pageSize - 1)
 
       if (search) {
-        query = query.or(`nombre.ilike.%${search}%,apellidos.ilike.%${search}%,nif.ilike.%${search}%,codigo_cliente.ilike.%${search}%,email.ilike.%${search}%`)
+        query = applySearchFilters(query, search, ['nombre', 'apellidos', 'nif', 'codigo_cliente', 'email'])
       }
 
       if (tipo) {
@@ -136,7 +137,7 @@ export function useClientesSimple(options = {}) {
         .order('nombre')
 
       if (search) {
-        query = query.or(`nombre.ilike.%${search}%,apellidos.ilike.%${search}%,nif.ilike.%${search}%`)
+        query = applySearchFilters(query, search, ['nombre', 'apellidos', 'nif'])
       }
 
       if (estadoId) {
@@ -355,7 +356,7 @@ export async function fetchAllClientes(filters = {}) {
       .range(from, from + batchSize - 1)
 
     if (search) {
-      query = query.or(`nombre.ilike.%${search}%,apellidos.ilike.%${search}%,nif.ilike.%${search}%,codigo_cliente.ilike.%${search}%,email.ilike.%${search}%`)
+      query = applySearchFilters(query, search, ['nombre', 'apellidos', 'nif', 'codigo_cliente', 'email'])
     }
     if (tipo) query = query.eq('tipo', tipo)
     if (estadoId) query = query.eq('estado_id', estadoId)
