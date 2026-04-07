@@ -643,6 +643,7 @@ function DatosPersonalesTab({ cliente }) {
 
 function UbicacionesTab({ cliente }) {
   const ubicaciones = cliente.ubicaciones_clientes || []
+  const [contadorPorUbicacion, setContadorPorUbicacion] = useState({})
 
   if (!ubicaciones.length) {
     return (
@@ -652,6 +653,39 @@ function UbicacionesTab({ cliente }) {
       />
     )
   }
+
+  useEffect(() => {
+    let cancelled = false
+
+    const cargarContadores = async () => {
+      const ubicacionIds = [...new Set(ubicaciones.map(uc => uc.ubicacion?.id).filter(Boolean))]
+      if (ubicacionIds.length === 0) {
+        if (!cancelled) setContadorPorUbicacion({})
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('contadores')
+        .select('numero_serie, ubicacion_id')
+        .in('ubicacion_id', ubicacionIds)
+        .eq('activo', true)
+
+      if (error) {
+        if (!cancelled) setContadorPorUbicacion({})
+        return
+      }
+
+      const map = {}
+      data?.forEach(c => {
+        if (!map[c.ubicacion_id]) map[c.ubicacion_id] = c.numero_serie
+      })
+
+      if (!cancelled) setContadorPorUbicacion(map)
+    }
+
+    cargarContadores()
+    return () => { cancelled = true }
+  }, [cliente?.id])
 
   return (
     <div className="space-y-4">
@@ -669,6 +703,12 @@ function UbicacionesTab({ cliente }) {
               </p>
               <p className="text-sm text-gray-600">
                 {uc.ubicacion?.agrupacion?.nombre} - {uc.ubicacion?.nombre}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Nº contador:{' '}
+                <span className="font-mono text-gray-700">
+                  {uc.ubicacion?.id ? (contadorPorUbicacion[uc.ubicacion.id] || '-') : '-'}
+                </span>
               </p>
             </div>
             <div className="text-right">

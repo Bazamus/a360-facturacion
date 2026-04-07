@@ -370,6 +370,41 @@ export async function fetchAllClientes(filters = {}) {
     from += batchSize
   }
 
+  // Completar nº contador para exportación (mismo criterio que en el listado)
+  if (all.length > 0) {
+    const ubicacionIds = all
+      .flatMap(c => c.ubicaciones_clientes?.filter(uc => uc.es_actual).map(uc => uc.ubicacion_id) || [])
+      .filter(Boolean)
+
+    if (ubicacionIds.length > 0) {
+      const uniqueUbicacionIds = [...new Set(ubicacionIds)]
+      const contadorMap = {}
+      const chunkSize = 1000
+
+      for (let i = 0; i < uniqueUbicacionIds.length; i += chunkSize) {
+        const chunk = uniqueUbicacionIds.slice(i, i + chunkSize)
+        const { data: contadores, error: contError } = await supabase
+          .from('contadores')
+          .select('id, numero_serie, ubicacion_id')
+          .in('ubicacion_id', chunk)
+          .eq('activo', true)
+
+        if (contError) throw contError
+
+        contadores?.forEach(c => {
+          if (!contadorMap[c.ubicacion_id]) {
+            contadorMap[c.ubicacion_id] = c.numero_serie
+          }
+        })
+      }
+
+      all.forEach(cliente => {
+        const ubicActual = cliente.ubicaciones_clientes?.find(uc => uc.es_actual)
+        cliente.numero_contador = ubicActual ? contadorMap[ubicActual.ubicacion_id] || null : null
+      })
+    }
+  }
+
   return all
 }
 
