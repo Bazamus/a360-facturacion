@@ -3,7 +3,9 @@ import { usePortalFacturas, usePortalFacturaDetalle } from '@/hooks/usePortal'
 import { Card, CardContent, Badge, LoadingSpinner, Select, EmptyState, Button } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { FileText, Download, ChevronDown, ChevronRight, Package } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import JSZip from 'jszip'
+import { generarFacturaPDF, getFacturaPDFBlob } from '@/features/facturacion/pdf'
 
 const ESTADO_VARIANTS = { emitida: 'warning', pagada: 'success', anulada: 'danger' }
 const ESTADO_LABELS = { emitida: 'Emitida', pagada: 'Pagada', anulada: 'Anulada' }
@@ -20,6 +22,43 @@ function formatPeriodo(inicio, fin) {
   return `${i.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })} — ${f.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}`
 }
 
+// Obtener detalle de factura via RPC (para generar PDF)
+async function fetchFacturaDetalle(facturaId) {
+  const { data, error } = await supabase.rpc('get_portal_factura_detalle', { p_factura_id: facturaId })
+  if (error) throw error
+  return data
+}
+
+// Generar y descargar PDF de una factura
+async function descargarPDFFactura(factura) {
+  // Si tiene URL, abrir directamente
+  if (factura.pdf_url) {
+    window.open(factura.pdf_url, '_blank')
+    return
+  }
+
+  // Si no, generar client-side
+  const detalle = await fetchFacturaDetalle(factura.id)
+  if (!detalle?.factura) throw new Error('No se pudo obtener el detalle de la factura')
+
+  const doc = generarFacturaPDF(detalle.factura, detalle.lineas || [])
+  doc.save(`factura_${detalle.factura.serie || 2}_${detalle.factura.numero || factura.id}.pdf`)
+}
+
+// Generar blob PDF para ZIP
+async function generarPDFBlob(factura) {
+  if (factura.pdf_url) {
+    const response = await fetch(factura.pdf_url)
+    if (response.ok) return await response.blob()
+  }
+
+  const detalle = await fetchFacturaDetalle(factura.id)
+  if (!detalle?.factura) return null
+
+  const doc = generarFacturaPDF(detalle.factura, detalle.lineas || [])
+  return doc.output('blob')
+}
+
 export function PortalFacturas() {
   const currentYear = new Date().getFullYear()
   const [anio, setAnio] = useState(currentYear.toString())
@@ -28,6 +67,7 @@ export function PortalFacturas() {
   const [seleccionados, setSeleccionados] = useState([])
   const [expandedId, setExpandedId] = useState(null)
   const [descargando, setDescargando] = useState(false)
+  const [descargandoId, setDescargandoId] = useState(null)
   const toast = useToast()
 
   const { data: result, isLoading, error } = usePortalFacturas({
@@ -39,45 +79,45 @@ export function PortalFacturas() {
   const facturas = Array.isArray(result?.data) ? result.data : []
   const totalCount = result?.count ?? facturas.length
 
-  // Años disponibles
   const anios = []
   for (let y = currentYear; y >= currentYear - 5; y--) anios.push(y.toString())
 
-  // Resumen del año seleccionado
+  // Resumen del año
+  const facturasValidas = facturas.filter((f) => f.estado !== 'anulada')
   const resumen = facturas.length > 0 ? {
-    total: facturas.filter((f) => f.estado !== 'anulada').reduce((s, f) => s + Number(f.total || 0), 0),
+    total: facturasValidas.reduce((s, f) => s + Number(f.total || 0), 0),
     count: facturas.length,
-    media: facturas.filter((f) => f.estado !== 'anulada').length > 0
-      ? facturas.filter((f) => f.estado !== 'anulada').reduce((s, f) => s + Number(f.total || 0), 0) / 12
+    media: facturasValidas.length > 0
+      ? facturasValidas.reduce((s, f) => s + Number(f.total || 0), 0) / 12
       : 0,
   } : null
 
-  // Selección masiva
+  // Selección
   const toggleSeleccion = (id) => {
     setSeleccionados((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
   }
   const toggleTodos = () => {
-    const facturasConPdf = facturas.filter((f) => f.pdf_url)
-    if (seleccionados.length === facturasConPdf.length) setSeleccionados([])
-    else setSeleccionados(facturasConPdf.map((f) => f.id))
+    const facturasDescargables = facturas.filter((f) => f.estado !== 'anulada')
+    if (seleccionados.length === facturasDescargables.length) setSeleccionados([])
+    else setSeleccionados(facturasDescargables.map((f) => f.id))
   }
 
   // Descarga individual
-  const handleDescargar = (factura) => {
-    if (factura.pdf_url) {
-      window.open(factura.pdf_url, '_blank')
-    } else {
-      toast.error('PDF no disponible para esta factura')
+  const handleDescargar = async (factura) => {
+    setDescargandoId(factura.id)
+    try {
+      await descargarPDFFactura(factura)
+    } catch (err) {
+      toast.error('Error descargando PDF: ' + err.message)
+    } finally {
+      setDescargandoId(null)
     }
   }
 
   // Descarga masiva ZIP
   const handleDescargarZip = async () => {
-    const facturasSeleccionadas = facturas.filter((f) => seleccionados.includes(f.id) && f.pdf_url)
-    if (facturasSeleccionadas.length === 0) {
-      toast.error('No hay facturas con PDF disponible en la selección')
-      return
-    }
+    const facturasSeleccionadas = facturas.filter((f) => seleccionados.includes(f.id))
+    if (facturasSeleccionadas.length === 0) return
 
     setDescargando(true)
     try {
@@ -86,19 +126,18 @@ export function PortalFacturas() {
 
       for (const factura of facturasSeleccionadas) {
         try {
-          const response = await fetch(factura.pdf_url)
-          if (!response.ok) continue
-          const blob = await response.blob()
-          const nombre = `factura_${factura.serie || 2}_${factura.numero || factura.id}.pdf`
-          zip.file(nombre, blob)
-          ok++
+          const blob = await generarPDFBlob(factura)
+          if (blob) {
+            zip.file(`factura_${factura.serie || 2}_${factura.numero || factura.id}.pdf`, blob)
+            ok++
+          }
         } catch {
-          // Skip failed downloads
+          // Skip failed
         }
       }
 
       if (ok === 0) {
-        toast.error('No se pudieron descargar los PDFs')
+        toast.error('No se pudieron generar los PDFs')
         return
       }
 
@@ -178,9 +217,14 @@ export function PortalFacturas() {
         {seleccionados.length > 0 && (
           <div className="px-4 py-2.5 bg-primary-50 border-b border-primary-200 flex items-center justify-between">
             <span className="text-sm font-medium text-primary-800">{seleccionados.length} seleccionada(s)</span>
-            <Button size="sm" onClick={handleDescargarZip} loading={descargando}>
-              <Package className="h-3.5 w-3.5 mr-1" /> Descargar ZIP
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handleDescargarZip} loading={descargando}>
+                <Package className="h-3.5 w-3.5 mr-1" /> Descargar ZIP
+              </Button>
+              <button onClick={() => setSeleccionados([])} className="text-xs text-gray-500 hover:text-gray-700">
+                Cancelar
+              </button>
+            </div>
           </div>
         )}
 
@@ -191,11 +235,13 @@ export function PortalFacturas() {
             <EmptyState icon={FileText} title="Sin facturas" description="No hay facturas disponibles con los filtros seleccionados" />
           </CardContent>
         ) : (
-          <div>
+          <div className="overflow-x-auto">
             {/* Header */}
-            <div className="grid grid-cols-[40px_1fr_100px_1fr_90px_90px_100px_80px_70px] gap-2 px-4 py-2 text-xs font-medium text-gray-500 border-b bg-gray-50">
+            <div className="grid grid-cols-[36px_minmax(120px,1fr)_90px_minmax(140px,1fr)_80px_80px_90px_80px_70px] gap-1 px-4 py-2 text-xs font-medium text-gray-500 border-b bg-gray-50 min-w-[800px]">
               <div>
-                <input type="checkbox" checked={seleccionados.length > 0} onChange={toggleTodos}
+                <input type="checkbox"
+                  checked={seleccionados.length > 0 && seleccionados.length === facturas.filter((f) => f.estado !== 'anulada').length}
+                  onChange={toggleTodos}
                   className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
               </div>
               <div>Nº FACTURA</div>
@@ -209,53 +255,60 @@ export function PortalFacturas() {
             </div>
 
             {/* Rows */}
-            {facturas.map((f) => (
-              <div key={f.id}>
-                <div
-                  className={`grid grid-cols-[40px_1fr_100px_1fr_90px_90px_100px_80px_70px] gap-2 px-4 py-3 items-center border-b hover:bg-gray-50 cursor-pointer transition-colors ${
-                    f.estado === 'anulada' ? 'opacity-60' : ''
-                  }`}
-                  onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}
-                >
-                  <div onClick={(e) => e.stopPropagation()}>
-                    {f.pdf_url && (
-                      <input type="checkbox" checked={seleccionados.includes(f.id)}
-                        onChange={() => toggleSeleccion(f.id)}
-                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                    )}
+            <div className="min-w-[800px]">
+              {facturas.map((f) => (
+                <div key={f.id}>
+                  <div
+                    className={`grid grid-cols-[36px_minmax(120px,1fr)_90px_minmax(140px,1fr)_80px_80px_90px_80px_70px] gap-1 px-4 py-3 items-center border-b hover:bg-gray-50 cursor-pointer transition-colors ${
+                      f.estado === 'anulada' ? 'opacity-60' : ''
+                    }`}
+                    onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}
+                  >
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {f.estado !== 'anulada' && (
+                        <input type="checkbox" checked={seleccionados.includes(f.id)}
+                          onChange={() => toggleSeleccion(f.id)}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {expandedId === f.id ? <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
+                      <span className="font-mono text-sm font-medium text-gray-900">{f.serie}/{f.numero || '-'}</span>
+                    </div>
+                    <div className="text-sm text-gray-600">{formatDate(f.fecha_factura)}</div>
+                    <div className="text-xs text-gray-500">{formatPeriodo(f.periodo_inicio, f.periodo_fin)}</div>
+                    <div className="text-sm text-gray-600 text-right">{Number(f.base_imponible || 0).toFixed(2)} €</div>
+                    <div className="text-sm text-gray-600 text-right">{Number(f.importe_iva || 0).toFixed(2)} €</div>
+                    <div className={`text-sm font-semibold text-right ${f.estado === 'anulada' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                      {Number(f.total || 0).toFixed(2)} €
+                    </div>
+                    <div className="text-center">
+                      <Badge variant={ESTADO_VARIANTS[f.estado] || 'default'} className="text-[10px]">
+                        {ESTADO_LABELS[f.estado] || f.estado}
+                      </Badge>
+                    </div>
+                    <div className="text-right" onClick={(e) => e.stopPropagation()}>
+                      {f.estado !== 'anulada' && (
+                        <button
+                          onClick={() => handleDescargar(f)}
+                          disabled={descargandoId === f.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded transition-colors disabled:opacity-50"
+                        >
+                          {descargandoId === f.id ? (
+                            <LoadingSpinner size="xs" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          PDF
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    {expandedId === f.id ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400" />}
-                    <span className="font-mono text-sm font-medium text-gray-900">{f.serie}/{f.numero || '-'}</span>
-                  </div>
-                  <div className="text-sm text-gray-600">{formatDate(f.fecha_factura)}</div>
-                  <div className="text-xs text-gray-500">{formatPeriodo(f.periodo_inicio, f.periodo_fin)}</div>
-                  <div className="text-sm text-gray-600 text-right">{Number(f.base_imponible || 0).toFixed(2)} €</div>
-                  <div className="text-sm text-gray-600 text-right">{Number(f.importe_iva || 0).toFixed(2)} €</div>
-                  <div className={`text-sm font-semibold text-right ${f.estado === 'anulada' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                    {Number(f.total || 0).toFixed(2)} €
-                  </div>
-                  <div className="text-center">
-                    <Badge variant={ESTADO_VARIANTS[f.estado] || 'default'} className="text-[10px]">
-                      {ESTADO_LABELS[f.estado] || f.estado}
-                    </Badge>
-                  </div>
-                  <div className="text-right" onClick={(e) => e.stopPropagation()}>
-                    {f.pdf_url ? (
-                      <button onClick={() => handleDescargar(f)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded transition-colors">
-                        <Download className="h-3 w-3" /> PDF
-                      </button>
-                    ) : (
-                      <span className="text-[10px] text-gray-400">Sin PDF</span>
-                    )}
-                  </div>
-                </div>
 
-                {/* Detalle expandible */}
-                {expandedId === f.id && <FacturaDetalle facturaId={f.id} />}
-              </div>
-            ))}
+                  {expandedId === f.id && <FacturaDetalle facturaId={f.id} />}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </Card>
@@ -277,7 +330,6 @@ function FacturaDetalle({ facturaId }) {
 
   return (
     <div className="bg-gray-50 border-b px-6 py-4 space-y-4">
-      {/* Info general */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <div>
           <span className="text-xs text-gray-500 block">Cliente</span>
@@ -297,7 +349,6 @@ function FacturaDetalle({ facturaId }) {
         </div>
       </div>
 
-      {/* Líneas */}
       {lineas.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
