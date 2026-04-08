@@ -5,7 +5,8 @@ import { useToast } from '@/components/ui/Toast'
 import { FileText, Download, ChevronDown, ChevronRight, Package } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import JSZip from 'jszip'
-import { generarFacturaPDF, getFacturaPDFBlob } from '@/features/facturacion/pdf'
+import { generarFacturaPDF } from '@/features/facturacion/pdf'
+import { getFacturaDatosPresentacion } from '@/features/facturacion/utils/facturaPresentacion'
 
 const ESTADO_VARIANTS = { emitida: 'warning', pagada: 'success', anulada: 'danger' }
 const ESTADO_LABELS = { emitida: 'Emitida', pagada: 'Pagada', anulada: 'Anulada' }
@@ -42,7 +43,7 @@ async function descargarPDFFactura(factura) {
   if (!detalle?.factura) throw new Error('No se pudo obtener el detalle de la factura')
 
   const doc = generarFacturaPDF(detalle.factura, detalle.lineas || [])
-  doc.save(`factura_${detalle.factura.serie || 2}_${detalle.factura.numero || factura.id}.pdf`)
+  doc.save(`factura_${detalle.factura.numero || factura.id}.pdf`)
 }
 
 // Generar blob PDF para ZIP
@@ -128,7 +129,7 @@ export function PortalFacturas() {
         try {
           const blob = await generarPDFBlob(factura)
           if (blob) {
-            zip.file(`factura_${factura.serie || 2}_${factura.numero || factura.id}.pdf`, blob)
+            zip.file(`factura_${factura.numero || factura.id}.pdf`, blob)
             ok++
           }
         } catch {
@@ -273,7 +274,7 @@ export function PortalFacturas() {
                     </div>
                     <div className="flex items-center gap-1">
                       {expandedId === f.id ? <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
-                      <span className="font-mono text-sm font-medium text-gray-900">{f.serie}/{f.numero || '-'}</span>
+                      <span className="font-mono text-sm font-medium text-gray-900">{f.numero || '-'}</span>
                     </div>
                     <div className="text-sm text-gray-600">{formatDate(f.fecha_factura)}</div>
                     <div className="text-xs text-gray-500">{formatPeriodo(f.periodo_inicio, f.periodo_fin)}</div>
@@ -326,7 +327,9 @@ function FacturaDetalle({ facturaId }) {
   if (!data) return null
 
   const factura = data.factura
-  const lineas = data.lineas || []
+  // Aplicar misma agrupación de conceptos que el PDF enviado al cliente
+  const presentacion = getFacturaDatosPresentacion(factura, data.lineas || [])
+  const lineas = presentacion.lineas
 
   return (
     <div className="bg-gray-50 border-b px-6 py-4 space-y-4">

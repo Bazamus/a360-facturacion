@@ -186,7 +186,7 @@ BEGIN
                periodo_inicio, periodo_fin, dias_periodo,
                base_imponible, porcentaje_iva, importe_iva, total,
                estado::text AS estado, metodo_pago::text AS metodo_pago,
-               fecha_vencimiento, pdf_url,
+               fecha_vencimiento, pdf_url, agrupar_conceptos_en_documento,
                cliente_nombre, cliente_nif, cliente_direccion,
                cliente_cp, cliente_ciudad, cliente_email, cliente_iban
         FROM facturas WHERE id = p_factura_id
