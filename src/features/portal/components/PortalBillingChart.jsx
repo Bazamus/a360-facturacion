@@ -1,22 +1,19 @@
 import { usePortalHistorial } from '@/hooks/usePortal'
 import { Card, CardContent, LoadingSpinner } from '@/components/ui'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { TrendingUp } from 'lucide-react'
-
-function formatCurrency(value) {
-  return `${Number(value).toFixed(0)} €`
-}
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
       <p className="font-medium text-gray-900 mb-1">{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color }}>
-          {p.name}: {Number(p.value).toFixed(2)} €
-        </p>
-      ))}
+      <p className="text-primary-700 font-semibold">
+        {Number(payload[0].value).toFixed(2)} €
+      </p>
+      <p className="text-xs text-gray-500 mt-0.5">
+        {payload[0].payload.num_facturas} factura(s)
+      </p>
     </div>
   )
 }
@@ -55,20 +52,14 @@ export function PortalBillingChart() {
                 axisLine={{ stroke: '#e5e7eb' }}
               />
               <YAxis
-                tickFormatter={formatCurrency}
+                tickFormatter={(v) => `${v} €`}
                 tick={{ fontSize: 11, fill: '#9ca3af' }}
                 tickLine={false}
                 axisLine={false}
                 width={60}
               />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                iconType="circle"
-                iconSize={8}
-                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-              />
-              <Bar dataKey="pagado" name="Pagado" fill="#10b981" radius={[3, 3, 0, 0]} stackId="stack" />
-              <Bar dataKey="pendiente" name="Pendiente" fill="#f59e0b" radius={[3, 3, 0, 0]} stackId="stack" />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }} />
+              <Bar dataKey="total" name="Facturado" fill="#2E86AB" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
