@@ -285,7 +285,9 @@ export {
   usePortalCrearTicket,
   usePortalIntervenciones,
   usePortalContratos,
-  usePortalEquipos
+  usePortalEquipos,
+  usePortalFacturaDetalle,
+  usePortalHistorial
 } from './usePortal'
 
 // Gestión de Precios

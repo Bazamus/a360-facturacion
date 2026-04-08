@@ -49,7 +49,7 @@ BEGIN
         SELECT id, numero_ticket, asunto, tipo, prioridad, estado, origen, created_at
         FROM tickets_sat
         WHERE cliente_id = v_cliente_id
-        AND (p_estado IS NULL OR estado = p_estado)
+        AND (p_estado IS NULL OR estado::text = p_estado)
         ORDER BY created_at DESC
         LIMIT p_limit OFFSET p_offset
       ) t
@@ -123,9 +123,9 @@ BEGIN
                base_imponible, importe_iva, total, estado, pdf_url
         FROM facturas
         WHERE cliente_id = v_cliente_id
-        AND estado IN ('emitida', 'pagada')
+        AND estado::text IN ('emitida', 'pagada')
         AND (p_anio IS NULL OR EXTRACT(YEAR FROM fecha_factura) = p_anio)
-        AND (p_estado IS NULL OR estado = p_estado)
+        AND (p_estado IS NULL OR estado::text = p_estado)
         ORDER BY fecha_factura DESC
         LIMIT p_limit OFFSET p_offset
       ) f

@@ -6,6 +6,8 @@ import {
   FileText, TicketCheck, Wrench, Calendar, Cpu,
   AlertCircle, Clock, ChevronRight, Euro, ShieldAlert,
 } from 'lucide-react'
+import { PortalBillingChart } from './components/PortalBillingChart'
+import { ContactoRapido } from './components/ContactoRapido'
 
 function formatDate(dateStr) {
   if (!dateStr) return '-'
@@ -181,6 +183,12 @@ export function PortalDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Gráfico de facturación */}
+      <PortalBillingChart />
+
+      {/* Contacto rápido */}
+      <ContactoRapido />
     </div>
   )
 }

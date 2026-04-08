@@ -112,6 +112,35 @@ export function usePortalContratos() {
   })
 }
 
+// Detalle de factura (para PDF y expandible)
+export function usePortalFacturaDetalle(facturaId) {
+  return useQuery({
+    queryKey: ['portal-factura-detalle', facturaId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_portal_factura_detalle', {
+        p_factura_id: facturaId,
+      })
+      if (error) throw error
+      return data
+    },
+    enabled: !!facturaId,
+  })
+}
+
+// Historial de facturación (para gráfico)
+export function usePortalHistorial(meses = 12) {
+  return useQuery({
+    queryKey: ['portal-historial', meses],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_portal_historial_facturacion', {
+        p_meses: meses,
+      })
+      if (error) throw error
+      return data || []
+    },
+  })
+}
+
 // Equipos del cliente
 export function usePortalEquipos() {
   return useQuery({
