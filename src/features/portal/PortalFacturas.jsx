@@ -23,14 +23,19 @@ export function PortalFacturas() {
   const [estado, setEstado] = useState('')
   const [page, setPage] = useState(0)
 
-  const { data: result, isLoading } = usePortalFacturas({
+  const { data: result, isLoading, error } = usePortalFacturas({
     anio: anio || undefined,
     estado: estado || undefined,
     page,
   })
 
-  const facturas = result?.data ?? []
-  const totalCount = result?.count ?? 0
+  // Debug: ver qué devuelve el RPC
+  if (result) console.log('Portal facturas result:', result)
+  if (error) console.error('Portal facturas error:', error)
+
+  // El RPC devuelve {data: [...], count: N} - manejar ambos formatos
+  const facturas = Array.isArray(result?.data) ? result.data : (Array.isArray(result) ? result : [])
+  const totalCount = result?.count ?? facturas.length
 
   // Años disponibles
   const anios = []
@@ -109,6 +114,12 @@ export function PortalFacturas() {
         <h1 className="text-xl font-bold text-gray-900">Mis Facturas</h1>
         <p className="text-sm text-gray-500">Consulta y descarga tus facturas</p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          Error: {error.message}
+        </div>
+      )}
 
       <Card>
         <div className="p-4 border-b border-gray-200">
