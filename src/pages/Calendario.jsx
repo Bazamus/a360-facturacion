@@ -95,12 +95,12 @@ export function CalendarioPage() {
   const events = useMemo(() => {
     if (!citas) return []
     return citas.map((cita) => ({
-      id: cita.id,
+      id: cita.cita_id,
       title: cita.intervencion_titulo || cita.motivo || 'Cita',
       start: new Date(cita.fecha_hora),
       end: cita.fecha_hora_fin
         ? new Date(cita.fecha_hora_fin)
-        : new Date(new Date(cita.fecha_hora).getTime() + (cita.duracion_estimada || 60) * 60000),
+        : new Date(new Date(cita.fecha_hora).getTime() + (cita.duracion_minutos || 60) * 60000),
       resource: cita,
     }))
   }, [citas])
@@ -137,7 +137,7 @@ export function CalendarioPage() {
       await actualizarCita.mutateAsync({
         id: event.id,
         fecha_hora: start.toISOString(),
-        fecha_hora_fin: end.toISOString(),
+        duracion_minutos: duracion,
       })
       toast.success('Cita reprogramada')
     } catch (err) {
@@ -152,7 +152,6 @@ export function CalendarioPage() {
       await actualizarCita.mutateAsync({
         id: event.id,
         fecha_hora: start.toISOString(),
-        fecha_hora_fin: end.toISOString(),
         duracion_minutos: duracion,
       })
       toast.success('Duración actualizada')
