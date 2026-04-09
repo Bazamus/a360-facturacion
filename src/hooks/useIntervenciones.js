@@ -2,9 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 // Lista de intervenciones con filtros y paginación
-export function useIntervenciones({ estado, tipo, tecnicoId, comunidadId, clienteId, search, page = 0, pageSize = 20 } = {}) {
+export function useIntervenciones({ estado, tipo, prioridad, tecnicoId, comunidadId, clienteId, search, fechaDesde, fechaHasta, page = 0, pageSize = 20 } = {}) {
   return useQuery({
-    queryKey: ['intervenciones', { estado, tipo, tecnicoId, comunidadId, clienteId, search, page, pageSize }],
+    queryKey: ['intervenciones', { estado, tipo, prioridad, tecnicoId, comunidadId, clienteId, search, fechaDesde, fechaHasta, page, pageSize }],
     queryFn: async () => {
       let query = supabase
         .from('v_intervenciones_resumen')
@@ -13,9 +13,12 @@ export function useIntervenciones({ estado, tipo, tecnicoId, comunidadId, client
 
       if (estado) query = query.eq('estado', estado)
       if (tipo) query = query.eq('tipo', tipo)
+      if (prioridad) query = query.eq('prioridad', prioridad)
       if (tecnicoId) query = query.eq('tecnico_id', tecnicoId)
       if (comunidadId) query = query.eq('comunidad_id', comunidadId)
       if (clienteId) query = query.eq('cliente_id', clienteId)
+      if (fechaDesde) query = query.gte('created_at', fechaDesde)
+      if (fechaHasta) query = query.lte('created_at', fechaHasta + 'T23:59:59')
       if (search) {
         query = query.or(
           `numero_parte.ilike.%${search}%,titulo.ilike.%${search}%,cliente_nombre.ilike.%${search}%,tecnico_nombre.ilike.%${search}%`

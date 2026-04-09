@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ClipboardList, Plus, Eye, Edit2, AlertTriangle,
+  ClipboardList, Plus, Eye, AlertTriangle, Download, Filter,
 } from 'lucide-react'
 import { useIntervenciones, useUsuarios } from '@/hooks'
+import { SLABadge } from './SLABadge'
 import {
   Button, Card, CardContent, EmptyState, LoadingSpinner,
   DataTable, SearchInput, Badge, Select, Pagination,
@@ -63,22 +64,61 @@ function formatDate(dateStr) {
 
 const PAGE_SIZE = 20
 
+const PRIORIDAD_OPTIONS = [
+  { value: '', label: 'Todas las prioridades' },
+  { value: 'urgente', label: 'Urgente' },
+  { value: 'alta', label: 'Alta' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'baja', label: 'Baja' },
+]
+
+function exportarCSV(data) {
+  const headers = ['Nº Parte', 'Título', 'Tipo', 'Prioridad', 'Estado', 'Técnico', 'Cliente', 'Fecha']
+  const rows = data.map((i) => [
+    i.numero_parte || '',
+    i.titulo || '',
+    i.tipo || '',
+    i.prioridad || '',
+    i.estado || '',
+    i.tecnico_nombre || '',
+    i.cliente_nombre || '',
+    i.created_at ? new Date(i.created_at).toLocaleDateString('es-ES') : '',
+  ])
+  const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(',')).join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `intervenciones_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function IntervencionesLista() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroPrioridad, setFiltroPrioridad] = useState('')
   const [filtroTecnico, setFiltroTecnico] = useState('')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
+  const [showFiltrosExtra, setShowFiltrosExtra] = useState(false)
   const [page, setPage] = useState(0)
 
   const { data: usuarios } = useUsuarios()
   const tecnicos = usuarios?.filter((u) => u.rol === 'tecnico' || u.rol === 'encargado') ?? []
 
+  const hayFiltrosActivos = filtroPrioridad || fechaDesde || fechaHasta
+
   const { data: resultado, isLoading, error } = useIntervenciones({
     search,
     estado: filtroEstado || undefined,
     tipo: filtroTipo || undefined,
+    prioridad: filtroPrioridad || undefined,
     tecnicoId: filtroTecnico || undefined,
+    fechaDesde: fechaDesde || undefined,
+    fechaHasta: fechaHasta || undefined,
     page,
     pageSize: PAGE_SIZE,
   })
@@ -124,10 +164,15 @@ export function IntervencionesLista() {
     {
       key: 'estado',
       header: 'Estado',
-      render: (value) => (
-        <Badge variant={ESTADO_VARIANTS[value] || 'default'} className="text-xs capitalize">
-          {value?.replace('_', ' ')}
-        </Badge>
+      render: (value, row) => (
+        <div className="flex flex-col gap-1">
+          <Badge variant={ESTADO_VARIANTS[value] || 'default'} className="text-xs capitalize">
+            {value?.replace('_', ' ')}
+          </Badge>
+          {!['completada', 'facturada', 'cancelada'].includes(value) && (
+            <SLABadge intervencionId={row.id} />
+          )}
+        </div>
       ),
     },
     {
@@ -185,15 +230,23 @@ export function IntervencionesLista() {
           <h1 className="page-title">Intervenciones</h1>
           <p className="page-description">Partes de trabajo y gestión de intervenciones técnicas</p>
         </div>
-        <Button onClick={() => navigate('/sat/intervenciones/nueva')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Intervención
-        </Button>
+        <div className="flex items-center gap-2">
+          {intervenciones.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => exportarCSV(intervenciones)}>
+              <Download className="h-4 w-4 mr-1.5" />
+              CSV
+            </Button>
+          )}
+          <Button onClick={() => navigate('/sat/intervenciones/nueva')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Intervención
+          </Button>
+        </div>
       </div>
 
       <Card>
-        <div className="p-4 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 border-b border-gray-200 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <SearchInput
               value={search}
               onChange={(v) => { setSearch(v); setPage(0) }}
@@ -211,16 +264,69 @@ export function IntervencionesLista() {
             >
               {TIPO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </Select>
-            <Select
-              value={filtroTecnico}
-              onChange={(e) => { setFiltroTecnico(e.target.value); setPage(0) }}
-            >
-              <option value="">Todos los técnicos</option>
-              {tecnicos.map((t) => (
-                <option key={t.id} value={t.id}>{t.nombre_completo}</option>
-              ))}
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={filtroTecnico}
+                onChange={(e) => { setFiltroTecnico(e.target.value); setPage(0) }}
+                className="flex-1"
+              >
+                <option value="">Todos los técnicos</option>
+                {tecnicos.map((t) => (
+                  <option key={t.id} value={t.id}>{t.nombre_completo}</option>
+                ))}
+              </Select>
+              <button
+                onClick={() => setShowFiltrosExtra(!showFiltrosExtra)}
+                className={`flex-shrink-0 p-2 rounded-lg border transition-colors ${
+                  hayFiltrosActivos
+                    ? 'bg-primary-50 border-primary-300 text-primary-700'
+                    : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                }`}
+                title="Más filtros"
+              >
+                <Filter className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+
+          {/* Filtros avanzados */}
+          {showFiltrosExtra && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 border-t border-gray-100">
+              <Select
+                value={filtroPrioridad}
+                onChange={(e) => { setFiltroPrioridad(e.target.value); setPage(0) }}
+              >
+                {PRIORIDAD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </Select>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 whitespace-nowrap">Desde</label>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => { setFechaDesde(e.target.value); setPage(0) }}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 whitespace-nowrap">Hasta</label>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => { setFechaHasta(e.target.value); setPage(0) }}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                {hayFiltrosActivos && (
+                  <button
+                    onClick={() => { setFiltroPrioridad(''); setFechaDesde(''); setFechaHasta('') }}
+                    className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50"
+                    title="Limpiar filtros"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {isLoading ? (

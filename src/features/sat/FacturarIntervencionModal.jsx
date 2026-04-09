@@ -1,14 +1,29 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useActualizarIntervencion } from '@/hooks'
 import { Button, Modal, Input } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
-import { FileText, DollarSign } from 'lucide-react'
+import { FileText, DollarSign, Calculator } from 'lucide-react'
+
+// Tarifa horaria y coste de desplazamiento por defecto (€)
+const TARIFA_HORA_DEFAULT = 45
+const COSTE_DESPLAZAMIENTO_DEFAULT = 15
 
 export function FacturarIntervencionModal({ open, onClose, intervencion }) {
   const actualizar = useActualizarIntervencion()
   const toast = useToast()
-  const [costeManoObra, setCosteManoObra] = useState(intervencion?.coste_mano_obra || '')
-  const [costeDesplazamiento, setCosteDesplazamiento] = useState(intervencion?.coste_desplazamiento || '')
+
+  // Auto-calcular mano de obra desde duración si está disponible
+  const manoObraAutoCalculada = useMemo(() => {
+    if (!intervencion?.duracion_minutos) return ''
+    return ((intervencion.duracion_minutos / 60) * TARIFA_HORA_DEFAULT).toFixed(2)
+  }, [intervencion?.duracion_minutos])
+
+  const [costeManoObra, setCosteManoObra] = useState(
+    intervencion?.coste_mano_obra || manoObraAutoCalculada || ''
+  )
+  const [costeDesplazamiento, setCosteDesplazamiento] = useState(
+    intervencion?.coste_desplazamiento ?? COSTE_DESPLAZAMIENTO_DEFAULT
+  )
 
   if (!intervencion) return null
 
@@ -57,6 +72,12 @@ export function FacturarIntervencionModal({ open, onClose, intervencion }) {
           <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <DollarSign className="h-4 w-4" /> Desglose de Costes
           </h3>
+          {intervencion?.duracion_minutos && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg mb-3">
+              <Calculator className="h-3.5 w-3.5 flex-shrink-0" />
+              Mano de obra calculada automáticamente: {intervencion.duracion_minutos} min × {TARIFA_HORA_DEFAULT} €/h = {manoObraAutoCalculada} €
+            </div>
+          )}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">

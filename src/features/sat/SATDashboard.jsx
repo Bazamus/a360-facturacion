@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSATStats, useIntervenciones, useTicketsStats } from '@/hooks'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/features/auth/AuthContext'
 import {
   Button, Card, Badge, LoadingSpinner,
 } from '@/components/ui'
 import {
   Wrench, ClipboardList, AlertTriangle, Clock, CheckCircle,
-  Plus, Calendar, TrendingUp, Users, FileText, TicketCheck,
+  Plus, Calendar, TrendingUp, Users, FileText, TicketCheck, Star,
+  Shield, CalendarOff,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -30,8 +34,28 @@ function formatDate(dateStr) {
 
 export function SATDashboard() {
   const navigate = useNavigate()
+  const { isTecnico } = useAuth()
+
+  // Los técnicos van a su dashboard móvil optimizado
+  useEffect(() => {
+    if (isTecnico) {
+      navigate('/sat/mi-agenda', { replace: true })
+    }
+  }, [isTecnico, navigate])
+
   const { data: stats, isLoading: loadingStats } = useSATStats()
   const { data: ticketStats } = useTicketsStats()
+
+  // Satisfacción media
+  const { data: satisfaccion } = useQuery({
+    queryKey: ['satisfaccion-media'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('v_satisfaccion_media').select('*').single()
+      if (error) return null
+      return data
+    },
+    staleTime: 10 * 60 * 1000,
+  })
 
   // Intervenciones urgentes/pendientes para la lista
   const { data: urgentesData } = useIntervenciones({
@@ -139,7 +163,38 @@ export function SATDashboard() {
             loading={!ticketStats}
             onClick={() => navigate('/sat/tickets')}
           />
+          {satisfaccion?.total_respondidas > 0 && (
+            <KpiChip
+              icon={Star}
+              iconColor="text-yellow-500"
+              value={satisfaccion.media_global ? `${satisfaccion.media_global}/5` : '-'}
+              label="Satisfacción"
+              loading={false}
+              onClick={() => navigate('/sat/sla')}
+            />
+          )}
+          <KpiChip
+            icon={Shield}
+            iconColor="text-primary-600"
+            value="SLA"
+            label="Ver dashboard"
+            loading={false}
+            onClick={() => navigate('/sat/sla')}
+          />
         </div>
+      </div>
+
+      {/* Accesos rápidos nuevas vistas */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => navigate('/sat/carga-trabajo')}>
+          <Users className="h-4 w-4 mr-1.5" /> Carga de trabajo
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => navigate('/sat/disponibilidad')}>
+          <CalendarOff className="h-4 w-4 mr-1.5" /> Disponibilidad técnicos
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => navigate('/sat/sla')}>
+          <Shield className="h-4 w-4 mr-1.5" /> Dashboard SLA
+        </Button>
       </div>
 
       {/* Content Grid */}

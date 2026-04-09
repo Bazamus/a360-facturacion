@@ -1,0 +1,26 @@
+{
+  "name": "A360 SAT - Gestión Técnica",
+  "short_name": "A360 SAT",
+  "description": "Sistema de gestión de servicio técnico A360 Servicios Energéticos",
+  "start_url": "/sat/mi-agenda",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1B4F72",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "es"
+}

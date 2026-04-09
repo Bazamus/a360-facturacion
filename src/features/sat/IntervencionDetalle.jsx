@@ -1,5 +1,12 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useIntervencion, useActualizarIntervencion, useCerrarIntervencion } from '@/hooks'
+import {
+  useIntervencion,
+  useActualizarIntervencion,
+  useCerrarIntervencion,
+  useMaterialesIntervencion,
+  useGenerarParteTrabajo,
+  useDescargarParteTrabajo,
+} from '@/hooks'
 import {
   Button, Card, Badge, LoadingSpinner, Breadcrumb, Modal, Textarea,
   Tabs, TabsList, TabsTrigger, TabsContent,
@@ -7,14 +14,17 @@ import {
 import { useToast } from '@/components/ui/Toast'
 import { useState } from 'react'
 import {
-  Edit2, Play, Square, Truck, XCircle, RotateCcw, User, Phone, MapPin,
-  Calendar, Clock, FileText, AlertTriangle,
+  Edit2, Play, Truck, XCircle, RotateCcw, User, Phone, MapPin,
+  Calendar, FileText, AlertTriangle, ChevronDown, Download, ExternalLink,
+  CheckCircle,
 } from 'lucide-react'
 import { IntervencionTimeline } from './IntervencionTimeline'
 import { MaterialesIntervencion } from './MaterialesIntervencion'
 import { FirmaDigital } from './FirmaDigital'
 import { FotosIntervencion } from './FotosIntervencion'
 import { FacturarIntervencionModal } from './FacturarIntervencionModal'
+import { canTransition } from '@/constants/stateMachine'
+import { SLAPanel } from './SLABadge'
 
 const PRIORIDAD_VARIANTS = { urgente: 'danger', alta: 'warning', normal: 'default', baja: 'info' }
 const ESTADO_VARIANTS = { pendiente: 'warning', asignada: 'info', programada: 'info', en_camino: 'primary', en_curso: 'primary', completada: 'success', facturada: 'success', cancelada: 'default' }
@@ -29,11 +39,15 @@ export function IntervencionDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data: intervencion, isLoading, error } = useIntervencion(id)
+  const { data: materiales = [] } = useMaterialesIntervencion(id)
   const actualizar = useActualizarIntervencion()
   const cerrar = useCerrarIntervencion()
+  const generarParte = useGenerarParteTrabajo()
+  const descargarParte = useDescargarParteTrabajo()
   const toast = useToast()
   const [showCerrarModal, setShowCerrarModal] = useState(false)
   const [showFacturarModal, setShowFacturarModal] = useState(false)
+  const [showSecundarias, setShowSecundarias] = useState(false)
 
   if (isLoading) return <LoadingSpinner />
   if (error) return <div className="text-red-600">Error: {error.message}</div>
@@ -43,21 +57,119 @@ export function IntervencionDetalle() {
   const esEditable = !['completada', 'facturada', 'cancelada'].includes(estado)
 
   const cambiarEstado = async (nuevoEstado, extras = {}) => {
+    if (!canTransition(estado, nuevoEstado)) {
+      toast.error(`Transición no permitida: ${estado} → ${nuevoEstado}`)
+      return
+    }
     try {
       const updates = { estado: nuevoEstado, ...extras }
       if (nuevoEstado === 'en_curso' && !intervencion.fecha_inicio) {
         updates.fecha_inicio = new Date().toISOString()
       }
+      if (nuevoEstado === 'en_camino') {
+        // Capturar GPS si está disponible
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              actualizar.mutate({
+                id,
+                estado: nuevoEstado,
+                ubicacion_tecnico_lat: pos.coords.latitude,
+                ubicacion_tecnico_lng: pos.coords.longitude,
+                ubicacion_tecnico_timestamp: new Date().toISOString(),
+                ...extras,
+              })
+              toast.success('En camino — ubicación registrada')
+            },
+            () => {
+              actualizar.mutate({ id, ...updates })
+              toast.success(`Estado: en camino`)
+            },
+          )
+          return
+        }
+      }
       await actualizar.mutateAsync({ id, ...updates })
-      toast.success(`Estado cambiado a: ${nuevoEstado.replace('_', ' ')}`)
+      toast.success(`Estado: ${nuevoEstado.replace(/_/g, ' ')}`)
     } catch (err) {
       toast.error(err.message)
     }
   }
 
+  const handleGenerarParte = async () => {
+    try {
+      const url = await generarParte.mutateAsync({ intervencion, materiales })
+      toast.success('Parte de trabajo generado y guardado')
+      window.open(url, '_blank')
+    } catch (err) {
+      toast.error(`Error al generar parte: ${err.message}`)
+    }
+  }
+
+  const handleDescargarParte = () => {
+    descargarParte.mutate({ intervencion, materiales })
+  }
+
   const clienteNombre = intervencion.cliente
     ? `${intervencion.cliente.nombre} ${intervencion.cliente.apellidos}`
     : '-'
+
+  // Acción principal según estado (one-click CTA)
+  const renderAccionPrincipal = () => {
+    if (estado === 'pendiente') {
+      return (
+        <Button variant="primary" size="lg" onClick={() => navigate(`/sat/intervenciones/${id}/editar`)}>
+          <User className="h-4 w-4 mr-2" /> Asignar Técnico
+        </Button>
+      )
+    }
+    if (estado === 'asignada' || estado === 'programada') {
+      return (
+        <Button variant="primary" size="lg" onClick={() => cambiarEstado('en_camino')} loading={actualizar.isPending}>
+          <Truck className="h-4 w-4 mr-2" /> En Camino
+        </Button>
+      )
+    }
+    if (estado === 'en_camino') {
+      return (
+        <Button variant="primary" size="lg" onClick={() => cambiarEstado('en_curso')} loading={actualizar.isPending}>
+          <Play className="h-4 w-4 mr-2" /> Iniciar Trabajo
+        </Button>
+      )
+    }
+    if (estado === 'en_curso') {
+      return (
+        <Button variant="primary" size="lg" onClick={() => setShowCerrarModal(true)}>
+          <CheckCircle className="h-4 w-4 mr-2" /> Completar Trabajo
+        </Button>
+      )
+    }
+    if (estado === 'completada') {
+      return (
+        <div className="flex gap-2">
+          <Button
+            variant="primary"
+            onClick={handleGenerarParte}
+            loading={generarParte.isPending}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            {intervencion.parte_trabajo_url ? 'Regenerar Parte' : 'Generar Parte'}
+          </Button>
+          <Button variant="secondary" onClick={() => setShowFacturarModal(true)}>
+            <FileText className="h-4 w-4 mr-2" /> Facturar
+          </Button>
+        </div>
+      )
+    }
+    if (estado === 'cancelada') {
+      return (
+        <Button variant="secondary" onClick={() => cambiarEstado('pendiente')} loading={actualizar.isPending}>
+          <RotateCcw className="h-4 w-4 mr-2" /> Reabrir
+        </Button>
+      )
+    }
+    return null
+  }
 
   return (
     <div>
@@ -71,12 +183,12 @@ export function IntervencionDetalle() {
       />
 
       {/* Header */}
-      <div className="page-header flex items-center justify-between">
+      <div className="page-header flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="page-title">{intervencion.numero_parte}</h1>
             <Badge variant={ESTADO_VARIANTS[estado] || 'default'} className="capitalize">
-              {estado?.replace('_', ' ')}
+              {estado?.replace(/_/g, ' ')}
             </Badge>
             <Badge variant={PRIORIDAD_VARIANTS[intervencion.prioridad] || 'default'} className="capitalize">
               {intervencion.prioridad}
@@ -87,50 +199,71 @@ export function IntervencionDetalle() {
           </div>
           <p className="page-description">{intervencion.titulo}</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {/* Botones de acción según estado */}
-          {estado === 'pendiente' && (
-            <Button variant="primary" onClick={() => navigate(`/sat/intervenciones/${id}/editar`)}>
-              <User className="h-4 w-4 mr-1" /> Asignar
+
+        {/* Botones de acción */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Acción principal (one-click) */}
+          {renderAccionPrincipal()}
+
+          {/* Descarga parte si ya existe */}
+          {intervencion.parte_trabajo_url && estado !== 'pendiente' && (
+            <Button variant="secondary" size="sm" onClick={handleDescargarParte} loading={descargarParte.isPending}>
+              <Download className="h-4 w-4 mr-1" /> Parte PDF
             </Button>
           )}
-          {estado === 'asignada' && (
-            <Button variant="primary" onClick={() => cambiarEstado('en_camino')}>
-              <Truck className="h-4 w-4 mr-1" /> En camino
+
+          {/* Acciones secundarias */}
+          <div className="relative">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowSecundarias((v) => !v)}
+            >
+              <ChevronDown className="h-4 w-4" />
             </Button>
-          )}
-          {(estado === 'asignada' || estado === 'programada' || estado === 'en_camino') && (
-            <Button variant="primary" onClick={() => cambiarEstado('en_curso')}>
-              <Play className="h-4 w-4 mr-1" /> Iniciar
-            </Button>
-          )}
-          {(estado === 'en_curso' || estado === 'asignada' || estado === 'programada') && (
-            <Button variant="primary" onClick={() => setShowCerrarModal(true)}>
-              <Square className="h-4 w-4 mr-1" /> Cerrar
-            </Button>
-          )}
-          {estado === 'completada' && (
-            <Button variant="primary" onClick={() => setShowFacturarModal(true)}>
-              <FileText className="h-4 w-4 mr-1" /> Facturar
-            </Button>
-          )}
-          {estado === 'cancelada' && (
-            <Button variant="secondary" onClick={() => cambiarEstado('pendiente')}>
-              <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
-            </Button>
-          )}
-          {esEditable && (
-            <>
-              <Link to={`/sat/intervenciones/${id}/editar`}>
-                <Button variant="secondary">
-                  <Edit2 className="h-4 w-4 mr-1" /> Editar
-                </Button>
-              </Link>
-              <Button variant="secondary" onClick={() => cambiarEstado('cancelada')}>
-                <XCircle className="h-4 w-4 mr-1" /> Cancelar
-              </Button>
-            </>
-          )}
+            {showSecundarias && (
+              <div
+                className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[160px] py-1"
+                onBlur={() => setShowSecundarias(false)}
+              >
+                {esEditable && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    onClick={() => { setShowSecundarias(false); navigate(`/sat/intervenciones/${id}/editar`) }}
+                  >
+                    <Edit2 className="h-3.5 w-3.5" /> Editar
+                  </button>
+                )}
+                {canTransition(estado, 'asignada') && estado !== 'pendiente' && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    onClick={() => { setShowSecundarias(false); cambiarEstado('asignada') }}
+                  >
+                    <Calendar className="h-3.5 w-3.5" /> Volver a asignada
+                  </button>
+                )}
+                {canTransition(estado, 'cancelada') && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => { setShowSecundarias(false); cambiarEstado('cancelada') }}
+                  >
+                    <XCircle className="h-3.5 w-3.5" /> Cancelar
+                  </button>
+                )}
+                {intervencion.parte_trabajo_url && (
+                  <a
+                    href={intervencion.parte_trabajo_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    onClick={() => setShowSecundarias(false)}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Ver parte online
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -184,6 +317,16 @@ export function IntervencionDetalle() {
                     {intervencion.direccion}
                     {intervencion.codigo_postal && `, ${intervencion.codigo_postal}`}
                     {intervencion.ciudad && ` ${intervencion.ciudad}`}
+                    {intervencion.ubicacion_tecnico_lat && (
+                      <a
+                        href={`https://maps.google.com/?q=${intervencion.ubicacion_tecnico_lat},${intervencion.ubicacion_tecnico_lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 text-blue-600 hover:underline text-xs flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Ver en mapa
+                      </a>
+                    )}
                   </p>
                 </div>
               )}
@@ -198,7 +341,7 @@ export function IntervencionDetalle() {
               )}
 
               {/* Costes */}
-              {estado === 'completada' || estado === 'facturada' ? (
+              {(estado === 'completada' || estado === 'facturada') && (
                 <div className="md:col-span-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-3">Costes</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -208,7 +351,36 @@ export function IntervencionDetalle() {
                     <CosteCard label="Total" value={intervencion.coste_total} highlight />
                   </div>
                 </div>
-              ) : null}
+              )}
+
+              {/* SLA */}
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-medium text-gray-500 mb-3">SLA</h3>
+                <SLAPanel intervencionId={intervencion.id} />
+              </div>
+
+              {/* Parte de trabajo */}
+              {intervencion.parte_trabajo_url && (
+                <div className="md:col-span-2">
+                  <h3 className="text-sm font-medium text-gray-500 mb-3">Parte de Trabajo</h3>
+                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <FileText className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    <span className="text-sm text-green-800 flex-1">Parte de trabajo generado</span>
+                    <a
+                      href={intervencion.parte_trabajo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="secondary" size="sm">
+                        <ExternalLink className="h-3.5 w-3.5 mr-1" /> Abrir
+                      </Button>
+                    </a>
+                    <Button variant="secondary" size="sm" onClick={handleDescargarParte}>
+                      <Download className="h-3.5 w-3.5 mr-1" /> Descargar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -272,6 +444,8 @@ export function IntervencionDetalle() {
       <CerrarIntervencionModal
         open={showCerrarModal}
         intervencionId={id}
+        intervencion={intervencion}
+        materiales={materiales}
         onClose={() => setShowCerrarModal(false)}
       />
 
@@ -308,12 +482,13 @@ function CosteCard({ label, value, highlight = false }) {
   )
 }
 
-function CerrarIntervencionModal({ open, intervencionId, onClose }) {
+function CerrarIntervencionModal({ open, intervencionId, intervencion, materiales, onClose }) {
   const [diagnostico, setDiagnostico] = useState('')
   const [solucion, setSolucion] = useState('')
   const [firmaCliente, setFirmaCliente] = useState(null)
   const [firmaTecnico, setFirmaTecnico] = useState(null)
   const cerrar = useCerrarIntervencion()
+  const generarParte = useGenerarParteTrabajo()
   const toast = useToast()
 
   const handleSubmit = async () => {
@@ -325,7 +500,22 @@ function CerrarIntervencionModal({ open, intervencionId, onClose }) {
         firma_cliente: firmaCliente,
         firma_tecnico: firmaTecnico,
       })
-      toast.success('Intervención cerrada correctamente')
+
+      // Auto-generar parte de trabajo al cerrar
+      try {
+        const intervencionActualizada = {
+          ...intervencion,
+          diagnostico: diagnostico || intervencion.diagnostico,
+          solucion: solucion || intervencion.solucion,
+          firma_cliente: firmaCliente || intervencion.firma_cliente,
+          firma_tecnico: firmaTecnico || intervencion.firma_tecnico,
+        }
+        await generarParte.mutateAsync({ intervencion: intervencionActualizada, materiales })
+        toast.success('Intervención cerrada y parte de trabajo generado')
+      } catch (_) {
+        toast.success('Intervención cerrada correctamente')
+      }
+
       onClose()
     } catch (err) {
       toast.error(err.message)
@@ -333,7 +523,7 @@ function CerrarIntervencionModal({ open, intervencionId, onClose }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Cerrar Intervención" size="lg">
+    <Modal open={open} onClose={onClose} title="Completar Intervención" size="lg">
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico</label>
@@ -347,10 +537,15 @@ function CerrarIntervencionModal({ open, intervencionId, onClose }) {
           <FirmaDigital label="Firma del cliente" value={firmaCliente} onChange={setFirmaCliente} />
           <FirmaDigital label="Firma del técnico" value={firmaTecnico} onChange={setFirmaTecnico} />
         </div>
+        <p className="text-xs text-gray-500">Al completar, se generará automáticamente el parte de trabajo en PDF.</p>
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSubmit} loading={cerrar.isPending}>
-            Cerrar Intervención
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            loading={cerrar.isPending || generarParte.isPending}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" /> Completar y Generar Parte
           </Button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import { PortalIntervenciones } from '@/features/portal/PortalIntervenciones'
 import { PortalContratos } from '@/features/portal/PortalContratos'
 import { PortalEquipos } from '@/features/portal/PortalEquipos'
 import { PortalPerfil } from '@/features/portal/PortalPerfil'
+import { PortalDocumentos } from '@/features/portal/PortalDocumentos'
 
 export function PortalPage() {
   return (
@@ -19,6 +20,7 @@ export function PortalPage() {
         <Route path="intervenciones" element={<PortalIntervenciones />} />
         <Route path="contratos" element={<PortalContratos />} />
         <Route path="equipos" element={<PortalEquipos />} />
+        <Route path="documentos" element={<PortalDocumentos />} />
         <Route path="perfil" element={<PortalPerfil />} />
       </Route>
       <Route path="*" element={<Navigate to="/portal/inicio" replace />} />

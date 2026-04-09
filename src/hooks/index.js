@@ -306,6 +306,30 @@ export {
   useAsignarReferenciaMasiva
 } from './useGestionPrecios'
 
+// Notificaciones in-app
+export {
+  useNotificaciones,
+  useNotificacionesCount,
+  useMarcarLeida,
+  useMarcarTodasLeidas
+} from './useNotificaciones'
+
+// SAT — SLA
+export {
+  useSLADashboard,
+  useSLAConfiguraciones,
+  useCrearSLAConfig,
+  useActualizarSLAConfig,
+  useEliminarSLAConfig,
+  useSLAIntervencion,
+} from './useSLA'
+
+// SAT — Parte de Trabajo PDF
+export {
+  useGenerarParteTrabajo,
+  useDescargarParteTrabajo
+} from './useParteTrabajo'
+
 // Reportes y Dashboard
 export {
   useDashboardMetricas,

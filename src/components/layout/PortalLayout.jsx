@@ -1,10 +1,56 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
 import { cn } from '@/lib/utils'
+import { NotificationBell } from '@/components/layout/NotificationBell'
+
+// Chatwoot website token — cambiar por el token real de la cuenta Chatwoot
+const CHATWOOT_WEBSITE_TOKEN = import.meta.env.VITE_CHATWOOT_TOKEN || ''
+
+function useChatwoot(profile) {
+  useEffect(() => {
+    if (!CHATWOOT_WEBSITE_TOKEN) return
+
+    window.chatwootSettings = {
+      position: 'right',
+      type: 'standard',
+      launcherTitle: 'Soporte A360',
+      locale: 'es',
+    }
+
+    if (!window.$chatwoot) {
+      const script = document.createElement('script')
+      script.src = 'https://app.chatwoot.com/packs/js/sdk.js'
+      script.defer = true
+      script.async = true
+      script.onload = () => {
+        window.chatwootSDK.run({
+          websiteToken: CHATWOOT_WEBSITE_TOKEN,
+          baseUrl: 'https://app.chatwoot.com',
+        })
+        // Identificar al cliente en Chatwoot
+        if (profile?.email) {
+          window.addEventListener('chatwoot:ready', () => {
+            window.$chatwoot?.setUser(profile.email, {
+              name: profile.nombre_completo || profile.email,
+              email: profile.email,
+              phone_number: profile.telefono || '',
+            })
+          })
+        }
+      }
+      document.head.appendChild(script)
+    } else if (profile?.email) {
+      window.$chatwoot?.setUser(profile.email, {
+        name: profile.nombre_completo || profile.email,
+        email: profile.email,
+      })
+    }
+  }, [profile])
+}
 import {
   LayoutDashboard, FileText, Wrench, TicketCheck, Calendar,
-  Cpu, User, LogOut, Menu, X, ChevronDown,
+  Cpu, User, LogOut, Menu, X, ChevronDown, FolderOpen,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -14,6 +60,7 @@ const NAV_ITEMS = [
   { name: 'Intervenciones', href: '/portal/intervenciones', icon: Wrench },
   { name: 'Contratos', href: '/portal/contratos', icon: Calendar },
   { name: 'Equipos', href: '/portal/equipos', icon: Cpu },
+  { name: 'Documentos', href: '/portal/documentos', icon: FolderOpen },
 ]
 
 export function PortalLayout() {
@@ -21,6 +68,8 @@ export function PortalLayout() {
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+
+  useChatwoot(profile)
 
   const handleSignOut = async () => {
     await signOut()
@@ -72,6 +121,9 @@ export function PortalLayout() {
                 </NavLink>
               ))}
             </nav>
+
+            {/* Notificaciones */}
+            <NotificationBell />
 
             {/* User menu */}
             <div className="relative">

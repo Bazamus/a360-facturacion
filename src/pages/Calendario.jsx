@@ -1,13 +1,19 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar'
+import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop'
 import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
-import { useCitas, useUsuarios } from '@/hooks'
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css'
+import { useCitas, useUsuarios, useActualizarCita } from '@/hooks'
 import { Button, Select, LoadingSpinner } from '@/components/ui'
-import { Calendar as CalendarIcon, Plus } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
+import { Calendar as CalendarIcon, Plus, AlertTriangle } from 'lucide-react'
 import { CitaFormModal } from '@/features/sat/CitaFormModal'
+import { supabase } from '@/lib/supabase'
+
+const DnDCalendar = withDragAndDrop(BigCalendar)
 
 const locales = { es }
 
@@ -43,15 +49,30 @@ const TIPO_COLORS = {
   urgencia: '#ef4444',
 }
 
+async function checkConflicto(tecnicoId, fechaHora, duracion, excluirCitaId = null) {
+  if (!tecnicoId) return null
+  const { data } = await supabase.rpc('verificar_conflicto_cita', {
+    p_tecnico_id: tecnicoId,
+    p_fecha_hora: fechaHora.toISOString(),
+    p_duracion_minutos: duracion || 60,
+    p_excluir_cita_id: excluirCitaId,
+  })
+  if (data && data[0]?.tiene_conflicto) return data[0]
+  return null
+}
+
 export function CalendarioPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState('month')
   const [filtroTecnico, setFiltroTecnico] = useState('')
   const [showCitaModal, setShowCitaModal] = useState(false)
   const [slotSelection, setSlotSelection] = useState({ start: null, end: null })
+  const [conflictoWarning, setConflictoWarning] = useState(null)
 
-  // Calculate date range based on current view
+  const actualizarCita = useActualizarCita()
+
   const fechaInicio = useMemo(() => {
     const start = startOfMonth(subMonths(currentDate, 1))
     return start.toISOString()
@@ -71,7 +92,6 @@ export function CalendarioPage() {
   const { data: usuarios } = useUsuarios()
   const tecnicos = usuarios?.filter((u) => u.rol === 'tecnico' || u.rol === 'encargado') ?? []
 
-  // Map citas to calendar events
   const events = useMemo(() => {
     if (!citas) return []
     return citas.map((cita) => ({
@@ -97,6 +117,50 @@ export function CalendarioPage() {
     setShowCitaModal(true)
   }, [])
 
+  // Drag-and-drop: mover evento a nueva fecha/hora
+  const handleEventDrop = useCallback(async ({ event, start, end }) => {
+    const cita = event.resource
+    const duracion = cita.duracion_minutos || Math.round((end - start) / 60000)
+
+    // Verificar conflictos antes de guardar
+    const conflicto = await checkConflicto(cita.tecnico_id, start, duracion, event.id)
+    if (conflicto) {
+      setConflictoWarning({
+        mensaje: `Conflicto: el técnico ya tiene una cita programada a esa hora.`,
+        cita: conflicto,
+      })
+      setTimeout(() => setConflictoWarning(null), 5000)
+      return
+    }
+
+    try {
+      await actualizarCita.mutateAsync({
+        id: event.id,
+        fecha_hora: start.toISOString(),
+        fecha_hora_fin: end.toISOString(),
+      })
+      toast.success('Cita reprogramada')
+    } catch (err) {
+      toast.error(`Error al reprogramar: ${err.message}`)
+    }
+  }, [actualizarCita, toast])
+
+  // Redimensionar evento (cambiar duración)
+  const handleEventResize = useCallback(async ({ event, start, end }) => {
+    try {
+      const duracion = Math.round((end - start) / 60000)
+      await actualizarCita.mutateAsync({
+        id: event.id,
+        fecha_hora: start.toISOString(),
+        fecha_hora_fin: end.toISOString(),
+        duracion_minutos: duracion,
+      })
+      toast.success('Duración actualizada')
+    } catch (err) {
+      toast.error(`Error: ${err.message}`)
+    }
+  }, [actualizarCita, toast])
+
   const eventStyleGetter = useCallback((event) => {
     const cita = event.resource
     const tipo = cita.intervencion_tipo || 'correctiva'
@@ -119,14 +183,14 @@ export function CalendarioPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <CalendarIcon className="h-6 w-6 text-primary-600" />
             Calendario
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Agenda de citas e intervenciones técnicas
+            Agenda de citas — arrastra para reprogramar, estira para cambiar duración
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -147,8 +211,17 @@ export function CalendarioPage() {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-gray-600">
+      {/* Aviso de conflicto */}
+      {conflictoWarning && (
+        <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+          <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+          <span>{conflictoWarning.mensaje}</span>
+          <button onClick={() => setConflictoWarning(null)} className="ml-auto text-red-500 hover:text-red-700">✕</button>
+        </div>
+      )}
+
+      {/* Leyenda */}
+      <div className="flex items-center gap-4 text-xs text-gray-600 flex-wrap">
         {Object.entries(TIPO_COLORS).map(([tipo, color]) => (
           <div key={tipo} className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
@@ -157,7 +230,7 @@ export function CalendarioPage() {
         ))}
       </div>
 
-      {/* Calendar */}
+      {/* Calendario */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         {isLoading ? (
           <div className="flex justify-center py-20">
@@ -165,7 +238,7 @@ export function CalendarioPage() {
           </div>
         ) : (
           <div style={{ height: 650 }}>
-            <BigCalendar
+            <DnDCalendar
               localizer={localizer}
               events={events}
               startAccessor="start"
@@ -179,14 +252,19 @@ export function CalendarioPage() {
               culture="es"
               onSelectEvent={handleSelectEvent}
               onSelectSlot={handleSelectSlot}
+              onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
               eventPropGetter={eventStyleGetter}
               popup
               selectable
+              resizable
               style={{ height: '100%' }}
+              draggableAccessor={() => true}
             />
           </div>
         )}
       </div>
+
       {/* Modal nueva cita */}
       <CitaFormModal
         open={showCitaModal}
