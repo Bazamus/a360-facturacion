@@ -10,6 +10,7 @@ import {
 } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { UserPlus, Users, AlertTriangle } from 'lucide-react'
+import { CitaFormModal } from './CitaFormModal'
 
 const TIPO_OPTIONS = [
   { value: 'correctiva', label: 'Correctiva' },
@@ -30,15 +31,27 @@ export function IntervencionNueva() {
   const navigate = useNavigate()
   const crear = useCrearIntervencion()
   const toast = useToast()
+  const [citaModal, setCitaModal] = useState(null) // { id, tecnicoId, clienteId, direccion }
 
   const handleSubmit = async (formData) => {
     try {
       const id = await crear.mutateAsync(formData)
       toast.success('Intervención creada correctamente')
-      navigate(`/sat/intervenciones/${id}`)
+      if (formData.tecnico_id) {
+        const dir = [formData.direccion, formData.codigo_postal, formData.ciudad].filter(Boolean).join(', ')
+        setCitaModal({ id, tecnicoId: formData.tecnico_id, clienteId: formData.cliente_id || null, direccion: dir })
+      } else {
+        navigate(`/sat/intervenciones/${id}`)
+      }
     } catch (err) {
       toast.error(err.message)
     }
+  }
+
+  const handleCitaClose = () => {
+    const id = citaModal?.id
+    setCitaModal(null)
+    navigate(`/sat/intervenciones/${id}`)
   }
 
   return (
@@ -60,6 +73,15 @@ export function IntervencionNueva() {
           <IntervencionFormFields onSubmit={handleSubmit} loading={crear.isPending} />
         </CardContent>
       </Card>
+      <CitaFormModal
+        open={!!citaModal}
+        onClose={handleCitaClose}
+        initialTecnicoId={citaModal?.tecnicoId}
+        initialClienteId={citaModal?.clienteId}
+        initialIntervencionId={citaModal?.id}
+        initialDireccion={citaModal?.direccion}
+        subtitle="Intervención guardada. ¿Deseas programar la visita en el calendario?"
+      />
     </div>
   )
 }
@@ -70,15 +92,27 @@ export function IntervencionEditar() {
   const { data: intervencion, isLoading } = useIntervencion(id)
   const actualizar = useActualizarIntervencion()
   const toast = useToast()
+  const [citaModal, setCitaModal] = useState(null)
 
   const handleSubmit = async (formData) => {
     try {
       await actualizar.mutateAsync({ id, ...formData })
       toast.success('Intervención actualizada')
-      navigate(`/sat/intervenciones/${id}`)
+      const tecnicoNuevo = formData.tecnico_id && formData.tecnico_id !== intervencion?.tecnico_id
+      if (tecnicoNuevo) {
+        const dir = [formData.direccion, formData.codigo_postal, formData.ciudad].filter(Boolean).join(', ')
+        setCitaModal({ tecnicoId: formData.tecnico_id, clienteId: formData.cliente_id || null, direccion: dir })
+      } else {
+        navigate(`/sat/intervenciones/${id}`)
+      }
     } catch (err) {
       toast.error(err.message)
     }
+  }
+
+  const handleCitaClose = () => {
+    setCitaModal(null)
+    navigate(`/sat/intervenciones/${id}`)
   }
 
   if (isLoading) return <LoadingSpinner />
@@ -109,6 +143,15 @@ export function IntervencionEditar() {
           />
         </CardContent>
       </Card>
+      <CitaFormModal
+        open={!!citaModal}
+        onClose={handleCitaClose}
+        initialTecnicoId={citaModal?.tecnicoId}
+        initialClienteId={citaModal?.clienteId}
+        initialIntervencionId={id}
+        initialDireccion={citaModal?.direccion}
+        subtitle="Técnico asignado. ¿Deseas programar la visita en el calendario?"
+      />
     </div>
   )
 }

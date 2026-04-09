@@ -3,7 +3,11 @@ import { useCrearCita, useUsuarios, useIntervenciones, useClientesSimple } from 
 import { Button, Modal, Input, Select, Textarea, SearchablePicker } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 
-export function CitaFormModal({ open, onClose, defaultDate, defaultEndDate }) {
+export function CitaFormModal({
+  open, onClose, defaultDate, defaultEndDate,
+  initialTecnicoId, initialClienteId, initialIntervencionId, initialDireccion,
+  subtitle,
+}) {
   const crearCita = useCrearCita()
   const toast = useToast()
   const { data: usuarios } = useUsuarios()
@@ -40,15 +44,15 @@ export function CitaFormModal({ open, onClose, defaultDate, defaultEndDate }) {
     }
 
     setForm({
-      tecnico_id: '',
-      cliente_id: '',
-      intervencion_id: '',
+      tecnico_id: initialTecnicoId || '',
+      cliente_id: initialClienteId || '',
+      intervencion_id: initialIntervencionId || '',
       fecha_hora: fechaStr,
       duracion_minutos: duracion,
-      direccion: '',
+      direccion: initialDireccion || '',
       notas: '',
     })
-  }, [open, defaultDate, defaultEndDate])
+  }, [open, defaultDate, defaultEndDate, initialTecnicoId, initialClienteId, initialIntervencionId, initialDireccion])
 
   // Cuando se selecciona intervención, autorellenar cliente y dirección
   const handleIntervencionChange = (intervencionId) => {
@@ -99,6 +103,11 @@ export function CitaFormModal({ open, onClose, defaultDate, defaultEndDate }) {
   return (
     <Modal open={open} onClose={onClose} title="Nueva Cita" size="lg">
       <div className="space-y-4">
+        {subtitle && (
+          <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-3 text-sm text-primary-700">
+            {subtitle}
+          </div>
+        )}
         {/* Técnico */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Técnico *</label>
