@@ -197,6 +197,22 @@ export function useCrearComentario() {
   })
 }
 
+// Eliminar ticket (solo abierto/cerrado, solo admin/encargado)
+export function useEliminarTicket() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.rpc('eliminar_ticket', { p_id: id })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+      queryClient.invalidateQueries({ queryKey: ['tickets-stats'] })
+    },
+  })
+}
+
 // Estadísticas de tickets
 export function useTicketsStats() {
   return useQuery({

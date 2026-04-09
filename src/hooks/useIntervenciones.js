@@ -248,3 +248,19 @@ export function useSATStats(fechaInicio, fechaFin) {
     refetchInterval: 60000,
   })
 }
+
+// Eliminar intervención (solo pendiente/cancelada, solo admin/encargado)
+export function useEliminarIntervencion() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.rpc('eliminar_intervencion', { p_id: id })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['intervenciones'] })
+      queryClient.invalidateQueries({ queryKey: ['sat-stats'] })
+    },
+  })
+}

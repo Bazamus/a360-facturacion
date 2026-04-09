@@ -228,7 +228,8 @@ export {
   useAnadirMaterialIntervencion,
   useEliminarMaterialIntervencion,
   useSATStats,
-  useHistorialIntervencion
+  useHistorialIntervencion,
+  useEliminarIntervencion
 } from './useIntervenciones'
 
 // SAT — Citas
@@ -266,7 +267,8 @@ export {
   useCrearIntervencionDesdeTicket,
   useTicketComentarios,
   useCrearComentario,
-  useTicketsStats
+  useTicketsStats,
+  useEliminarTicket
 } from './useTickets'
 
 // SAT — Equipos

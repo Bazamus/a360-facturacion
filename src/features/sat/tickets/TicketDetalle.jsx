@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useTicket, useActualizarTicket, useCrearIntervencionDesdeTicket, useUsuarios } from '@/hooks'
+import { useTicket, useActualizarTicket, useCrearIntervencionDesdeTicket, useUsuarios, useEliminarTicket } from '@/hooks'
 import {
   Button, Card, Badge, LoadingSpinner, Breadcrumb, Select, Modal,
   Tabs, TabsList, TabsTrigger, TabsContent,
@@ -11,6 +11,7 @@ import {
   CheckCircle, XCircle, AlertTriangle, ArrowRight,
 } from 'lucide-react'
 import { TicketComentarios } from './TicketComentarios'
+import { useAuth } from '@/features/auth/AuthContext'
 
 const ESTADO_VARIANTS = {
   abierto: 'warning', en_progreso: 'info',
@@ -41,9 +42,12 @@ export function TicketDetalle() {
   const { data: ticket, isLoading, error } = useTicket(id)
   const actualizar = useActualizarTicket()
   const crearIntervencion = useCrearIntervencionDesdeTicket()
+  const eliminar = useEliminarTicket()
   const { data: usuarios } = useUsuarios()
+  const { isAdmin, isEncargado } = useAuth()
   const toast = useToast()
   const [showAsignarModal, setShowAsignarModal] = useState(false)
+  const [showEliminarModal, setShowEliminarModal] = useState(false)
 
   const tecnicos = usuarios?.filter((u) => u.rol === 'tecnico' || u.rol === 'encargado' || u.rol === 'admin') ?? []
 
@@ -246,6 +250,58 @@ export function TicketDetalle() {
         onAsignar={handleAsignar}
         loading={actualizar.isPending}
       />
+
+      {/* Zona de peligro — solo admin/encargado, solo abierto/cerrado */}
+      {(isAdmin || isEncargado) && ['abierto', 'cerrado'].includes(ticket.estado) && (
+        <div className="mt-8 border border-red-200 rounded-xl p-4 bg-red-50">
+          <h3 className="text-sm font-semibold text-red-800 mb-1">Zona de peligro</h3>
+          <p className="text-xs text-red-600 mb-3">
+            Elimina permanentemente este ticket y sus comentarios. Solo disponible en estado <strong>abierto</strong> o <strong>cerrado</strong>.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowEliminarModal(true)}
+            className="border-red-300 text-red-700 hover:bg-red-100"
+          >
+            <XCircle className="h-4 w-4 mr-1.5" />
+            Eliminar ticket
+          </Button>
+        </div>
+      )}
+
+      {/* Modal confirmación eliminación */}
+      <Modal open={showEliminarModal} onClose={() => setShowEliminarModal(false)} title="Eliminar ticket" size="sm">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-red-800">
+              <p className="font-semibold mb-1">Esta acción es irreversible</p>
+              <p>Se eliminará permanentemente el ticket <strong>{ticket.numero_ticket}</strong> y todos sus comentarios.</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-1">
+            <Button variant="secondary" onClick={() => setShowEliminarModal(false)}>Cancelar</Button>
+            <Button
+              variant="primary"
+              className="bg-red-600 hover:bg-red-700 border-red-600"
+              loading={eliminar.isPending}
+              onClick={async () => {
+                try {
+                  await eliminar.mutateAsync(id)
+                  toast.success('Ticket eliminado')
+                  navigate('/sat/tickets')
+                } catch (err) {
+                  toast.error(err.message)
+                  setShowEliminarModal(false)
+                }
+              }}
+            >
+              Eliminar permanentemente
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
