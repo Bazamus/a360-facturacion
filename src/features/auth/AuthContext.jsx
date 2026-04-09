@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 const AuthContext = createContext({})
@@ -8,6 +9,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const initialized = useRef(false)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     // Evitar doble inicialización en Strict Mode
@@ -152,6 +154,8 @@ export function AuthProvider({ children }) {
       // SIEMPRE limpiar el estado local, independientemente de si hubo error
       setUser(null)
       setProfile(null)
+      // Limpiar cache de React Query para evitar datos del usuario anterior
+      queryClient.clear()
     }
   }
 
