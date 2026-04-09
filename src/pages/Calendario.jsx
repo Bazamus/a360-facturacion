@@ -11,6 +11,7 @@ import { Button, Select, LoadingSpinner } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { Calendar as CalendarIcon, Plus, AlertTriangle } from 'lucide-react'
 import { CitaFormModal } from '@/features/sat/CitaFormModal'
+import { CitaEditModal } from '@/features/sat/CitaEditModal'
 import { supabase } from '@/lib/supabase'
 
 const DnDCalendar = withDragAndDrop(BigCalendar)
@@ -70,6 +71,7 @@ export function CalendarioPage() {
   const [showCitaModal, setShowCitaModal] = useState(false)
   const [slotSelection, setSlotSelection] = useState({ start: null, end: null })
   const [conflictoWarning, setConflictoWarning] = useState(null)
+  const [citaEditar, setCitaEditar] = useState(null)
 
   const actualizarCita = useActualizarCita()
 
@@ -106,11 +108,8 @@ export function CalendarioPage() {
   }, [citas])
 
   const handleSelectEvent = useCallback((event) => {
-    const cita = event.resource
-    if (cita.intervencion_id) {
-      navigate(`/sat/intervenciones/${cita.intervencion_id}`)
-    }
-  }, [navigate])
+    setCitaEditar(event.resource)
+  }, [])
 
   const handleSelectSlot = useCallback(({ start, end }) => {
     setSlotSelection({ start, end })
@@ -270,6 +269,13 @@ export function CalendarioPage() {
         onClose={() => setShowCitaModal(false)}
         defaultDate={slotSelection.start}
         defaultEndDate={slotSelection.end}
+      />
+
+      {/* Modal editar cita */}
+      <CitaEditModal
+        open={!!citaEditar}
+        onClose={() => setCitaEditar(null)}
+        cita={citaEditar}
       />
     </div>
   )
