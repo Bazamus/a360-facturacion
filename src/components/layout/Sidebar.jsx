@@ -40,6 +40,8 @@ import {
   TicketCheck,
   Cpu,
   Globe,
+  Shield,
+  CalendarOff,
 } from 'lucide-react'
 
 // =====================================================
@@ -128,6 +130,9 @@ const sections = [
           { name: 'Contratos', href: '/sat/contratos', icon: FileText },
           { name: 'Equipos', href: '/sat/equipos', icon: Cpu },
           { name: 'Materiales', href: '/sat/materiales', icon: Package },
+          { name: 'Carga de trabajo', href: '/sat/carga-trabajo', icon: BarChart3 },
+          { name: 'Disponibilidad', href: '/sat/disponibilidad', icon: CalendarOff },
+          { name: 'Dashboard SLA', href: '/sat/sla', icon: Shield },
         ]
       },
       { name: 'Calendario', href: '/calendario', icon: Calendar },
