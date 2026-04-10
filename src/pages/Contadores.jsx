@@ -32,6 +32,8 @@ import {
 import { useToast } from '@/components/ui/Toast'
 import { ContadorForm } from '@/features/contadores/ContadorForm'
 import { ConceptosContadorTab } from '@/features/contadores/ConceptosContadorTab'
+import { CambioContadorModal } from '@/features/contadores/CambioContadorModal'
+import { HistoricoContadorTab } from '@/features/contadores/HistoricoContadorTab'
 import { formatDate } from '@/lib/utils'
 import { ImportModal } from '@/features/importacion/components'
 import { useImportExport } from '@/features/importacion/hooks'
@@ -618,6 +620,7 @@ function ContadorDetail() {
           <TabsList className="px-6">
             <TabsTrigger value="datos">Datos del Contador</TabsTrigger>
             <TabsTrigger value="conceptos">Conceptos</TabsTrigger>
+            <TabsTrigger value="historico">Histórico</TabsTrigger>
           </TabsList>
 
           <TabsContent value="datos" className="p-6">
@@ -626,6 +629,10 @@ function ContadorDetail() {
 
           <TabsContent value="conceptos" className="p-6">
             <ConceptosContadorTab contador={contador} />
+          </TabsContent>
+
+          <TabsContent value="historico" className="p-6">
+            <HistoricoContadorTab contador={contador} />
           </TabsContent>
         </Tabs>
       </Card>
@@ -713,37 +720,21 @@ function ContadorEditar() {
   const { data: contador, isLoading } = useContador(id)
   const updateMutation = useUpdateContador()
   const toast = useToast()
-
-  // Debug: Ver qué datos recibe el componente
-  useEffect(() => {
-    if (contador) {
-      console.log('=== CONTADOR EDITAR - DATOS RECIBIDOS ===')
-      console.log('Contador completo:', contador)
-      console.log('ubicacion_id:', contador.ubicacion_id)
-      console.log('ubicacion objeto:', contador.ubicacion)
-      console.log('ubicacion.agrupacion:', contador.ubicacion?.agrupacion)
-      console.log('ubicacion.agrupacion.comunidad:', contador.ubicacion?.agrupacion?.comunidad)
-    }
-  }, [contador])
+  const [cambioModalOpen, setCambioModalOpen] = useState(false)
 
   const handleSubmit = async (data) => {
     try {
-      console.log('=== ACTUALIZANDO CONTADOR ===')
-      console.log('ID contador:', id)
-      console.log('Datos a enviar:', data)
-      
-      const result = await updateMutation.mutateAsync({ id, ...data })
-      
-      console.log('=== RESULTADO ACTUALIZACIÓN ===')
-      console.log('Resultado:', result)
-      
+      await updateMutation.mutateAsync({ id, ...data })
       toast.success('Contador actualizado')
       navigate(`/contadores/${id}`)
     } catch (error) {
-      console.error('=== ERROR ACTUALIZACIÓN ===')
-      console.error('Error:', error)
       toast.error(error.message)
     }
+  }
+
+  const handleCambioSuccess = () => {
+    // Al completar el cambio de N/S, volver a la ficha del contador actualizada
+    navigate(`/contadores/${id}`)
   }
 
   if (isLoading) return <LoadingSpinner />
@@ -771,9 +762,17 @@ function ContadorEditar() {
             contador={contador}
             onSubmit={handleSubmit}
             loading={updateMutation.isPending}
+            onCambioContador={() => setCambioModalOpen(true)}
           />
         </CardContent>
       </Card>
+
+      <CambioContadorModal
+        open={cambioModalOpen}
+        onClose={() => setCambioModalOpen(false)}
+        contador={contador}
+        onSuccess={handleCambioSuccess}
+      />
     </div>
   )
 }

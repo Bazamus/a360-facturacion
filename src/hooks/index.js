@@ -53,6 +53,13 @@ export {
   useHistorialContadorConcepto
 } from './useContadorConceptos'
 
+// Contador Cambios (cambio de N/S y sustitución de equipo)
+export {
+  useCambioContador,
+  useHistorialCambiosContador,
+  useHistorialLecturasContador
+} from './useContadorCambios'
+
 // Conceptos
 export {
   useConceptos,

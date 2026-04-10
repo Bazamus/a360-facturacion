@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { RefreshCw } from 'lucide-react'
 import { contadorSchema } from '@/lib/validations'
 import { useComunidades, useAgrupaciones, useUbicaciones } from '@/hooks'
 import { Button, Input, Select, FormField, Textarea, LoadingSpinner, CommunityPicker, SearchablePicker } from '@/components/ui'
 
-export function ContadorForm({ contador, onSubmit, loading }) {
+export function ContadorForm({ contador, onSubmit, loading, onCambioContador }) {
   const [comunidadId, setComunidadId] = useState('')
   const [agrupacionId, setAgrupacionId] = useState('')
 
@@ -107,16 +108,34 @@ export function ContadorForm({ contador, onSubmit, loading }) {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField label="Número de Serie" error={errors.numero_serie?.message} required>
-            <Input
-              {...register('numero_serie')}
-              placeholder="ABC123456"
-              disabled={contador && contador.conceptos?.length > 0}
-              error={errors.numero_serie}
-            />
-            {contador && contador.conceptos?.length > 0 && (
-              <p className="text-xs text-gray-500 mt-1">
-                No se puede modificar porque tiene lecturas registradas
-              </p>
+            {contador ? (
+              /* En modo edición el campo es de solo lectura; el cambio se hace
+                 a través del flujo guiado del botón "Cambio Contador" */
+              <div className="flex items-center gap-2">
+                <Input
+                  {...register('numero_serie')}
+                  disabled
+                  className="font-mono flex-1"
+                />
+                {onCambioContador && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={onCambioContador}
+                    className="whitespace-nowrap flex-shrink-0"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    Cambio Contador
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Input
+                {...register('numero_serie')}
+                placeholder="ABC123456"
+                error={errors.numero_serie}
+              />
             )}
           </FormField>
 
