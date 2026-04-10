@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
 export function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading, isCliente, profile } = useAuth()
+  const { isAuthenticated, loading, isCliente, isTecnico } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -24,6 +24,11 @@ export function ProtectedRoute({ children }) {
   // Si es cliente y NO está ya en /portal, redirigir al portal
   if (isCliente && !location.pathname.startsWith('/portal')) {
     return <Navigate to="/portal/inicio" replace />
+  }
+
+  // Si es técnico y aterriza en dashboard o raíz, redirigir a su agenda
+  if (isTecnico && (location.pathname === '/dashboard' || location.pathname === '/')) {
+    return <Navigate to="/sat/mi-agenda" replace />
   }
 
   return children

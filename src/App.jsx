@@ -23,10 +23,12 @@ import { PortalPage } from '@/pages/Portal'
 import GestionPreciosPage from '@/pages/GestionPrecios'
 import { useAuth } from '@/features/auth/AuthContext'
 
-// Redirige según rol: cliente va al portal, resto al dashboard
+// Redirige según rol al destino correcto
 function HomeRedirect() {
-  const { isCliente } = useAuth()
-  return <Navigate to={isCliente ? '/portal/inicio' : '/dashboard'} replace />
+  const { isCliente, isTecnico } = useAuth()
+  if (isCliente) return <Navigate to="/portal/inicio" replace />
+  if (isTecnico) return <Navigate to="/sat/mi-agenda" replace />
+  return <Navigate to="/dashboard" replace />
 }
 
 function App() {
