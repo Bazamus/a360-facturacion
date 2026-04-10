@@ -196,7 +196,7 @@ export async function generarParteTrabajoPDF(intervencion, materiales = []) {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.white)
     doc.text('DESCRIPCIÓN DE LA INCIDENCIA', margin + 3, y + 5)
-    y += 9
+    y += 11
 
     doc.setFontSize(8.5)
     doc.setFont('helvetica', 'normal')
@@ -204,9 +204,9 @@ export async function generarParteTrabajoPDF(intervencion, materiales = []) {
     const descText = intervencion.descripcion || intervencion.titulo || '-'
     const descLines = doc.splitTextToSize(descText, contentWidth - 6)
     doc.setFillColor(...COLORS.lightGray)
-    doc.roundedRect(margin, y, contentWidth, descLines.length * 4.5 + 5, 2, 2, 'F')
-    doc.text(descLines, margin + 3, y + 4.5)
-    y += descLines.length * 4.5 + 8
+    doc.roundedRect(margin, y, contentWidth, descLines.length * 4.5 + 6, 2, 2, 'F')
+    doc.text(descLines, margin + 3, y + 5)
+    y += descLines.length * 4.5 + 9
   }
 
   // =========================================
@@ -221,20 +221,20 @@ export async function generarParteTrabajoPDF(intervencion, materiales = []) {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.white)
     doc.text('DIAGNÓSTICO Y SOLUCIÓN', margin + 3, y + 5)
-    y += 9
+    y += 13  // 7mm header + 6mm margen inferior
 
     if (intervencion.diagnostico) {
       doc.setFontSize(8.5)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(...COLORS.text)
       doc.text('Diagnóstico:', margin, y)
-      y += 3.5
+      y += 5
       const diagLines = doc.splitTextToSize(intervencion.diagnostico, contentWidth - 6)
       doc.setFillColor(...COLORS.lightGray)
-      doc.roundedRect(margin, y, contentWidth, diagLines.length * 4.5 + 5, 2, 2, 'F')
+      doc.roundedRect(margin, y, contentWidth, diagLines.length * 4.5 + 6, 2, 2, 'F')
       doc.setFont('helvetica', 'normal')
-      doc.text(diagLines, margin + 3, y + 4.5)
-      y += diagLines.length * 4.5 + 7
+      doc.text(diagLines, margin + 3, y + 5)
+      y += diagLines.length * 4.5 + 10
     }
 
     if (intervencion.solucion) {
@@ -242,13 +242,13 @@ export async function generarParteTrabajoPDF(intervencion, materiales = []) {
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(...COLORS.text)
       doc.text('Solución aplicada:', margin, y)
-      y += 3.5
+      y += 5
       const solLines = doc.splitTextToSize(intervencion.solucion, contentWidth - 6)
       doc.setFillColor(...COLORS.lightGray)
-      doc.roundedRect(margin, y, contentWidth, solLines.length * 4.5 + 5, 2, 2, 'F')
+      doc.roundedRect(margin, y, contentWidth, solLines.length * 4.5 + 6, 2, 2, 'F')
       doc.setFont('helvetica', 'normal')
-      doc.text(solLines, margin + 3, y + 4.5)
-      y += solLines.length * 4.5 + 7
+      doc.text(solLines, margin + 3, y + 5)
+      y += solLines.length * 4.5 + 8
     }
   }
 
