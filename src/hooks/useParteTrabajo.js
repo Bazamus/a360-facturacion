@@ -16,7 +16,7 @@ export function useGenerarParteTrabajo() {
       if (!intervencion?.id) throw new Error('ID de intervención requerido')
 
       // 1. Generar PDF
-      const blob = generarParteTrabajoPDF(intervencion, materiales)
+      const blob = await generarParteTrabajoPDF(intervencion, materiales)
 
       // 2. Subir a Storage
       const fileName = `${intervencion.id}/PT-${intervencion.numero_parte || intervencion.id}.pdf`
@@ -62,7 +62,7 @@ export function useGenerarParteTrabajo() {
 export function useDescargarParteTrabajo() {
   return useMutation({
     mutationFn: async ({ intervencion, materiales = [] }) => {
-      const blob = generarParteTrabajoPDF(intervencion, materiales)
+      const blob = await generarParteTrabajoPDF(intervencion, materiales)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

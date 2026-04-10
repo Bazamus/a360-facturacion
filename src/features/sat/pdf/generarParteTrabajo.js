@@ -25,17 +25,37 @@ const PRIORIDAD_LABELS = {
   baja: 'Baja',
 }
 
+async function fetchImageBase64(url) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
 /**
  * Genera el PDF de un Parte de Trabajo (SAT)
  * @param {Object} intervencion - Datos completos de la intervención
  * @param {Array}  materiales   - Lista de materiales usados
- * @returns {Blob} PDF blob listo para subir o descargar
+ * @returns {Promise<Blob>} PDF blob listo para subir o descargar
  */
-export function generarParteTrabajoPDF(intervencion, materiales = []) {
+export async function generarParteTrabajoPDF(intervencion, materiales = []) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
   const margin = 15
   const contentWidth = pageWidth - 2 * margin
+
+  // Pre-fetch fotos como base64
+  const fotos = intervencion.fotos || []
+  const fotosBase64 = await Promise.all(fotos.slice(0, 4).map(fetchImageBase64))
 
   // =========================================
   // CABECERA CORPORATIVA
@@ -51,7 +71,8 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
   // BLOQUE DATOS PARTE + DATOS CLIENTE
   // =========================================
   const colW = contentWidth / 2 - 3
-  const boxH = 38
+  const rightX = margin + colW + 6
+  const boxH = 32
 
   // Caja izquierda: datos del parte
   doc.setFillColor(...COLORS.lightGray)
@@ -60,7 +81,7 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
   doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.gray)
-  doc.text('DATOS DEL PARTE', margin + 3, y + 6)
+  doc.text('DATOS DEL PARTE', margin + 3, y + 5)
 
   doc.setFontSize(8.5)
   doc.setFont('helvetica', 'normal')
@@ -68,34 +89,28 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
 
   const padLeft = margin + 3
   doc.setFont('helvetica', 'bold')
-  doc.text('Nº Parte:', padLeft, y + 13)
+  doc.text('Nº Parte:', padLeft, y + 11)
   doc.setFont('helvetica', 'normal')
-  doc.text(intervencion.numero_parte || '-', padLeft + 22, y + 13)
+  doc.text(intervencion.numero_parte || '-', padLeft + 22, y + 11)
 
   doc.setFont('helvetica', 'bold')
-  doc.text('Tipo:', padLeft, y + 20)
+  doc.text('Tipo:', padLeft, y + 18)
   doc.setFont('helvetica', 'normal')
-  doc.text(TIPO_LABELS[intervencion.tipo] || intervencion.tipo || '-', padLeft + 22, y + 20)
+  doc.text(TIPO_LABELS[intervencion.tipo] || intervencion.tipo || '-', padLeft + 22, y + 18)
 
   doc.setFont('helvetica', 'bold')
-  doc.text('Prioridad:', padLeft, y + 27)
+  doc.text('Prioridad:', padLeft, y + 25)
   doc.setFont('helvetica', 'normal')
-  doc.text(PRIORIDAD_LABELS[intervencion.prioridad] || intervencion.prioridad || '-', padLeft + 22, y + 27)
-
-  doc.setFont('helvetica', 'bold')
-  doc.text('Fecha:', padLeft, y + 34)
-  doc.setFont('helvetica', 'normal')
-  doc.text(formatDateShort(intervencion.fecha_solicitud), padLeft + 22, y + 34)
+  doc.text(PRIORIDAD_LABELS[intervencion.prioridad] || intervencion.prioridad || '-', padLeft + 22, y + 25)
 
   // Caja derecha: datos del cliente
-  const rightX = margin + colW + 6
   doc.setFillColor(...COLORS.lightGray)
   doc.roundedRect(rightX, y, colW, boxH, 3, 3, 'F')
 
   doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.gray)
-  doc.text('CLIENTE', rightX + 3, y + 6)
+  doc.text('CLIENTE', rightX + 3, y + 5)
 
   doc.setFontSize(8.5)
   doc.setTextColor(...COLORS.text)
@@ -105,33 +120,33 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
     : (intervencion.cliente_nombre_completo || '-')
 
   doc.setFont('helvetica', 'bold')
-  doc.text('Nombre:', rightX + 3, y + 13)
+  doc.text('Nombre:', rightX + 3, y + 11)
   doc.setFont('helvetica', 'normal')
-  doc.text(clienteNombre, rightX + 23, y + 13)
+  doc.text(clienteNombre, rightX + 23, y + 11)
 
   if (intervencion.cliente?.telefono || intervencion.cliente_telefono) {
     doc.setFont('helvetica', 'bold')
-    doc.text('Tel:', rightX + 3, y + 20)
+    doc.text('Tel:', rightX + 3, y + 18)
     doc.setFont('helvetica', 'normal')
-    doc.text(intervencion.cliente?.telefono || intervencion.cliente_telefono || '-', rightX + 23, y + 20)
+    doc.text(intervencion.cliente?.telefono || intervencion.cliente_telefono || '-', rightX + 23, y + 18)
   }
 
   if (intervencion.comunidad?.nombre || intervencion.comunidad_nombre) {
     doc.setFont('helvetica', 'bold')
-    doc.text('Comunidad:', rightX + 3, y + 27)
+    doc.text('Comunidad:', rightX + 3, y + 25)
     doc.setFont('helvetica', 'normal')
-    doc.text(intervencion.comunidad?.nombre || intervencion.comunidad_nombre || '-', rightX + 23, y + 27)
+    doc.text(intervencion.comunidad?.nombre || intervencion.comunidad_nombre || '-', rightX + 23, y + 25)
   }
 
   if (intervencion.direccion) {
-    doc.setFont('helvetica', 'bold')
-    doc.text('Dirección:', rightX + 3, y + 34)
-    doc.setFont('helvetica', 'normal')
     const dir = [intervencion.direccion, intervencion.codigo_postal, intervencion.ciudad].filter(Boolean).join(', ')
-    doc.text(dir.slice(0, 38), rightX + 23, y + 34)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Dir:', rightX + 3, y + 25 + (intervencion.comunidad?.nombre ? 0 : -7))
+    doc.setFont('helvetica', 'normal')
+    doc.text(dir.slice(0, 35), rightX + 23, y + 25 + (intervencion.comunidad?.nombre ? 0 : -7))
   }
 
-  y += boxH + 6
+  y += boxH + 4
 
   // =========================================
   // TÉCNICO Y TIEMPOS
@@ -142,7 +157,7 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.white)
   doc.text('TÉCNICO Y TIEMPOS', margin + 3, y + 5)
-  y += 10
+  y += 9
 
   doc.setFontSize(8.5)
   doc.setTextColor(...COLORS.text)
@@ -150,15 +165,15 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
 
   const tiempoData = [
     ['Técnico asignado', tecnicoNombre, 'Fecha solicitud', formatDateShort(intervencion.fecha_solicitud)],
-    ['Fecha programada', formatDateShort(intervencion.fecha_programada), 'Inicio trabajo', formatDateTime(intervencion.fecha_inicio)],
-    ['Fin trabajo', formatDateTime(intervencion.fecha_fin), 'Duración', intervencion.duracion_minutos ? `${intervencion.duracion_minutos} min` : '-'],
+    ['Inicio trabajo', formatDateTime(intervencion.fecha_inicio), 'Fin trabajo', formatDateTime(intervencion.fecha_fin)],
+    ['Fecha programada', formatDateShort(intervencion.fecha_programada), 'Duración', intervencion.duracion_minutos ? `${intervencion.duracion_minutos} min` : '-'],
   ]
 
   autoTable(doc, {
     startY: y,
     body: tiempoData,
     theme: 'plain',
-    styles: { fontSize: 8.5, cellPadding: 2, textColor: COLORS.text },
+    styles: { fontSize: 8.5, cellPadding: 1.8, textColor: COLORS.text },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 38, textColor: COLORS.gray },
       1: { cellWidth: contentWidth / 2 - 38 },
@@ -168,7 +183,7 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
     margin: { left: margin, right: margin },
   })
 
-  y = doc.lastAutoTable.finalY + 6
+  y = doc.lastAutoTable.finalY + 5
 
   // =========================================
   // DESCRIPCIÓN / INCIDENCIA
@@ -180,7 +195,7 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.white)
     doc.text('DESCRIPCIÓN DE LA INCIDENCIA', margin + 3, y + 5)
-    y += 10
+    y += 9
 
     doc.setFontSize(8.5)
     doc.setFont('helvetica', 'normal')
@@ -188,9 +203,9 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
     const descText = intervencion.descripcion || intervencion.titulo || '-'
     const descLines = doc.splitTextToSize(descText, contentWidth - 6)
     doc.setFillColor(...COLORS.lightGray)
-    doc.roundedRect(margin, y, contentWidth, descLines.length * 4.5 + 6, 2, 2, 'F')
-    doc.text(descLines, margin + 3, y + 5)
-    y += descLines.length * 4.5 + 10
+    doc.roundedRect(margin, y, contentWidth, descLines.length * 4.5 + 5, 2, 2, 'F')
+    doc.text(descLines, margin + 3, y + 4.5)
+    y += descLines.length * 4.5 + 8
   }
 
   // =========================================
@@ -202,39 +217,38 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.white)
   doc.text('DIAGNÓSTICO Y SOLUCIÓN', margin + 3, y + 5)
-  y += 10
+  y += 9
 
   // Diagnóstico
   doc.setFontSize(8.5)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.text)
   doc.text('Diagnóstico:', margin, y)
-  y += 4
+  y += 3.5
   const diagText = intervencion.diagnostico || 'Sin diagnóstico registrado'
   const diagLines = doc.splitTextToSize(diagText, contentWidth - 6)
   doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(margin, y, contentWidth, diagLines.length * 4.5 + 6, 2, 2, 'F')
+  doc.roundedRect(margin, y, contentWidth, diagLines.length * 4.5 + 5, 2, 2, 'F')
   doc.setFont('helvetica', 'normal')
-  doc.text(diagLines, margin + 3, y + 5)
-  y += diagLines.length * 4.5 + 10
+  doc.text(diagLines, margin + 3, y + 4.5)
+  y += diagLines.length * 4.5 + 7
 
   // Solución
   doc.setFont('helvetica', 'bold')
   doc.text('Solución aplicada:', margin, y)
-  y += 4
+  y += 3.5
   const solText = intervencion.solucion || 'Sin solución registrada'
   const solLines = doc.splitTextToSize(solText, contentWidth - 6)
   doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(margin, y, contentWidth, solLines.length * 4.5 + 6, 2, 2, 'F')
+  doc.roundedRect(margin, y, contentWidth, solLines.length * 4.5 + 5, 2, 2, 'F')
   doc.setFont('helvetica', 'normal')
-  doc.text(solLines, margin + 3, y + 5)
-  y += solLines.length * 4.5 + 10
+  doc.text(solLines, margin + 3, y + 4.5)
+  y += solLines.length * 4.5 + 7
 
   // =========================================
   // MATERIALES UTILIZADOS
   // =========================================
   if (materiales.length > 0) {
-    // Nueva página si no hay espacio
     if (y > 220) { doc.addPage(); y = margin }
 
     doc.setFillColor(...COLORS.primary)
@@ -277,15 +291,14 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
       margin: { left: margin, right: margin },
     })
 
-    y = doc.lastAutoTable.finalY + 4
+    y = doc.lastAutoTable.finalY + 3
 
-    // Total materiales
     const totalMat = materiales.reduce((sum, m) => sum + (m.subtotal || (m.cantidad * m.precio_unitario) || 0), 0)
     doc.setFontSize(8.5)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.primary)
     doc.text(`Total materiales: ${formatCurrency(totalMat)}`, pageWidth - margin, y, { align: 'right' })
-    y += 8
+    y += 6
   }
 
   // =========================================
@@ -312,7 +325,7 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
       startY: y,
       body: costesRows,
       theme: 'plain',
-      styles: { fontSize: 8.5, cellPadding: 2, textColor: COLORS.text },
+      styles: { fontSize: 8.5, cellPadding: 1.8, textColor: COLORS.text },
       columnStyles: {
         0: { fontStyle: 'bold', cellWidth: 50, textColor: COLORS.gray },
         1: { halign: 'right' },
@@ -327,14 +340,61 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
       margin: { left: margin, right: margin },
     })
 
-    y = doc.lastAutoTable.finalY + 10
+    y = doc.lastAutoTable.finalY + 6
   }
 
   // =========================================
-  // FIRMAS
+  // REGISTRO FOTOGRÁFICO (página 2 si hay fotos)
   // =========================================
-  if (y > 230) { doc.addPage(); y = margin }
+  const hayFotos = fotosBase64.some(Boolean)
 
+  if (hayFotos) {
+    doc.addPage()
+    y = margin
+
+    doc.setFillColor(...COLORS.primary)
+    doc.rect(margin, y, contentWidth, 7, 'F')
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.white)
+    doc.text('REGISTRO FOTOGRÁFICO', margin + 3, y + 5)
+    y += 10
+
+    const imgGap = 4
+    const fotoW = (contentWidth - imgGap) / 2   // ~82mm
+    const fotoH = 55
+
+    fotosBase64.forEach((base64, i) => {
+      if (!base64) return
+      const col = i % 2
+      const row = Math.floor(i / 2)
+      const fx = margin + col * (fotoW + imgGap)
+      const fy = y + row * (fotoH + imgGap)
+
+      doc.setDrawColor(...COLORS.gray)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(fx, fy, fotoW, fotoH, 2, 2, 'S')
+      try {
+        doc.addImage(base64, 'JPEG', fx + 1, fy + 1, fotoW - 2, fotoH - 2, undefined, 'FAST')
+      } catch (_) {
+        // Si la imagen no se puede insertar, dejar marco vacío
+      }
+    })
+
+    const numRows = Math.ceil(fotosBase64.filter(Boolean).length / 2)
+    y += numRows * (fotoH + imgGap) + 4
+  } else {
+    // Sin fotos: salto de página solo si las firmas no caben
+    const espacioFirmas = 7 + 10 + 30 + 10 // header + gap + cajas + margen inferior
+    if (y + espacioFirmas > pageH - 20) {
+      doc.addPage()
+      y = margin
+    }
+  }
+
+  // =========================================
+  // FIRMAS Y CONFORMIDAD
+  // =========================================
   doc.setFillColor(...COLORS.primary)
   doc.rect(margin, y, contentWidth, 7, 'F')
   doc.setFontSize(8)
@@ -344,7 +404,7 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
   y += 10
 
   const firmaW = colW
-  const firmaH = 35
+  const firmaH = 30
 
   // Caja firma cliente
   doc.setDrawColor(...COLORS.gray)
@@ -357,16 +417,14 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
 
   if (intervencion.firma_cliente) {
     try {
-      doc.addImage(intervencion.firma_cliente, 'PNG', margin + 5, y + 8, firmaW - 10, firmaH - 16)
-    } catch (_) {
-      // Si la firma no se puede insertar, dejar espacio en blanco
-    }
+      doc.addImage(intervencion.firma_cliente, 'PNG', margin + 5, y + 7, firmaW - 10, firmaH - 14)
+    } catch (_) {}
   }
 
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.text)
-  doc.text('El cliente confirma la realización del trabajo descrito', margin + firmaW / 2, y + firmaH - 3, { align: 'center' })
+  doc.text('Conforme con el trabajo realizado', margin + firmaW / 2, y + firmaH - 3, { align: 'center' })
 
   // Caja firma técnico
   doc.setDrawColor(...COLORS.gray)
@@ -378,18 +436,19 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
 
   if (intervencion.firma_tecnico) {
     try {
-      doc.addImage(intervencion.firma_tecnico, 'PNG', rightX + 5, y + 8, firmaW - 10, firmaH - 16)
-    } catch (_) {
-      // Dejar espacio en blanco
-    }
+      doc.addImage(intervencion.firma_tecnico, 'PNG', rightX + 5, y + 7, firmaW - 10, firmaH - 14)
+    } catch (_) {}
   }
 
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.text)
-  doc.text(`Técnico: ${intervencion.tecnico?.nombre_completo || intervencion.tecnico_nombre || '-'}`, rightX + firmaW / 2, y + firmaH - 3, { align: 'center' })
-
-  y += firmaH + 10
+  doc.text(
+    `Técnico: ${intervencion.tecnico?.nombre_completo || intervencion.tecnico_nombre || '-'}`,
+    rightX + firmaW / 2,
+    y + firmaH - 3,
+    { align: 'center' },
+  )
 
   // =========================================
   // PIE DE PÁGINA
@@ -397,20 +456,20 @@ export function generarParteTrabajoPDF(intervencion, materiales = []) {
   const pageCount = doc.internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    const pageH = doc.internal.pageSize.getHeight()
+    const ph = doc.internal.pageSize.getHeight()
     doc.setDrawColor(...COLORS.secondary)
     doc.setLineWidth(0.5)
-    doc.line(margin, pageH - 12, pageWidth - margin, pageH - 12)
+    doc.line(margin, ph - 12, pageWidth - margin, ph - 12)
     doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...COLORS.gray)
     doc.text(
       `${EMPRESA.nombre} · ${EMPRESA.direccion}, ${EMPRESA.cp} ${EMPRESA.ciudad} · Tel: ${EMPRESA.telefono} · CIF: ${EMPRESA.cif}`,
       pageWidth / 2,
-      pageH - 7,
+      ph - 7,
       { align: 'center' },
     )
-    doc.text(`Pág. ${i} / ${pageCount}`, pageWidth - margin, pageH - 7, { align: 'right' })
+    doc.text(`Pág. ${i} / ${pageCount}`, pageWidth - margin, ph - 7, { align: 'right' })
   }
 
   return doc.output('blob')

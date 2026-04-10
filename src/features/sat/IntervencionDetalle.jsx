@@ -10,7 +10,7 @@ import {
 } from '@/hooks'
 import { useAuth } from '@/features/auth/AuthContext'
 import {
-  Button, Card, Badge, LoadingSpinner, Breadcrumb, Modal, Textarea,
+  Button, Card, Badge, LoadingSpinner, Breadcrumb, Modal, Textarea, Input,
   Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
@@ -18,7 +18,7 @@ import { useState } from 'react'
 import {
   Edit2, Play, Truck, XCircle, RotateCcw, User, Phone, MapPin,
   Calendar, FileText, AlertTriangle, ChevronDown, Download, ExternalLink,
-  CheckCircle,
+  CheckCircle, Clock,
 } from 'lucide-react'
 import { IntervencionTimeline } from './IntervencionTimeline'
 import { MaterialesIntervencion } from './MaterialesIntervencion'
@@ -539,16 +539,45 @@ function CosteCard({ label, value, highlight = false }) {
   )
 }
 
+function formatLocalDatetime(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function CerrarIntervencionModal({ open, intervencionId, intervencion, materiales, onClose }) {
+  const now = new Date()
   const [diagnostico, setDiagnostico] = useState('')
   const [solucion, setSolucion] = useState('')
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
   const [firmaCliente, setFirmaCliente] = useState(null)
   const [firmaTecnico, setFirmaTecnico] = useState(null)
   const cerrar = useCerrarIntervencion()
   const generarParte = useGenerarParteTrabajo()
   const toast = useToast()
 
+  // Pre-rellenar fechas cuando se abre el modal
+  useState(() => {
+    if (!open) return
+    setDiagnostico(intervencion?.diagnostico || '')
+    setSolucion(intervencion?.solucion || '')
+    setFechaInicio(intervencion?.fecha_inicio ? formatLocalDatetime(intervencion.fecha_inicio) : formatLocalDatetime(now))
+    setFechaFin(formatLocalDatetime(now))
+    setFirmaCliente(null)
+    setFirmaTecnico(null)
+  })
+
   const handleSubmit = async () => {
+    if (!fechaInicio || !fechaFin) {
+      toast.error('Las fechas de inicio y fin son obligatorias')
+      return
+    }
+    if (new Date(fechaFin) < new Date(fechaInicio)) {
+      toast.error('La fecha de fin no puede ser anterior a la de inicio')
+      return
+    }
     try {
       await cerrar.mutateAsync({
         id: intervencionId,
@@ -556,6 +585,8 @@ function CerrarIntervencionModal({ open, intervencionId, intervencion, materiale
         solucion: solucion || null,
         firma_cliente: firmaCliente,
         firma_tecnico: firmaTecnico,
+        fecha_inicio: new Date(fechaInicio).toISOString(),
+        fecha_fin: new Date(fechaFin).toISOString(),
       })
 
       // Auto-generar parte de trabajo al cerrar
@@ -566,11 +597,13 @@ function CerrarIntervencionModal({ open, intervencionId, intervencion, materiale
           solucion: solucion || intervencion.solucion,
           firma_cliente: firmaCliente || intervencion.firma_cliente,
           firma_tecnico: firmaTecnico || intervencion.firma_tecnico,
+          fecha_inicio: new Date(fechaInicio).toISOString(),
+          fecha_fin: new Date(fechaFin).toISOString(),
         }
         await generarParte.mutateAsync({ intervencion: intervencionActualizada, materiales })
-        toast.success('Intervención cerrada y parte de trabajo generado')
+        toast.success('Intervención completada y parte de trabajo generado')
       } catch (_) {
-        toast.success('Intervención cerrada correctamente')
+        toast.success('Intervención completada correctamente')
       }
 
       onClose()
@@ -580,22 +613,76 @@ function CerrarIntervencionModal({ open, intervencionId, intervencion, materiale
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Completar Intervención" size="lg">
-      <div className="space-y-4">
+    <Modal open={open} onClose={onClose} title="Completar Intervención" size="xl">
+      <div className="space-y-5">
+
+        {/* 1. Fechas */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico</label>
-          <Textarea value={diagnostico} onChange={(e) => setDiagnostico(e.target.value)} rows={3} placeholder="Problema encontrado..." />
+          <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-primary-600" /> Tiempos de trabajo
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Inicio trabajo *</label>
+              <Input type="datetime-local" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Fin trabajo *</label>
+              <Input type="datetime-local" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+            </div>
+          </div>
+          {fechaInicio && fechaFin && new Date(fechaFin) > new Date(fechaInicio) && (
+            <p className="text-xs text-gray-500 mt-1">
+              Duración: {Math.round((new Date(fechaFin) - new Date(fechaInicio)) / 60000)} min
+            </p>
+          )}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Solución aplicada</label>
-          <Textarea value={solucion} onChange={(e) => setSolucion(e.target.value)} rows={3} placeholder="Trabajo realizado..." />
-        </div>
+
+        {/* 2. Diagnóstico y Solución */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FirmaDigital label="Firma del cliente" value={firmaCliente} onChange={setFirmaCliente} />
-          <FirmaDigital label="Firma del técnico" value={firmaTecnico} onChange={setFirmaTecnico} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico</label>
+            <Textarea value={diagnostico} onChange={(e) => setDiagnostico(e.target.value)} rows={3} placeholder="Problema encontrado..." />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Solución aplicada</label>
+            <Textarea value={solucion} onChange={(e) => setSolucion(e.target.value)} rows={3} placeholder="Trabajo realizado..." />
+          </div>
         </div>
-        <p className="text-xs text-gray-500">Al completar, se generará automáticamente el parte de trabajo en PDF.</p>
-        <div className="flex justify-end gap-3 pt-2">
+
+        {/* 3. Materiales (solo lectura) */}
+        {materiales.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Materiales utilizados</h4>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <MaterialesIntervencion intervencionId={intervencionId} editable={false} compact />
+            </div>
+          </div>
+        )}
+
+        {/* 4. Fotos */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Fotos del trabajo <span className="text-xs font-normal text-gray-400">(máx. 4)</span></h4>
+          <FotosIntervencion
+            intervencionId={intervencionId}
+            fotos={intervencion?.fotos || []}
+            editable
+            maxFotos={4}
+          />
+        </div>
+
+        {/* 5. Firmas */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Firmas de conformidad</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FirmaDigital label="Firma del cliente" value={firmaCliente} onChange={setFirmaCliente} />
+            <FirmaDigital label="Firma del técnico" value={firmaTecnico} onChange={setFirmaTecnico} />
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-500">Al completar, se generará automáticamente el parte de trabajo en PDF incluyendo fotos y firmas.</p>
+
+        <div className="flex justify-end gap-3 pt-2 border-t border-gray-200">
           <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
           <Button
             variant="primary"

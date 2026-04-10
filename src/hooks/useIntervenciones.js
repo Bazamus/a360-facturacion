@@ -142,6 +142,8 @@ export function useCerrarIntervencion() {
         p_solucion: params.solucion || null,
         p_firma_cliente: params.firma_cliente || null,
         p_firma_tecnico: params.firma_tecnico || null,
+        p_fecha_inicio: params.fecha_inicio || null,
+        p_fecha_fin: params.fecha_fin || null,
       })
       if (error) throw error
       return data

@@ -1,23 +1,26 @@
-import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { compressImage } from '@/lib/imageUtils'
 
 const BUCKET = 'sat-fotos'
+export const MAX_FOTOS = 4
 
 /**
- * Subir foto a Supabase Storage para una intervención
+ * Subir foto a Supabase Storage para una intervención.
+ * Comprime automáticamente antes de subir (máx 1200×1200, JPEG 0.82).
  */
 export function useSubirFotoSAT() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ intervencionId, file }) => {
-      const ext = file.name.split('.').pop()
-      const fileName = `${intervencionId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+      // Comprimir antes de subir
+      const compressed = await compressImage(file)
+      const fileName = `${intervencionId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`
 
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
-        .upload(fileName, file, { cacheControl: '3600', upsert: false })
+        .upload(fileName, compressed, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' })
 
       if (uploadError) throw uploadError
 
