@@ -65,6 +65,7 @@ export async function generarParteTrabajoPDF(intervencion, materiales = []) {
     LOGO_A360_BASE64,
     'PARTE DE TRABAJO',
     intervencion.numero_parte || '',
+    { tituloFontSize: 18 },
   )
 
   // =========================================
@@ -209,41 +210,47 @@ export async function generarParteTrabajoPDF(intervencion, materiales = []) {
   }
 
   // =========================================
-  // DIAGNÓSTICO Y SOLUCIÓN
+  // DIAGNÓSTICO Y SOLUCIÓN (ocultar si ambos vacíos)
   // =========================================
-  doc.setFillColor(...COLORS.primary)
-  doc.rect(margin, y, contentWidth, 7, 'F')
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.white)
-  doc.text('DIAGNÓSTICO Y SOLUCIÓN', margin + 3, y + 5)
-  y += 9
+  const hayDiagnostico = !!(intervencion.diagnostico || intervencion.solucion)
 
-  // Diagnóstico
-  doc.setFontSize(8.5)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.text)
-  doc.text('Diagnóstico:', margin, y)
-  y += 3.5
-  const diagText = intervencion.diagnostico || 'Sin diagnóstico registrado'
-  const diagLines = doc.splitTextToSize(diagText, contentWidth - 6)
-  doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(margin, y, contentWidth, diagLines.length * 4.5 + 5, 2, 2, 'F')
-  doc.setFont('helvetica', 'normal')
-  doc.text(diagLines, margin + 3, y + 4.5)
-  y += diagLines.length * 4.5 + 7
+  if (hayDiagnostico) {
+    doc.setFillColor(...COLORS.primary)
+    doc.rect(margin, y, contentWidth, 7, 'F')
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.white)
+    doc.text('DIAGNÓSTICO Y SOLUCIÓN', margin + 3, y + 5)
+    y += 9
 
-  // Solución
-  doc.setFont('helvetica', 'bold')
-  doc.text('Solución aplicada:', margin, y)
-  y += 3.5
-  const solText = intervencion.solucion || 'Sin solución registrada'
-  const solLines = doc.splitTextToSize(solText, contentWidth - 6)
-  doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(margin, y, contentWidth, solLines.length * 4.5 + 5, 2, 2, 'F')
-  doc.setFont('helvetica', 'normal')
-  doc.text(solLines, margin + 3, y + 4.5)
-  y += solLines.length * 4.5 + 7
+    if (intervencion.diagnostico) {
+      doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...COLORS.text)
+      doc.text('Diagnóstico:', margin, y)
+      y += 3.5
+      const diagLines = doc.splitTextToSize(intervencion.diagnostico, contentWidth - 6)
+      doc.setFillColor(...COLORS.lightGray)
+      doc.roundedRect(margin, y, contentWidth, diagLines.length * 4.5 + 5, 2, 2, 'F')
+      doc.setFont('helvetica', 'normal')
+      doc.text(diagLines, margin + 3, y + 4.5)
+      y += diagLines.length * 4.5 + 7
+    }
+
+    if (intervencion.solucion) {
+      doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...COLORS.text)
+      doc.text('Solución aplicada:', margin, y)
+      y += 3.5
+      const solLines = doc.splitTextToSize(intervencion.solucion, contentWidth - 6)
+      doc.setFillColor(...COLORS.lightGray)
+      doc.roundedRect(margin, y, contentWidth, solLines.length * 4.5 + 5, 2, 2, 'F')
+      doc.setFont('helvetica', 'normal')
+      doc.text(solLines, margin + 3, y + 4.5)
+      y += solLines.length * 4.5 + 7
+    }
+  }
 
   // =========================================
   // MATERIALES UTILIZADOS
@@ -302,9 +309,14 @@ export async function generarParteTrabajoPDF(intervencion, materiales = []) {
   }
 
   // =========================================
-  // COSTES RESUMEN
+  // COSTES RESUMEN (ocultar si todo es 0 o nulo)
   // =========================================
-  if (intervencion.coste_total != null) {
+  const hayCoste = (intervencion.coste_total ?? 0) > 0
+    || (intervencion.coste_materiales ?? 0) > 0
+    || (intervencion.coste_mano_obra ?? 0) > 0
+    || (intervencion.coste_desplazamiento ?? 0) > 0
+
+  if (hayCoste) {
     if (y > 240) { doc.addPage(); y = margin }
 
     doc.setFillColor(...COLORS.primary)

@@ -63,7 +63,7 @@ export function formatCurrency(value) {
  * Dibuja la cabecera corporativa estándar A360 en un documento jsPDF
  * @returns {number} La coordenada Y después de la cabecera
  */
-export function drawCabecera(doc, LOGO, titulo, subtitulo) {
+export function drawCabecera(doc, LOGO, titulo, subtitulo, { tituloFontSize = 22 } = {}) {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 15
   let y = margin
@@ -73,20 +73,23 @@ export function drawCabecera(doc, LOGO, titulo, subtitulo) {
   const logoHeight = 32
   doc.addImage(LOGO, 'JPEG', margin, y - 2, logoWidth, logoHeight)
 
-  // Datos empresa
+  // Datos empresa — limitados a la mitad izquierda para no solapar con el título
   const empresaX = margin + logoWidth + 6
+  const empresaMaxW = pageWidth / 2 - margin - 4
   doc.setTextColor(...COLORS.text)
-  doc.setFontSize(11)
+  doc.setFontSize(9.5)
   doc.setFont('helvetica', 'bold')
-  doc.text(EMPRESA.nombre, empresaX, y + 8)
+  const nombreLines = doc.splitTextToSize(EMPRESA.nombre, empresaMaxW)
+  doc.text(nombreLines, empresaX, y + 8)
+  const afterNombre = y + 8 + (nombreLines.length - 1) * 4
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${EMPRESA.direccion} · ${EMPRESA.cp} ${EMPRESA.ciudad}, ${EMPRESA.provincia}`, empresaX, y + 14)
-  doc.text(`Tel: ${EMPRESA.telefono} · ${EMPRESA.email}`, empresaX, y + 20)
-  doc.text(`CIF: ${EMPRESA.cif}`, empresaX, y + 26)
+  doc.text(`${EMPRESA.direccion} · ${EMPRESA.cp} ${EMPRESA.ciudad}, ${EMPRESA.provincia}`, empresaX, afterNombre + 6)
+  doc.text(`Tel: ${EMPRESA.telefono} · ${EMPRESA.email}`, empresaX, afterNombre + 12)
+  doc.text(`CIF: ${EMPRESA.cif}`, empresaX, afterNombre + 18)
 
-  // Título del documento
-  doc.setFontSize(22)
+  // Título del documento — alineado a la derecha en la mitad derecha
+  doc.setFontSize(tituloFontSize)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
   doc.text(titulo, pageWidth - margin, y + 10, { align: 'right' })
