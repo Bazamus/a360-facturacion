@@ -8,10 +8,11 @@ import {
 import { useToast } from '@/components/ui/Toast'
 import {
   Edit2, User, Phone, Mail, FileText, Wrench, Clock,
-  CheckCircle, XCircle, AlertTriangle, ArrowRight,
+  CheckCircle, XCircle, AlertTriangle, ArrowRight, ArrowLeft,
 } from 'lucide-react'
 import { TicketComentarios } from './TicketComentarios'
 import { useAuth } from '@/features/auth/AuthContext'
+import { TecnicoBottomNav } from '../tecnico/TecnicoBottomNav'
 
 const ESTADO_VARIANTS = {
   abierto: 'warning', en_progreso: 'info',
@@ -44,7 +45,7 @@ export function TicketDetalle() {
   const crearIntervencion = useCrearIntervencionDesdeTicket()
   const eliminar = useEliminarTicket()
   const { data: usuarios } = useUsuarios()
-  const { isAdmin, isEncargado } = useAuth()
+  const { isAdmin, isEncargado, isTecnico } = useAuth()
   const toast = useToast()
   const [showAsignarModal, setShowAsignarModal] = useState(false)
   const [showEliminarModal, setShowEliminarModal] = useState(false)
@@ -92,14 +93,25 @@ export function TicketDetalle() {
     : '-'
 
   return (
-    <div>
+    <div className={isTecnico ? 'pb-24' : ''}>
+      {/* Botón volver — visible en móvil para técnico */}
+      {isTecnico && (
+        <button
+          onClick={() => navigate(-1)}
+          className="lg:hidden flex items-center gap-2 text-sm text-gray-600 mb-4 -mt-2 active:opacity-70"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Volver
+        </button>
+      )}
+
       <Breadcrumb
         items={[
           { label: 'SAT', href: '/sat' },
           { label: 'Tickets', href: '/sat/tickets' },
           { label: ticket.numero_ticket },
         ]}
-        className="mb-4"
+        className="mb-4 hidden lg:flex"
       />
 
       {/* Header */}
@@ -302,6 +314,9 @@ export function TicketDetalle() {
           </div>
         </div>
       </Modal>
+
+      {/* Bottom nav para técnico */}
+      {isTecnico && <TecnicoBottomNav />}
     </div>
   )
 }
