@@ -44,12 +44,12 @@ export function useTicket(id) {
           *,
           cliente:clientes(id, nombre, apellidos, telefono, email),
           comunidad:comunidades(id, nombre),
-          contrato:contratos_mantenimiento(id, numero_contrato, titulo),
-          intervencion:intervenciones(id, numero_parte, titulo, estado)
+          contrato:contratos_mantenimiento(id, numero_contrato, titulo)
         `)
         .eq('id', id)
-        .single()
+        .maybeSingle()
       if (error) throw error
+      if (!data) return null
 
       // Obtener nombre del asignado desde profiles
       if (data.asignado_a) {
@@ -57,10 +57,23 @@ export function useTicket(id) {
           .from('profiles')
           .select('id, nombre_completo')
           .eq('id', data.asignado_a)
-          .single()
+          .maybeSingle()
         data.asignado = profile || null
       } else {
         data.asignado = null
+      }
+
+      // Obtener datos de la intervención vinculada (query separada para evitar
+      // problemas de RLS con el embed directo desde tickets_sat)
+      if (data.intervencion_id) {
+        const { data: intervencion } = await supabase
+          .from('intervenciones')
+          .select('id, numero_parte, titulo, estado')
+          .eq('id', data.intervencion_id)
+          .maybeSingle()
+        data.intervencion = intervencion || null
+      } else {
+        data.intervencion = null
       }
 
       return data
