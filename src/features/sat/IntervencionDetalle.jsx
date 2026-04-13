@@ -18,8 +18,9 @@ import { useState } from 'react'
 import {
   Edit2, Play, Truck, XCircle, RotateCcw, User, Phone, MapPin,
   Calendar, FileText, AlertTriangle, ChevronDown, Download, ExternalLink,
-  CheckCircle, Clock,
+  CheckCircle, Clock, ArrowLeft,
 } from 'lucide-react'
+import { TecnicoBottomNav } from './tecnico/TecnicoBottomNav'
 import { IntervencionTimeline } from './IntervencionTimeline'
 import { MaterialesIntervencion } from './MaterialesIntervencion'
 import { FirmaDigital } from './FirmaDigital'
@@ -47,7 +48,7 @@ export function IntervencionDetalle() {
   const generarParte = useGenerarParteTrabajo()
   const descargarParte = useDescargarParteTrabajo()
   const eliminar = useEliminarIntervencion()
-  const { isAdmin, isEncargado } = useAuth()
+  const { isAdmin, isEncargado, isTecnico } = useAuth()
   const toast = useToast()
   const [showCerrarModal, setShowCerrarModal] = useState(false)
   const [showFacturarModal, setShowFacturarModal] = useState(false)
@@ -177,14 +178,25 @@ export function IntervencionDetalle() {
   }
 
   return (
-    <div>
+    <div className={isTecnico ? 'pb-24' : ''}>
+      {/* Botón volver — visible en móvil para técnico */}
+      {isTecnico && (
+        <button
+          onClick={() => navigate(-1)}
+          className="lg:hidden flex items-center gap-2 text-sm text-gray-600 mb-4 -mt-2 active:opacity-70"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Volver
+        </button>
+      )}
+
       <Breadcrumb
         items={[
           { label: 'SAT', href: '/sat' },
           { label: 'Intervenciones', href: '/sat/intervenciones' },
           { label: intervencion.numero_parte },
         ]}
-        className="mb-4"
+        className="mb-4 hidden lg:flex"
       />
 
       {/* Header */}
@@ -512,6 +524,9 @@ export function IntervencionDetalle() {
           </div>
         </div>
       </Modal>
+
+      {/* Bottom nav para técnico */}
+      {isTecnico && <TecnicoBottomNav />}
     </div>
   )
 }

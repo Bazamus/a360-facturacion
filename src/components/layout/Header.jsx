@@ -5,7 +5,7 @@ import { NotificationBell } from '@/components/layout/NotificationBell'
 import { Menu, LogOut, User } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
-export function Header({ onMenuClick }) {
+export function Header({ onMenuClick, hideMenu = false }) {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -31,17 +31,27 @@ export function Header({ onMenuClick }) {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-primary-100 bg-white/95 backdrop-blur-sm px-4 shadow-soft sm:gap-x-6 sm:px-6 lg:px-8">
-      {/* Botón menú móvil + Logo */}
-      <div className="flex items-center gap-3 lg:hidden">
-        <button
-          type="button"
-          className="-m-2.5 p-2.5 text-gray-700 hover:text-primary-600 transition-colors"
-          onClick={onMenuClick}
-        >
-          <Menu className="h-6 w-6" />
-        </button>
-        <Logo variant="icon" size="sm" className="w-8 h-8" />
-      </div>
+      {/* Botón menú móvil + Logo — oculto para técnico (usan bottom nav) */}
+      {!hideMenu && (
+        <div className="flex items-center gap-3 lg:hidden">
+          <button
+            type="button"
+            className="-m-2.5 p-2.5 text-gray-700 hover:text-primary-600 transition-colors"
+            onClick={onMenuClick}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <Logo variant="icon" size="sm" className="w-8 h-8" />
+        </div>
+      )}
+
+      {/* Logo para técnico (sin hamburger) */}
+      {hideMenu && (
+        <div className="flex items-center gap-2 lg:hidden">
+          <Logo variant="icon" size="sm" className="w-8 h-8" />
+          <span className="text-sm font-semibold text-gray-700">A360 SAT</span>
+        </div>
+      )}
 
       {/* Separador */}
       <div className="h-6 w-px bg-primary-100 lg:hidden" />

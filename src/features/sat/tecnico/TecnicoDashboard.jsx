@@ -4,9 +4,10 @@ import { useAuth } from '@/features/auth/AuthContext'
 import { useCitas, useIntervenciones } from '@/hooks'
 import { LoadingSpinner } from '@/components/ui'
 import { IntervencionQuickCard } from './IntervencionQuickCard'
+import { TecnicoBottomNav } from './TecnicoBottomNav'
 import {
-  CalendarDays, ClipboardList, Wrench, RefreshCw, ChevronRight,
-  Clock, CheckCircle, AlertTriangle,
+  CalendarDays, ClipboardList, RefreshCw,
+  CheckCircle, AlertTriangle,
 } from 'lucide-react'
 
 function formatFechaHoy() {
@@ -245,26 +246,8 @@ export function TecnicoDashboard() {
       </div>
 
       {/* Navegación inferior fija */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-2 pb-safe-bottom flex justify-around z-20">
-        <NavItem icon={CalendarDays} label="Mi Agenda" active to="/sat/mi-agenda" navigate={navigate} />
-        <NavItem icon={ClipboardList} label="Todas" to="/sat/intervenciones" navigate={navigate} />
-        <NavItem icon={Wrench} label="SAT" to="/sat" navigate={navigate} />
-      </nav>
+      <TecnicoBottomNav />
     </div>
-  )
-}
-
-function NavItem({ icon: Icon, label, active, to, navigate }) {
-  return (
-    <button
-      onClick={() => navigate(to)}
-      className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-colors ${
-        active ? 'text-blue-600' : 'text-gray-400'
-      }`}
-    >
-      <Icon className="h-5 w-5" />
-      <span className="text-xs">{label}</span>
-    </button>
   )
 }
 
