@@ -164,7 +164,7 @@ export function TicketsLista() {
       <div className="min-h-screen bg-gray-50 pb-24">
         {/* Cabecera móvil */}
         <div className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-10">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <button
               onClick={() => navigate('/sat/mi-agenda')}
               className="p-2 rounded-xl bg-gray-100 text-gray-600 active:bg-gray-200 flex-shrink-0"
@@ -172,24 +172,35 @@ export function TicketsLista() {
               <ArrowLeft className="h-4 w-4" />
             </button>
             <h1 className="text-base font-bold text-gray-900 flex-1">Tickets</h1>
+            {totalCount > 0 && (
+              <span className="text-xs text-gray-400">{totalCount} tickets</span>
+            )}
           </div>
 
-          {/* Búsqueda y filtro rápido */}
-          <div className="flex gap-2 mt-3">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0) }}
-              placeholder="Buscar ticket..."
-              className="flex-1 pl-3 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={filtroEstado}
-              onChange={(e) => { setFiltroEstado(e.target.value); setPage(0) }}
-              className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none"
-            >
-              {ESTADO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+          {/* Búsqueda */}
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0) }}
+            placeholder="Buscar por número, asunto o cliente..."
+            className="w-full pl-3 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          />
+
+          {/* Filtro estado — chips horizontales */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {ESTADO_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => { setFiltroEstado(o.value); setPage(0) }}
+                className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  filtroEstado === o.value
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
         </div>
 
