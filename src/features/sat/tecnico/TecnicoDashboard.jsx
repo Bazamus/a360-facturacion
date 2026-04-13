@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/ui'
 import { IntervencionQuickCard } from './IntervencionQuickCard'
 import { TecnicoBottomNav } from './TecnicoBottomNav'
 import {
-  CalendarDays, ClipboardList, RefreshCw,
+  CalendarDays, ClipboardList, Wrench, RefreshCw,
   CheckCircle, AlertTriangle,
 } from 'lucide-react'
 
